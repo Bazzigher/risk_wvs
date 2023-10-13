@@ -47,3 +47,6 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# Ignore folder "risk_wvs_data" risk_wvs
+/Users/laurabazzigher/Documents/GitHub/risk_wvs/risk_wvs_data
