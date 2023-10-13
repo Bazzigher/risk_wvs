@@ -1,0 +1,27 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(data.table)
+library(tidyr)
+```
+
+```{r}
+# get the Data of Wave 5
+WV5_data <- readRDS("/Users/laurabazzigher/Documents/GitHub/risk_wvs/risk_wvs_data/F00007944-WV5_Data_R_v20180912.rds")
+```
+
+```{r}
+# Konvertieren Sie das my_data-Objekt in ein data.frame (falls es nicht bereits eins ist)
+WV5_data_df <- as.data.frame(WV5_data)
+
+# #show first column
+head(WV5_data_df[, 1:5])
+```
+
+```{r}
+# Struktur der Daten anzeigen
+str(my_data)
+```
