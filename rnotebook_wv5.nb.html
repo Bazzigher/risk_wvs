@@ -1762,32 +1762,32 @@ library(tidyr)</code></pre>
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBnZXQgdGhlIERhdGEgb2YgV2F2ZSA1XG5XVjVfZGF0YSA8LSByZWFkUkRTKFwiL1VzZXJzL2xhdXJhYmF6emlnaGVyL0RvY3VtZW50cy9HaXRIdWIvcmlza193dnMvcmlza193dnNfZGF0YS9GMDAwMDc5NDQtV1Y1X0RhdGFfUl92MjAxODA5MTIucmRzXCIpXG5gYGAifQ== -->
-<pre class="r"><code># get the Data of Wave 5
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBEYXRhIG9mIFdhdmUgNVxuV1Y1X2RhdGEgPC0gcmVhZFJEUyhcIi9Vc2Vycy9sYXVyYWJhenppZ2hlci9Eb2N1bWVudHMvR2l0SHViL3Jpc2tfd3ZzL3Jpc2tfd3ZzX2RhdGEvRjAwMDA3OTQ0LVdWNV9EYXRhX1JfdjIwMTgwOTEyLnJkc1wiKVxuYGBgIn0= -->
+<pre class="r"><code># Data of Wave 5
 WV5_data &lt;- readRDS(&quot;/Users/laurabazzigher/Documents/GitHub/risk_wvs/risk_wvs_data/F00007944-WV5_Data_R_v20180912.rds&quot;)</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBLb252ZXJ0aWVyZW4gU2llIGRhcyBteV9kYXRhLU9iamVrdCBpbiBlaW4gZGF0YS5mcmFtZSAoZmFsbHMgZXMgbmljaHQgYmVyZWl0cyBlaW5zIGlzdClcbldWNV9kYXRhX2RmIDwtIGFzLmRhdGEuZnJhbWUoV1Y1X2RhdGEpXG5cbiMgI3Nob3cgZmlyc3QgY29sdW1uXG5oZWFkKFdWNV9kYXRhX2RmWywgMTo1XSlcbmBgYCJ9 -->
-<pre class="r"><code># Konvertieren Sie das my_data-Objekt in ein data.frame (falls es nicht bereits eins ist)
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBDb252ZXJ0IFdWNV9kYXRhLW9iamVjdCBpbiBkYXRhLmZyYW1lIFxuV1Y1X2RhdGFfZGYgPC0gYXMuZGF0YS5mcmFtZShXVjVfZGF0YSlcblxuIyBzaG93IGZpcnN0IGZpdmUgY29sdW1uc1xuaGVhZChXVjVfZGF0YV9kZlssIDE6NV0pXG5gYGAifQ== -->
+<pre class="r"><code># Convert WV5_data-object in data.frame 
 WV5_data_df &lt;- as.data.frame(WV5_data)
 
-# #show first column
+# show first five columns
 head(WV5_data_df[, 1:5])</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBTdHJ1a3R1ciBkZXIgRGF0ZW4gYW56ZWlnZW5cbnN0cihteV9kYXRhKVxuYGBgIn0= -->
-<pre class="r"><code># Struktur der Daten anzeigen
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBzaG93IHN0cnVjdHVyZVxuc3RyKG15X2RhdGEpXG5gYGAifQ== -->
+<pre class="r"><code># show structure
 str(my_data)</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 
-<div id="rmd-source-code">LS0tCnRpdGxlOiAiUiBOb3RlYm9vayIKb3V0cHV0OiBodG1sX25vdGVib29rCi0tLQoKYGBge3J9CmxpYnJhcnkoZGF0YS50YWJsZSkKbGlicmFyeSh0aWR5cikKYGBgCgpgYGB7cn0KIyBnZXQgdGhlIERhdGEgb2YgV2F2ZSA1CldWNV9kYXRhIDwtIHJlYWRSRFMoIi9Vc2Vycy9sYXVyYWJhenppZ2hlci9Eb2N1bWVudHMvR2l0SHViL3Jpc2tfd3ZzL3Jpc2tfd3ZzX2RhdGEvRjAwMDA3OTQ0LVdWNV9EYXRhX1JfdjIwMTgwOTEyLnJkcyIpCmBgYAoKYGBge3J9CiMgS29udmVydGllcmVuIFNpZSBkYXMgbXlfZGF0YS1PYmpla3QgaW4gZWluIGRhdGEuZnJhbWUgKGZhbGxzIGVzIG5pY2h0IGJlcmVpdHMgZWlucyBpc3QpCldWNV9kYXRhX2RmIDwtIGFzLmRhdGEuZnJhbWUoV1Y1X2RhdGEpCgojICNzaG93IGZpcnN0IGNvbHVtbgpoZWFkKFdWNV9kYXRhX2RmWywgMTo1XSkKYGBgCgpgYGB7cn0KIyBTdHJ1a3R1ciBkZXIgRGF0ZW4gYW56ZWlnZW4Kc3RyKG15X2RhdGEpCmBgYAo=</div>
+<div id="rmd-source-code">LS0tCnRpdGxlOiAiUiBOb3RlYm9vayIKb3V0cHV0OiBodG1sX25vdGVib29rCi0tLQoKYGBge3J9CmxpYnJhcnkoZGF0YS50YWJsZSkKbGlicmFyeSh0aWR5cikKYGBgCgpgYGB7cn0KIyBEYXRhIG9mIFdhdmUgNQpXVjVfZGF0YSA8LSByZWFkUkRTKCIvVXNlcnMvbGF1cmFiYXp6aWdoZXIvRG9jdW1lbnRzL0dpdEh1Yi9yaXNrX3d2cy9yaXNrX3d2c19kYXRhL0YwMDAwNzk0NC1XVjVfRGF0YV9SX3YyMDE4MDkxMi5yZHMiKQpgYGAKCmBgYHtyfQojIENvbnZlcnQgV1Y1X2RhdGEtb2JqZWN0IGluIGRhdGEuZnJhbWUgCldWNV9kYXRhX2RmIDwtIGFzLmRhdGEuZnJhbWUoV1Y1X2RhdGEpCgojIHNob3cgZmlyc3QgZml2ZSBjb2x1bW5zCmhlYWQoV1Y1X2RhdGFfZGZbLCAxOjVdKQpgYGAKCmBgYHtyfQojIHNob3cgc3RydWN0dXJlCnN0cihteV9kYXRhKQpgYGAK</div>
 
 
 
