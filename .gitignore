@@ -52,4 +52,4 @@ rsconnect/
 /Users/laurabazzigher/Documents/GitHub/risk_wvs/risk_wvs_data
 
 # Ignore folder "data"
-/data
+**/data/
