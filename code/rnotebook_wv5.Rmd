@@ -10,7 +10,10 @@ library(tidyr)
 
 ```{r}
 # Data of Wave 5
-WV5_data <- readRDS("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/F00007944-WV5_Data_R_v20180912.rds")
+
+
+WV5_data <- readRDS("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/F00007944-WV5_Data_R_v20180912.rds")
+
 ```
 
 ```{r}
@@ -22,6 +25,42 @@ head(WV5_data_df[, 1:5])
 ```
 
 ```{r}
-# show structure
-str(my_data)
+# Data of Wave 6
+WV6_data <- load("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/WV6_Data_R_v20201117.rdata")
+WV6_data <- WV6_Data_R_v20201117
+print(WV6_data)
 ```
+
+
+```{r}
+# Convert WV6_data-object in data.frame 
+WV6_data_df <- as.data.frame(WV6_data)
+
+# show first five columns
+head(WV6_data_df[, 1:5])
+
+WV6_data_df
+```
+
+```{r}
+print(WV5_data_df)
+print(WV6_data_df)
+```
+```{r}
+
+library(dplyr)
+
+WV5_data <- WV5_data_df %>%
+  rename(risk = V86, sex = V235, age = V237)
+WV5_data
+
+
+
+WV5_data <- WV5_data %>%
+  select(risk, sex, age)
+WV5_data
+
+
+
+```
+
