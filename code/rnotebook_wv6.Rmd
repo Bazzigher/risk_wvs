@@ -1,0 +1,105 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#Install packages 
+```{r}
+install.packages("haven")
+```
+
+#Load packages 
+```{r}
+library(data.table)
+library(tidyr)
+library(haven)
+library(ggplot2)
+```
+
+
+#Add data WV6
+```{r}
+WV6_data <- load("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/WV6_dataset_wave_5_6/WV6_Data_R_v20201117.rdata") 
+WV6_data <- WV6_Data_R_v20201117 
+print(WV6_data)
+```
+#Name the variables 
+```{r}
+data6 = WV6_Data_R_v20201117[, c("V1", "V2", "V10", "V23", "V70", "V71","V72","V73", "V74B", "V75", "V76", "V77", "V78",  "V79", "V147", "V149","V198", "V199", "V201", "V208","V209", "V210", "V240", "V242", "V248", "V229", "V57", "V58")]
+
+names(data6) = c("v1_wave", "v2_country", "v10_happyness", "v23_satisfaction", "v70_creativity", "v71_money", "v72_security", "v73_goodtime", "v74b_help", "v75_success", "v76_risk", "v77_proper", "v78_environment", "v79_tradition", "v147_religion", "v149_hell", "v198_gov_benefits", "v199_fare_public_transportation", "v201_cheating_taxes", "v208_beating_wife", "v209_beating_children", "v210_violence", "v240_sex", "v242_age", "v248_education", "v229_employed", "v57_married", "v58_children")
+```
+
+
+#Exlusion of participants which no info about sex, age, education, employment status, marital status, or number of children
+```{r}
+data6 = subset(data6, v76_risk > 0 & v240_sex > 0 & v242_age >0 & v248_education > 0 & v229_employed > 0 & v57_married > 0 & v58_children >= 0)
+```
+
+# Scatterplot of Age vs. Risk with ggplot
+```{r}
+data_df <- data.frame(Age = data6$v242_age, Risk = data6$v76_risk) # Convert data into a data frame.
+
+ggplot(data_df, aes(x = Age, y = Risk)) +
+  geom_point(color = "blue", size = 1) +
+  labs(title = "Scatterplot of Age vs. Risk",
+       x = "Age",
+       y = "Risk")
+```
+
+# Histogramm des Alters
+```{r}
+hist(data6$v242_age, 
+     main="Häufigkeitsverteilung des Alters",
+     xlab="Alter",
+     ylab="Häufigkeit",
+     col="blue")
+```
+
+
+#Number of countries
+```{r}
+length(unique(data6$v2_country)) # what is wrong?
+```
+
+#Number of participants
+```{r}
+nrow(data6) 
+```
+
+#Range of age
+```{r}
+range(data6$v242_age) 
+```
+
+#Table about gender
+```{r}
+table(data6$sex) #is this correct???
+```
+
+
+
+#Categorical age variable (for example, to plot response frequencies by category)
+```{r}
+data6$agecat <- NA  # Create an empty column 'agecat'
+
+data6$agecat[data6$age < 20] = "15-19"
+data6$agecat[data6$age >= 20 & data6$age < 30] = "20-29"
+data6$agecat[data6$age >= 30 & data6$age < 40] = "30-39"
+data6$agecat[data6$age >= 40 & data6$age < 50] = "40-49"
+data6$agecat[data6$age >= 50 & data6$age < 60] = "50-59"
+data6$agecat[data6$age >= 60 & data6$age < 70] = "60-69"
+data6$agecat[data6$age >= 70 & data6$age < 80] = "70-79"
+data6$agecat[data6$age >= 80] = "80+"
+```
+
+
+
+
+
+
+
+
+
+
+
