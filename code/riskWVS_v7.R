@@ -18,8 +18,8 @@ load("WV6_Data_r_v_2015_04_18.rdata")
 # read in a file with the country names and respective numeric codes used in WVS
 countrynames = read.csv("countrynames.txt", header=FALSE,as.is=TRUE)
 
-# select a subset of the WVS data (Wave 5), including wave, country, 10 Schwartz items (including the risk item), and demographics
-data5 = WV5_Data_r_v_2015_04_18[, c("V1", "V2", "V80","V81","V82","V83","V84","V85","V86","V87","V88","V89", "V235", "V237", "V238", "V241", "V55", "V56", "V260")]
+# select a subset (Wave 5) of the WVS data, including wave, country, 10 Schwartz items (including the risk item), and demographics
+data5 = WV5_Data_r_v_2015_04_18[, c("V1", "V2","V80","V81","V82","V83","V84","V85","V86","V87","V88","V89", "V235", "V237", "V238", "V241", "V55", "V56", "V260")]
 names(data5) = c("wave", "country","creativity","money","security","goodtime","help","success","risk","proper","environment","tradition", "sex", "age", "education", "employed", "married", "children", "year")
 
 # DATA CHECK: comparing the N from data5 against the counts from counts provided in www.worldvaluessurvey.org
