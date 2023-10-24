@@ -7,7 +7,8 @@ output: html_notebook
 library(data.table)
 library(tidyr)
 ```
-#read the data
+
+#read the data (Wave 5)
 ```{r}
 # Data of Wave 5
 
@@ -22,19 +23,19 @@ WV5_data_df <- as.data.frame(WV5_data)
 head(WV5_data_df[, 1:5])
 ```
 
-``
+# clean the data set
 ```{r}
 library(dplyr)
 
 #rename the variables
 WV5_data <- WV5_data_df %>%
-  rename(risk_and_adventure = V86, sex = V235, age = V237, country = V2)
+  rename(risk_and_adventure = V86, sex = V235, age = V237, country = V2, wave = V1)
 WV5_data
 
 
 #select only the variables of interest
 WV5_data <- WV5_data %>%
-  select(risk_and_adventure, sex, age, country)
+  select(risk_and_adventure, sex, age, country, wave)
 WV5_data
 ```
 
@@ -54,45 +55,29 @@ WV5_data
 
 ```
 
-
-```{r}
-
-library(ggplot2)
-
-p = ggplot(WV5_data_df, aes(as.factor(sex),risk_and_adventure))+
-  geom_boxplot()+
-  theme_bw()
-p
-
-
-```
-
-
-```{r}
-
-p2 <- ggplot(WV5_data, aes(x = risk_and_adventure, y = sex, color = as.factor(country_lab))) +
-  geom_point() +
-  geom_smooth(method = "lm", se = TRUE)
-p2
-
-
-```
+#Read Dataset (Wave 6)
 ```{r}
 WV6_data <- load("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/WV6_Data_R_v20201117.rdata") 
 WV6_data <- WV6_Data_R_v20201117 
 print(WV6_data)
 ```
+`
+``{r}
+#rename variables
 ```{r}
 WV6_data <- WV6_data %>%
-  rename(risk_and_adventure = V76, sex = V240, age = V242, education = V237, country = V2)
+  rename(wave = V1, risk_and_adventure = V76, sex = V240, age = V242, education = V237, country = V2)
 
 
 #select only the variables of interest
 WV6_data <- WV6_data %>%
-  select(risk_and_adventure, sex, age, country)
+  select(risk_and_adventure, sex, age, country, wave)
 WV6_data
 
 ```
+
+
+#decode daraset (Wave 6)
 ```{r}
 countrynames = read.csv("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/countrynames.txt", header=FALSE,as.is=TRUE)
 colnames(countrynames) = c("code", "name")
@@ -100,10 +85,102 @@ WV6_data$country_lab = countrynames$name [match(WV6_data$country, countrynames$c
 table(WV6_data$country_lab)
 WV6_data
 ```
+
+#exclude participants with no info about risk, sex, and age
 ```{r}
 WV6_data = subset(WV6_data, risk_and_adventure > 0 & sex > 0 & age >0)
+```
+
+#combine the 2 dataset (Wave 6 + Wave 5)
+```{r}
 data = rbind(WV5_data, WV6_data)
 data
+```
+#number of countries
+```{r}
+length(unique(data$country_lab))
+```
+
+#number of participants
+```{r}
+nrow(data)
+```
+#exclusion of participants
+```{r}
+data = subset(data, risk_and_adventure > 0 & sex > 0 & age > 0)
+data
+
+```
+#number of males vs females (1 = males; 2 = females)
+```{r}
+table(data$sex)
+```
+#create a categorical age variable
+```{r}
+data$agecat[data$age<20]="15-19"
+data$agecat[data$age>=20 & data$age <30] = "20-29"
+data$agecat[data$age>=30 & data$age <40] = "30-39"
+data$agecat[data$age>=40 & data$age <50] = "40-49"
+data$agecat[data$age>=50 & data$age <60] = "50-59"
+data$agecat[data$age>=60 & data$age <70] = "60-69"
+data$agecat[data$age>=70 & data$age <80] = "70-79"
+data$agecat[data$age>=80] = "80+"
+```
+
+
+#gender variables
+```{r}
+data$sex[data$sex == 1] <- "male"
+data$sex[data$sex == 2] <- "female"
+```
+
+#average age of participants
+```{r}
+mean(data$age)
+```
+
+#age range
+```{r}
+range(data$age) 
+```
+#risk taking Frequency
+```{r}
+ggplot(data, aes(x = risk_and_adventure)) +
+  geom_histogram(binwidth = 0.5, fill = "lightblue", color = "black") +
+  labs(x = "Risk Taking", y = "Frequency", title = "Histogram of Risk Taking") +
+  theme_minimal()
+```
+#age frequency
+```{r}
+ggplot(data, aes(x = age)) +
+  geom_histogram(binwidth = 0.5, fill = "lightblue", color = "black") +
+  labs(x = "Age", y = "Frequency", title = "Histogram of Age Distributionn") +
+  theme_minimal()
+```
+#age vs risk taking
+```{r}
+
+ggplot(data, aes(x = agecat, y = risk_and_adventure)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of Risk and Adventure by Age",
+       x = "Age",
+       y = "Risk and Adventure") +
+  theme_minimal()
+
+
+```
+#sex vs risk taking
+```{r}
+ggplot(data, aes(as.factor(sex), risk_and_adventure ))+
+  geom_boxplot()
+
+```
+```{r}
+data
+```
+
+```{r}
+
 ```
 
 
