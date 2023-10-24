@@ -237,9 +237,8 @@ data6$agecat[data6$v242_age >= 80] = "80+"
 
 ```{r}
 # Erstellen einer neuen Zeile für die Variable 
-data6$sex <- NA
+data6$sex <- NA # Create an empty column 'sex'
 
-# Zuordnen der Werte
 data6$sex[data6$v240_sex == 1] <- "male"
 data6$sex[data6$v240_sex == 2] <- "female"
 ```
