@@ -132,7 +132,6 @@ data6$success[data6$v75_success == 6] <- "Not at all like me"
 #New column for variable "risk"
 
 ```{r}
-# Erstellen einer neuen Zeile für die Variable 
 data6$risk <- NA
 
 # Zuordnen der Werte
@@ -218,6 +217,18 @@ data6$marital_status[data6$v57_married == 5] <- "Widowed"
 data6$marital_status[data6$v57_married == 6] <- "Single"
 ```
 
+#New column for variable "religion"
+
+```{r}
+# Erstellen einer neuen Zeile für die Variable 
+data6$religion <- NA
+
+# Zuordnen der Werte
+data6$religion[data6$v147_religion == 1] <- "A religious person"
+data6$religion[data6$v147_religion == 2] <- "Not a religious person"
+data6$religion[data6$v147_religion == 3] <- "An atheist"
+```
+
 
 #Categorical age variable (for example, to plot response frequencies by category)
 ```{r}
@@ -243,28 +254,6 @@ data6$sex[data6$v240_sex == 1] <- "male"
 data6$sex[data6$v240_sex == 2] <- "female"
 ```
 
-
-# Scatterplot of Age vs. Risk with ggplot
-```{r}
-data_df <- data.frame(Age = data6$v242_age, Risk = data6$v76_risk) # Convert data into a data frame.
-
-ggplot(data_df, aes(x = Age, y = Risk)) +
-  geom_point(color = "blue", size = 1) +
-  labs(title = "Scatterplot of Age vs. Risk",
-       x = "Age",
-       y = "Risk")
-```
-
-# Histogramm des Alters
-```{r}
-hist(data6$v242_age, 
-     main="Häufigkeitsverteilung des Alters",
-     xlab="Alter",
-     ylab="Häufigkeit",
-     col="blue")
-```
-
-
 #Number of countries
 ```{r}
 length(unique(data6$v2_country)) 
@@ -285,11 +274,73 @@ range(data6$v242_age)
 table(data6$sex)
 ```
 
+# Scatterplot of Age vs. Risk with ggplot
+```{r}
+data_df <- data.frame(Age = data6$v242_age, Risk = data6$v76_risk) # Convert data into a data frame.
+
+ggplot(data_df, aes(x = Age, y = Risk)) +
+  geom_point(color = "blue", size = 1) +
+  labs(title = "Scatterplot of Age vs. Risk",
+       x = "Age",
+       y = "Risk")
+```
+
+# Histogramm for Age
+```{r}
+hist(data6$v242_age, 
+     main="Häufigkeitsverteilung des Alters",
+     xlab="Alter",
+     ylab="Häufigkeit",
+     col="blue")
+```
 
 
+# Overview of religion vs. Risk
+```{r}
+cross_table <- table(data6$religion, data6$risk)
+print(cross_table)
+```
 
+```{r}
+data_df <- data.frame(Religion = data6$religion, Risk = data6$risk)
 
+# Säulendiagramm erstellen
+ggplot(data_df, aes(x = Religion, fill = Risk)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Distribution of Risk by Religion",
+       x = "Religion",
+       y = "Count")
+```
 
+#compare the groups religion and risk
+```{r}
+# Summe of participants in each group
+sum_religious <- sum(c(8338, 718, 3790))
+sum_atheist <- sum(c(8617, 612, 2887))
+sum_not_religious <- sum(c(8905, 507, 2851))
+
+# normalising data
+normalized_data <- data.frame(
+  Religion = c("A religious person", "An atheist", "Not a religious person"),
+  `A little like me` = c(8338/sum_religious, 718/sum_atheist, 3790/sum_not_religious),
+  `Like me` = c(8617/sum_religious, 612/sum_atheist, 2887/sum_not_religious),
+  `Not at all like me` = c(8905/sum_religious, 507/sum_atheist, 2851/sum_not_religious),
+  `Not like me` = c(12174/sum_religious, 1031/sum_atheist, 4944/sum_not_religious),
+  `Somewhat like me` = c(10144/sum_religious, 689/sum_atheist, 3678/sum_not_religious),
+  `Very much like me` = c(6643/sum_religious, 335/sum_atheist, 1804/sum_not_religious)
+)
+
+# Convert data to long format
+normalized_data_long <- tidyr::gather(normalized_data, key = "Risk", value = "Percentage", -Religion)
+
+# Create a bar chart
+ggplot(normalized_data_long, aes(x = Religion, y = Percentage, fill = Risk)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Normalized Risk Distribution by Religion",
+       x = "Religion",
+       y = "Percentage")
+
+```
 
 
 
