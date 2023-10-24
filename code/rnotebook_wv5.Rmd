@@ -7,13 +7,12 @@ output: html_notebook
 library(data.table)
 library(tidyr)
 ```
-
+#read the data
 ```{r}
 # Data of Wave 5
 
 
 WV5_data <- readRDS("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/F00007944-WV5_Data_R_v20180912.rds")
-
 
 
 # Convert WV5_data-object in data.frame 
@@ -23,49 +22,40 @@ WV5_data_df <- as.data.frame(WV5_data)
 head(WV5_data_df[, 1:5])
 ```
 
+``
 ```{r}
-# Data of Wave 6
-WV6_data <- load("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/WV6_Data_R_v20201117.rdata")
-WV6_data <- WV6_Data_R_v20201117
-print(WV6_data)
-```
-
-
-```{r}
-# Convert WV6_data-object in data.frame 
-WV6_data_df <- as.data.frame(WV6_data)
-
-# show first five columns
-head(WV6_data_df[, 1:5])
-
-WV6_data_df
-```
-
-```{r}
-print(WV5_data_df)
-print(WV6_data_df)
-```
-```{r}
-
 library(dplyr)
 
+#rename the variables
 WV5_data <- WV5_data_df %>%
   rename(risk_and_adventure = V86, sex = V235, age = V237, country = V2, family_important = V4, friends_important = V5, leisure_time = V6, happiness = V10, subjective_health = V11, satisfaction_with_life = V22, marital_status = V55, children = V56, employment = V241, income = V253CS)
 WV5_data
 
 
-
+#select only the variables of interest
 WV5_data <- WV5_data %>%
   select(risk_and_adventure, sex, age, country, family_important, friends_important, leisure_time, happiness, subjective_health, satisfaction_with_life, marital_status, children, employment, income)
 WV5_data
+```
 
+```{r}
+#exlcusion of participants with no info about risk, sex, age, employment, merital status and children 
+WV5_data_df = subset(WV5_data, risk_and_adventure > 0 & sex > 0 & age >0 & employment > 0 & marital_status > 0 & children >= 0)
+```
 
+```{r}
+#decode the country names 
+countrynames = read.csv("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/countrynames.txt", header=FALSE,as.is=TRUE)
+colnames(countrynames) = c("code", "name")
+WV5_data$country_lab = countrynames$name [match(WV5_data$country, countrynames$code)]
+table(WV5_data$country_lab)
+WV5_data
 
 
 ```
 
+
 ```{r}
-WV5_data_df = subset(WV5_data, risk_and_adventure > 0 & sex > 0 & age >0 & employment > 0 & marital_status > 0 & children >= 0)
 
 library(ggplot2)
 
@@ -79,15 +69,22 @@ p
 
 
 ```{r}
-p2 = ggplot(WV5_data_df, aes(risk_and_adventure,sex, color = as.factor(country)))+
-  geom_point()+
+
+p2 <- ggplot(WV5_data, aes(x = risk_and_adventure, y = sex, color = as.factor(country_lab))) +
+  geom_point() +
   geom_smooth(method = "lm", se = TRUE)
-p2 
+p2
+
+
 ```
 ```{r}
 
 ```
 
+```{r}
+#Todo: 
+
+```
 
 
 
