@@ -3,6 +3,27 @@ title: "R Notebook"
 output: html_notebook
 ---
 
+#### To Do: 
+# 1. Load 
+# 2. Key variables
+# 3. descriptives --> how many countries, participants 
+# 4. How to visualize? do we want to do the visualization? Per Country or all together // coulors? etc. 
+# 5. What do we want to present? 
+- Presentation 19.12.2023 
+- finalise presentation 05.12.2023 with rui
+- Send presentation 27.11.2023 
+- Presentation content 
+  - why we do this 
+  - research gap 
+  - method 
+  - results
+  - challenges 
+  - conclusion 
+  ---> Do the Presentation on GoogleSlides 
+- cancel 12.12.2023 und 19.12.2023 
+
+# etc. ..... 
+
 #Install packages 
 ```{r}
 install.packages("haven")
@@ -27,8 +48,7 @@ print(WV6_data)
 ```{r}
 data6 = WV6_Data_R_v20201117[, c("V1", "V2", "V10", "V23", "V70", "V71","V72","V73", "V74B", "V75", "V76", "V77", "V78",  "V79", "V147", "V149","V198", "V199", "V201", "V208","V209", "V210", "V240", "V242", "V248", "V229", "V57", "V58")]
 
-names(data6) = c("v1_wave", "v2_country", "v10_happyness", "v23_satisfaction", "v70_creativity", "v71_money", "v72_security", "v73_goodtime", "v74b_help", "v75_success", "v76_risk", "v77_proper", "v78_environment", "v79_tradition", 
-                 "v147_religion", "v149_hell", "v198_gov_benefits", "v199_fare_public_transportation", "v201_cheating_taxes", "v208_beating_wife", "v209_beating_children", "v210_violence", "v240_sex", "v242_age", "v248_education", "v229_employed", "v57_married", "v58_children")
+names(data6) = c("v1_wave", "v2_country", "v10_happyness", "v23_satisfaction", "v70_creativity", "v71_money", "v72_security", "v73_goodtime", "v74b_help", "v75_success", "v76_risk", "v77_proper", "v78_environment", "v79_tradition", "v147_religion", "v149_hell", "v198_gov_benefits", "v199_fare_public_transportation", "v201_cheating_taxes", "v208_beating_wife", "v209_beating_children", "v210_violence", "v240_sex", "v242_age", "v248_education", "v229_employed", "v57_married", "v58_children")
 ```
 
 
@@ -39,7 +59,6 @@ data6 = subset(data6, v76_risk > 0 & v240_sex > 0 & v242_age >0 & v248_education
 
 
 #New column for variable "creativity"
-
 ```{r}
 # Erstellen einer neuen Zeile für die Variable 
 data6$creativity <- NA
@@ -54,12 +73,9 @@ data6$creativity[data6$v70_creativity == 6] <- "Not at all like me"
 ```
 
 #New column for variable "security"
-
 ```{r}
-# Erstellen einer neuen Zeile für die Variable 
 data6$creativity <- NA
 
-# Zuordnen der Werte
 data6$security[data6$v72_security == 1] <- "Very much like me"
 data6$security[data6$v72_security == 2] <- "Like me"
 data6$security[data6$v72_security == 3] <- "Somewhat like me"
@@ -69,12 +85,9 @@ data6$security[data6$v72_security == 6] <- "Not at all like me"
 ```
 
 #New column for variable "goodtime"
-
 ```{r}
-# Erstellen einer neuen Zeile für die Variable 
 data6$goodtime <- NA
 
-# Zuordnen der Werte
 data6$goodtime[data6$v73_goodtime == 1] <- "Very much like me"
 data6$goodtime[data6$v73_goodtime == 2] <- "Like me"
 data6$goodtime[data6$v73_goodtime == 3] <- "Somewhat like me"
@@ -84,12 +97,9 @@ data6$goodtime[data6$v73_goodtime == 6] <- "Not at all like me"
 ```
 
 #New column for variable "money"
-
 ```{r}
-# Erstellen einer neuen Zeile für die Variable 
 data6$money <- NA
 
-# Zuordnen der Werte
 data6$money[data6$v70_creativity == 1] <- "Very much like me"
 data6$money[data6$v70_creativity == 2] <- "Like me"
 data6$money[data6$v70_creativity == 3] <- "Somewhat like me"
@@ -99,12 +109,9 @@ data6$money[data6$v70_creativity == 6] <- "Not at all like me"
 ```
 
 #New column for variable "help"
-
 ```{r}
-# Erstellen einer neuen Zeile für die Variable 
 data6$help <- NA
 
-# Zuordnen der Werte
 data6$help[data6$v74b_help == 1] <- "Very much like me"
 data6$help[data6$v74b_help == 2] <- "Like me"
 data6$help[data6$v74b_help == 3] <- "Somewhat like me"
@@ -114,12 +121,9 @@ data6$help[data6$v74b_help == 6] <- "Not at all like me"
 ```
 
 #New column for variable "success"
-
 ```{r}
-# Erstellen einer neuen Zeile für die Variable 
 data6$success <- NA
 
-# Zuordnen der Werte
 data6$success[data6$v75_success == 1] <- "Very much like me"
 data6$success[data6$v75_success == 2] <- "Like me"
 data6$success[data6$v75_success == 3] <- "Somewhat like me"
@@ -130,11 +134,9 @@ data6$success[data6$v75_success == 6] <- "Not at all like me"
 
 
 #New column for variable "risk"
-
 ```{r}
 data6$risk <- NA
 
-# Zuordnen der Werte
 data6$risk[data6$v76_risk == 1] <- "Very much like me"
 data6$risk[data6$v76_risk == 2] <- "Like me"
 data6$risk[data6$v76_risk == 3] <- "Somewhat like me"
@@ -144,12 +146,9 @@ data6$risk[data6$v76_risk == 6] <- "Not at all like me"
 ```
 
 #New column for variable "proper"
-
 ```{r}
-# Erstellen einer neuen Zeile für die Variable 
 data6$proper <- NA
 
-# Zuordnen der Werte
 data6$proper[data6$v77_proper == 1] <- "Very much like me"
 data6$proper[data6$v77_proper == 2] <- "Like me"
 data6$proper[data6$v77_proper == 3] <- "Somewhat like me"
@@ -159,12 +158,9 @@ data6$proper[data6$v77_proper == 6] <- "Not at all like me"
 ```
 
 #New column for variable "environment"
-
 ```{r}
-# Erstellen einer neuen Zeile für die Variable 
 data6$environment <- NA
 
-# Zuordnen der Werte
 data6$environment[data6$v78_environment == 1] <- "Very much like me"
 data6$environment[data6$v78_environment == 2] <- "Like me"
 data6$environment[data6$v78_environment == 3] <- "Somewhat like me"
@@ -175,12 +171,9 @@ data6$environment[data6$v78_environment == 6] <- "Not at all like me"
 
 
 #New column for variable "tradition"
-
 ```{r}
-# Erstellen einer neuen Zeile für die Variable 
 data6$tradition <- NA
 
-# Zuordnen der Werte
 data6$tradition[data6$v79_tradition == 1] <- "Very much like me"
 data6$tradition[data6$v79_tradition == 2] <- "Like me"
 data6$tradition[data6$v79_tradition == 3] <- "Somewhat like me"
@@ -190,12 +183,9 @@ data6$tradition[data6$v79_tradition == 6] <- "Not at all like me"
 ```
 
 #New column for variable "satisfaction"
-
 ```{r}
-# Erstellen einer neuen Zeile für die Variable 
 data6$satisfaction <- NA
 
-# Zuordnen der Werte
 data6$satisfaction[data6$v57_married == 1] <- "Very happy"
 data6$satisfaction[data6$v10_happyness == 2] <- "Rather happy"
 data6$satisfaction[data6$v10_happyness == 3] <- "Not very happy"
@@ -205,10 +195,8 @@ data6$satisfaction[data6$v10_happyness == 4] <- "Not at all happy"
 #New column for variable "marrital status"
 
 ```{r}
-# Erstellen einer neuen Zeile für die Variable 
 data6$marital_status <- NA
 
-# Zuordnen der Werte
 data6$marital_status[data6$v57_married == 1] <- "Married"
 data6$marital_status[data6$v57_married == 2] <- "Living together as married"
 data6$marital_status[data6$v57_married == 3] <- "Divorced"
@@ -218,12 +206,9 @@ data6$marital_status[data6$v57_married == 6] <- "Single"
 ```
 
 #New column for variable "religion"
-
 ```{r}
-# Erstellen einer neuen Zeile für die Variable 
 data6$religion <- NA
 
-# Zuordnen der Werte
 data6$religion[data6$v147_religion == 1] <- "A religious person"
 data6$religion[data6$v147_religion == 2] <- "Not a religious person"
 data6$religion[data6$v147_religion == 3] <- "An atheist"
@@ -245,10 +230,8 @@ data6$agecat[data6$v242_age >= 80] = "80+"
 ```
 
 #New column for variable "sex"
-
 ```{r}
-# Erstellen einer neuen Zeile für die Variable 
-data6$sex <- NA # Create an empty column 'sex'
+data6$sex <- NA 
 
 data6$sex[data6$v240_sex == 1] <- "male"
 data6$sex[data6$v240_sex == 2] <- "female"
@@ -301,18 +284,8 @@ cross_table <- table(data6$religion, data6$risk)
 print(cross_table)
 ```
 
-```{r}
-data_df <- data.frame(Religion = data6$religion, Risk = data6$risk)
-
-# Säulendiagramm erstellen
-ggplot(data_df, aes(x = Religion, fill = Risk)) +
-  geom_bar(position = "dodge") +
-  labs(title = "Distribution of Risk by Religion",
-       x = "Religion",
-       y = "Count")
-```
-
-#compare the groups religion and risk
+#compare the groups religion and risk 
+### Because of the different sample sizes to compare the groups, the data is normalised and changed into % to compare the groups. 
 ```{r}
 # Summe of participants in each group
 sum_religious <- sum(c(8338, 718, 3790))
