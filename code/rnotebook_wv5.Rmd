@@ -180,7 +180,10 @@ data
 ```
 
 ```{r}
+summary(data)
+```
 
 ```
+
 
 
