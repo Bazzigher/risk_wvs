@@ -130,9 +130,11 @@ nrow(data)
 ```
 #exclusion of participants
 ```{r}
-data = subset(data, risk> 0 & sex > 0 & age > 0 & education > 0 & employment > 0 & marital_status > 0 & children >= 0)
-data
+data = subset(data, risk > 0 & sex > 0 & age > 0 & education > 0 & employment > 0 & marital_status > 0 & children >= 0)
 
+ 
+
+data
 ```
 #number of males vs females (1 = males; 2 = females)
 ```{r}
@@ -235,6 +237,22 @@ ggplot(data, aes(risk, age))+
   geom_point()+
   geom_smooth(method = "lm")
 ```
+```{r}
+attach(data)
+data$education_cat[education < 3] = "incomplete or no primary education"
+data$education_cat[education > 2 & education <= 6] <- "no uni"
+data$education_cat[education >= 7] <- "uni"
+detach(data)
+table(data$education)
+data
+```
+```{r}
+data$wave[data$wave == 5] <- "Wave 5"
+data$sex[data$wave == 6] <- "Wave 6"
+data
+```
+
+
 
 
 
