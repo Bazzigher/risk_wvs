@@ -2,6 +2,36 @@
 title: "R Notebook"
 output: html_notebook
 ---
+Variables: 
+
+Risk                  
+Money                
+Security      
+Good time 
+Help 
+Success 
+Proper
+Environment 
+Tradition
+Creativity 
+
+Friends important 
+Family important 
+Leisure time
+Happiness 
+Health (subjective)
+Satisfaction
+Freedom 
+
+Sex
+Age 
+Country
+Wave
+Marital status
+Children 
+Employment
+Education
+
 
 ```{r}
 library(data.table)
@@ -179,8 +209,33 @@ data = na.omit(data)
 summary(data)
 ```
 ```{r}
+#risk vs education
+ggplot(data, aes(risk, education))+
+  geom_point()+
+  geom_smooth(method = "lm")
 
+model = lm(risk ~ education, data = data)
+summary(model)
 ```
+```{r}
+ggplot(data, aes(risk, freedom))+
+  geom_point()+
+  geom_smooth(method = "lm")
+
+model1 = lm(risk ~ freedom, data = data)
+summary(model1)
+```
+```{r}
+#risk distribution according to Waves 5 and 6 
+ggplot(data, aes(as.factor(wave), risk))+
+  geom_boxplot()
+```
+```{r}
+ggplot(data, aes(risk, age))+
+  geom_point()+
+  geom_smooth(method = "lm")
+```
+
 
 
 ```
