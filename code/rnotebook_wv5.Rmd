@@ -130,7 +130,7 @@ nrow(data)
 ```
 #exclusion of participants
 ```{r}
-data = subset(data, risk > 0 & sex > 0 & age > 0 & education > 0 & employment > 0 & marital_status > 0 & children >= 0)
+data = subset(data, risk > 0 & sex > 0 & age > 0 & education > 0 & employment > 0 & marital_status > 0 & children >= 0 & family_important > 0 & friends_important > 0 & leisure_time > 0 & happiness > 0 & health > 0 & satisfaction > 0 & freedom > 0 & marital_status > 0 & creativity > 0 & money > 0 & security > 0 & goodtime >0 & help > 0 & success > 0, risk > 0 & proper > 0 & environment > 0 & tradition > 0 & employment > 0 & education > 0) 
 
  
 
@@ -140,6 +140,18 @@ data
 ```{r}
 table(data$sex)
 ```
+
+
+```{r}
+# Check the unique responses of each variable with frequencies
+for (col_name in names(data)) {
+  response_table <- table(data[[col_name]])
+  print(paste("Response frequencies for", col_name, ":"))
+  print(response_table)
+```
+
+
+```{r}
 #create a categorical age variable
 ```{r}
 data$agecat[data$age<20]="15-19"
@@ -251,6 +263,7 @@ data$wave[data$wave == 5] <- "Wave 5"
 data$sex[data$wave == 6] <- "Wave 6"
 data
 ```
+
 
 
 
