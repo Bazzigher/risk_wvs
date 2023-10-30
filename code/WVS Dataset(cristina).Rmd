@@ -1,0 +1,288 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+Variables: 
+
+Risk                  
+Money                
+Security      
+Good time 
+Help 
+Success 
+Proper
+Environment 
+Tradition
+Creativity 
+
+Friends important 
+Family important 
+Leisure time
+Happiness 
+Health (subjective)
+Satisfaction
+Freedom 
+
+Sex
+Age 
+Country
+Wave
+Marital status
+Children 
+Employment
+Education
+
+
+```{r}
+library(data.table)
+library(tidyr)
+```
+
+#read the data (Wave 5)
+```{r}
+# Data of Wave 5
+
+
+WV5_data <- readRDS("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/F00007944-WV5_Data_R_v20180912.rds")
+
+
+# Convert WV5_data-object in data.frame 
+WV5_data_df <- as.data.frame(WV5_data)
+
+# show first five columns
+head(WV5_data_df[, 1:5])
+```
+
+# clean the data set
+```{r}
+library(dplyr)
+
+#rename the variables
+WV5_data <- WV5_data_df %>%
+  rename(sex = V235, age = V237, country = V2, wave = V1, family_important = V4, friends_important = V5, leisure_time = V6, happiness = V10, health = V11, satisfaction = V22, freedom = V46, marital_status = V55, children = V56, creativity = V80, money = V81, security = V82, goodtime = V83, help = V84, success = V85, risk = V86, proper = V87, environment = V88, tradition = V89, employment = V241, education = V238)
+WV5_data
+
+
+#select only the variables of interest
+WV5_data <- WV5_data %>%
+  select(sex, age, country, wave, family_important, friends_important, leisure_time, happiness, health, satisfaction, freedom, marital_status, children, creativity, money, security, goodtime, help, success, risk, proper, environment, tradition, employment, education)
+WV5_data
+```
+
+```{r}
+#decode the country names 
+countrynames = read.csv("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/countrynames.txt", header=FALSE,as.is=TRUE)
+colnames(countrynames) = c("code", "name")
+WV5_data$country_lab = countrynames$name [match(WV5_data$country, countrynames$code)]
+table(WV5_data$country_lab)
+WV5_data
+
+
+```
+
+#Read Dataset (Wave 6)
+```{r}
+WV6_data <- load("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/WV6_Data_R_v20201117.rdata") 
+WV6_data <- WV6_Data_R_v20201117 
+print(WV6_data)
+```
+`
+``{r}
+#rename variables
+```{r}
+WV6_data <- WV6_data %>%
+  rename(wave = V1, sex = V240, age = V242,country = V2, marital_status = V57, children = V58, employment = V229, education = V248, risk = V76, money = V71, security = V72, goodtime =  V73, help = V74B, success = V75, proper = V77, environment = V78, tradition = V79, creativity = V70, family_important = V4, friends_important = V5, leisure_time = V6, happiness = V10, health = V11, satisfaction = V23, freedom = V55 )
+
+
+#select only the variables of interest
+WV6_data <- WV6_data %>%
+  select(wave, sex, age, country, sex, marital_status, children, employment, education, risk, money, security, goodtime, help, success, proper, environment, tradition, creativity, family_important, friends_important, leisure_time, happiness, health, satisfaction, freedom)
+WV6_data
+
+```
+
+
+#decode daraset (Wave 6)
+```{r}
+countrynames = read.csv("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/countrynames.txt", header=FALSE,as.is=TRUE)
+colnames(countrynames) = c("code", "name")
+WV6_data$country_lab = countrynames$name [match(WV6_data$country, countrynames$code)]
+table(WV6_data$country_lab)
+WV6_data
+```
+
+#combine the 2 dataset (Wave 6 + Wave 5)
+```{r}
+WV5_data
+WV6_data
+data = rbind(WV5_data, WV6_data)
+data
+```
+
+#number of countries
+```{r}
+length(unique(data$country_lab))
+```
+
+#number of participants
+```{r}
+nrow(data)
+```
+#exclusion of participants
+```{r}
+data = subset(data, risk > 0 & sex > 0 & age > 0 & education > 0 & employment > 0 & marital_status > 0 & children >= 0 & family_important > 0 & friends_important > 0 & leisure_time > 0 & happiness > 0 & health > 0 & satisfaction > 0 & freedom > 0 & marital_status > 0 & creativity > 0 & money > 0 & security > 0 & goodtime >0 & help > 0 & success > 0, risk > 0 & proper > 0 & environment > 0 & tradition > 0 & employment > 0 & education > 0) 
+
+ 
+
+data
+```
+#number of males vs females (1 = males; 2 = females)
+```{r}
+table(data$sex)
+```
+
+
+```{r}
+#create a categorical age variable
+data$agecat[data$age<20]="15-19"
+data$agecat[data$age>=20 & data$age <30] = "20-29"
+data$agecat[data$age>=30 & data$age <40] = "30-39"
+data$agecat[data$age>=40 & data$age <50] = "40-49"
+data$agecat[data$age>=50 & data$age <60] = "50-59"
+data$agecat[data$age>=60 & data$age <70] = "60-69"
+data$agecat[data$age>=70 & data$age <80] = "70-79"
+data$agecat[data$age>=80] = "80+"
+```
+
+
+#gender variables
+```{r}
+data$sex[data$sex == 1] <- "male"
+data$sex[data$sex == 2] <- "female"
+
+#average age of participants
+mean(data$age)
+```
+#education variables 
+```{r}
+attach(data)
+data$education_cat[education < 3] = "incomplete or no primary education"
+data$education_cat[education > 2 & education <= 6] <- "no uni"
+data$education_cat[education >= 7] <- "uni"
+detach(data)
+table(data$education)
+data
+```
+#wave variables
+```{r}
+data$wave[data$wave == 5] <- "Wave 5"
+data$wave[data$wave == 6] <- "Wave 6"
+data
+```
+
+
+#age range
+```{r}
+range(data$age) 
+```
+#risk taking Frequency
+```{r}
+library(ggplot2)
+ggplot(data, aes(x = risk)) +
+  geom_histogram(binwidth = 0.5, fill = "lightblue", color = "black") +
+  labs(x = "Risk Taking", y = "Frequency", title = "Histogram of Risk Taking") +
+  theme_minimal()
+```
+#age frequency
+```{r}
+ggplot(data, aes(x = age)) +
+  geom_histogram(binwidth = 0.5, fill = "lightblue", color = "black") +
+  labs(x = "Age", y = "Frequency", title = "Histogram of Age Distributionn") +
+  theme_minimal()
+```
+#age vs risk taking
+```{r}
+
+ggplot(data, aes(x = agecat, y = risk)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of Risk and Adventure by Age",
+       x = "Age",
+       y = "Risk and Adventure") +
+  theme_minimal()
+
+
+```
+#sex vs risk taking
+```{r}
+ggplot(data, aes(as.factor(sex), risk))+
+  geom_boxplot()
+
+```
+```{r}
+#descriptive data 
+summary(data)
+```
+```{r}
+#data cleaning: deletion of NAs 
+data = na.omit(data)
+summary(data)
+```
+```{r}
+#risk vs education
+ggplot(data, aes(risk, education))+
+  geom_point()+
+  geom_smooth(method = "lm")
+
+model = lm(risk ~ education, data = data)
+summary(model)
+```
+```{r}
+#risk vs freedom
+ggplot(data, aes(risk, freedom))+
+  geom_point()+
+  geom_smooth(method = "lm")
+
+model1 = lm(risk ~ freedom, data = data)
+summary(model1)
+```
+```{r}
+#risk distribution according to Waves 5 and 6 
+ggplot(data, aes(as.factor(wave), risk))+
+  geom_boxplot()
+```
+```{r}
+#risk vs age
+ggplot(data, aes(risk, age))+
+  geom_point()+
+  geom_smooth(method = "lm")
+```
+
+
+```{r}
+#selected 3 countries: Andorra, Romania, Spain
+data1 <- subset(data, country_lab %in% c("Andorra", "Romania", "Spain"))
+# 3 risk distribution for 3 countries
+ggplot(data1, aes(as.factor(country_lab), risk))+
+  geom_boxplot()
+```
+```{r}
+#happiness vs risk depending on sex
+ggplot(data, aes(happiness, risk, color = as.factor(sex)))+
+  geom_point()+
+  geom_smooth(method = "lm", se = TRUE)
+```
+```{r}
+# happiness vs risk depending on age
+ggplot(data, aes(happiness, risk, color = as.factor(agecat)))+
+  geom_point()+
+  geom_smooth(method = "lm", se = TRUE)
+```
+
+
+
+
+
+```
+
+
+
