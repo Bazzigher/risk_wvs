@@ -29,19 +29,14 @@ library(dplyr)
 
 #rename the variables
 WV5_data <- WV5_data_df %>%
-  rename(risk_and_adventure = V86, sex = V235, age = V237, country = V2, wave = V1)
+  rename(sex = V235, age = V237, country = V2, wave = V1, family_important = V4, friends_important = V5, leisure_time = V6, happiness = V10, health = V11, satisfaction = V22, freedom = V46, marital_status = V55, children = V56, creativity = V80, money = V81, security = V82, goodtime = V83, help = V84, success = V85, risk = V86, proper = V87, environment = V88, tradition = V89, employment = V241, education = V238)
 WV5_data
 
 
 #select only the variables of interest
 WV5_data <- WV5_data %>%
-  select(risk_and_adventure, sex, age, country, wave)
+  select(sex, age, country, wave, family_important, friends_important, leisure_time, happiness, health, satisfaction, freedom, marital_status, children, creativity, money, security, goodtime, help, success, risk, proper, environment, tradition, employment, education)
 WV5_data
-```
-
-```{r}
-#exlcusion of participants with no info about risk, sex, age, employment, merital status and children 
-WV5_data_df = subset(WV5_data, risk_and_adventure > 0 & sex > 0 & age >0)
 ```
 
 ```{r}
@@ -66,12 +61,12 @@ print(WV6_data)
 #rename variables
 ```{r}
 WV6_data <- WV6_data %>%
-  rename(wave = V1, risk_and_adventure = V76, sex = V240, age = V242, education = V237, country = V2)
+  rename(wave = V1, sex = V240, age = V242,country = V2, marital_status = V57, children = V58, employment = V229, education = V248, risk = V76, money = V71, security = V72, goodtime =  V73, help = V74B, success = V75, proper = V77, environment = V78, tradition = V79, creativity = V70, family_important = V4, friends_important = V5, leisure_time = V6, happiness = V10, health = V11, satisfaction = V23, freedom = V55 )
 
 
 #select only the variables of interest
 WV6_data <- WV6_data %>%
-  select(risk_and_adventure, sex, age, country, wave)
+  select(sex, age, country, wave, marital_status, children, employment, education, risk, money, security, goodtime, help, success, proper, environment, tradition, creativity, family_important, friends_important, leisure_time, happiness, health, satisfaction, freedom)
 WV6_data
 
 ```
@@ -86,16 +81,14 @@ table(WV6_data$country_lab)
 WV6_data
 ```
 
-#exclude participants with no info about risk, sex, and age
-```{r}
-WV6_data = subset(WV6_data, risk_and_adventure > 0 & sex > 0 & age >0)
-```
-
 #combine the 2 dataset (Wave 6 + Wave 5)
 ```{r}
+WV5_data
+WV6_data
 data = rbind(WV5_data, WV6_data)
 data
 ```
+
 #number of countries
 ```{r}
 length(unique(data$country_lab))
@@ -107,7 +100,7 @@ nrow(data)
 ```
 #exclusion of participants
 ```{r}
-data = subset(data, risk_and_adventure > 0 & sex > 0 & age > 0)
+data = subset(data, risk> 0 & sex > 0 & age > 0 & education > 0 & employment > 0 & marital_status > 0 & children >= 0)
 data
 
 ```
@@ -145,7 +138,8 @@ range(data$age)
 ```
 #risk taking Frequency
 ```{r}
-ggplot(data, aes(x = risk_and_adventure)) +
+library(ggplot2)
+ggplot(data, aes(x = risk)) +
   geom_histogram(binwidth = 0.5, fill = "lightblue", color = "black") +
   labs(x = "Risk Taking", y = "Frequency", title = "Histogram of Risk Taking") +
   theme_minimal()
@@ -160,7 +154,7 @@ ggplot(data, aes(x = age)) +
 #age vs risk taking
 ```{r}
 
-ggplot(data, aes(x = agecat, y = risk_and_adventure)) +
+ggplot(data, aes(x = agecat, y = risk)) +
   geom_boxplot() +
   labs(title = "Boxplot of Risk and Adventure by Age",
        x = "Age",
@@ -171,17 +165,23 @@ ggplot(data, aes(x = agecat, y = risk_and_adventure)) +
 ```
 #sex vs risk taking
 ```{r}
-ggplot(data, aes(as.factor(sex), risk_and_adventure ))+
+ggplot(data, aes(as.factor(sex), risk))+
   geom_boxplot()
 
 ```
 ```{r}
-data
-```
-
-```{r}
+#descriptive data 
 summary(data)
 ```
+```{r}
+#data cleaning: deletion of NAs 
+data = na.omit(data)
+summary(data)
+```
+```{r}
+
+```
+
 
 ```
 
