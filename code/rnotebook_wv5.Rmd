@@ -96,7 +96,7 @@ WV6_data <- WV6_data %>%
 
 #select only the variables of interest
 WV6_data <- WV6_data %>%
-  select(sex, age, country, wave, marital_status, children, employment, education, risk, money, security, goodtime, help, success, proper, environment, tradition, creativity, family_important, friends_important, leisure_time, happiness, health, satisfaction, freedom)
+  select(wave, sex, age, country, sex, marital_status, children, employment, education, risk, money, security, goodtime, help, success, proper, environment, tradition, creativity, family_important, friends_important, leisure_time, happiness, health, satisfaction, freedom)
 WV6_data
 
 ```
@@ -143,17 +143,7 @@ table(data$sex)
 
 
 ```{r}
-# Check the unique responses of each variable with frequencies
-for (col_name in names(data)) {
-  response_table <- table(data[[col_name]])
-  print(paste("Response frequencies for", col_name, ":"))
-  print(response_table)
-```
-
-
-```{r}
 #create a categorical age variable
-```{r}
 data$agecat[data$age<20]="15-19"
 data$agecat[data$age>=20 & data$age <30] = "20-29"
 data$agecat[data$age>=30 & data$age <40] = "30-39"
@@ -169,10 +159,8 @@ data$agecat[data$age>=80] = "80+"
 ```{r}
 data$sex[data$sex == 1] <- "male"
 data$sex[data$sex == 2] <- "female"
-```
 
 #average age of participants
-```{r}
 mean(data$age)
 ```
 
@@ -260,11 +248,23 @@ data
 ```
 ```{r}
 data$wave[data$wave == 5] <- "Wave 5"
-data$sex[data$wave == 6] <- "Wave 6"
+data$wave[data$wave == 6] <- "Wave 6"
 data
 ```
+```{r}
+data1 <- subset(data, country_lab %in% c("Andorra", "Romania", "Spain"))
 
-
+ggplot(data1, aes(as.factor(country_lab), risk))+
+  geom_boxplot()
+```
+```{r}
+ggplot(data1, aes(happiness, risk, color = as.factor(sex)))+
+  geom_point()+
+  geom_smooth(method = "lm", se = TRUE)
+```
+```{r}
+print(data$sex)
+```
 
 
 
