@@ -296,7 +296,6 @@ print("Individual plots are saved in the 'individual_country_plots' directory.")
 
 # Create a scatterplot with separate regression lines for each country
 ```{r}
-#Create a scatterplot with separate regression lines for each country
 ggplot(cleaned_data, aes(x = age, y = risktaking, color = country)) +
   geom_point(size = 0.2) +                           # Adjust point size
   geom_smooth(method = "lm", se = FALSE, size = 0.5, linetype = "solid") + # Adjust line size and type
@@ -306,17 +305,22 @@ ggplot(cleaned_data, aes(x = age, y = risktaking, color = country)) +
         legend.key.size = unit(0.1, "in"))      # Adjust the size of the legend key
 ```
 
-# Specify the desired width and height
-width <- 8  # Adjust the width as needed
-height <- 6  # Adjust the height as needed
+# Scatterplot with include both individual country regression lines and an overall regression line
+```{r}
+# Calculate the overall regression line
+overall_lm <- lm(risktaking ~ age, data = cleaned_data)
 
 # Create a scatterplot with separate regression lines for each country
-plot <- ggplot(your_dataset, aes(x = age, y = risktaking, color = country)) +
-  geom_point() +                            # Add points
-  geom_smooth(method = "lm", se = FALSE) +   # Add regression lines
+# and an overall regression line
+ggplot(cleaned_data, aes(x = age, y = risktaking, color = country)) +
+  geom_point(size = 0.5) +                      # Adjust point size
+  geom_smooth(method = "lm", se = FALSE, size = 0.5) + # Solid line for individual countries
+  geom_abline(intercept = coef(overall_lm)[1], slope = coef(overall_lm)[2], 
+              color = "red", size = 1) + # Add the overall regression line in red
   labs(title = "Scatterplot with Regression Lines for risktaking and age by Country", 
        x = "Age", y = "Risktaking") +
-  theme(legend.position = "bottom")         # Move the legend below the graph
+  theme(legend.position = "bottom",          # Move the legend below the graph
+        legend.key.size = unit(0.1, "in"))  # Adjust the size of the legend key
+```
 
-# Save the plot with the specified width and height
-ggsave("your_plot.png", plot = plot, width = width, height = height)
+
