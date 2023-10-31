@@ -3,6 +3,25 @@ title: "R Notebook"
 output: html_notebook
 ---
 
+# Find out how the risktaking was set together and how they are measured
+# Find out about the overlap
+- same countries 
+- facid wrap --> Plot by country
+- scatterplots --> mean country // mean risk 
+
+# Concept: What do we want 
+- Risktaking and age slope
+- Plot it by how steep the slope is
+--> Run it in an mixed effect model (see paper from Rui)
+
+###########
+Next steps: 
+- what visualisation do we want to do (why)? 
+- write read me --> why do we do certain steps 
+- always age and gender in the plots
+- Intercept age, intercept for age, intercept gender, intercept n
+
+
 #Load packages 
 ```{r}
 library(data.table)
@@ -123,6 +142,7 @@ rownames(gender_by_country) <- unique(cleaned_data$country)
 gender_by_country
 ```
 # Create a table with the following information: country, isocode, n (count of participants), female percentage (%), mean age, age range, and risktaking
+####### add intercept and slope (age, gender, parental status, occupational status, education)
 ```{r}
 # Group the data by country
 table_data <- gps_data %>%
@@ -253,6 +273,7 @@ print(regression_results)
 
 
 # analyze the results by using "Balkendiagramm
+###### what does 0 mean? // centered age = mean age of the sample
 ```{r}
 ggplot(data = regression_results, aes(x = country, y = intercept)) +
   geom_bar(stat = "identity", fill = "blue") +
