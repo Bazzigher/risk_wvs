@@ -11,6 +11,7 @@ library(haven)
 library(ggplot2)
 library(dplyr)
 library(gridExtra)
+library(lmtest)
 ```
 
 
@@ -170,6 +171,53 @@ correlation_matrix <- cor(cleaned_data[, c("patience", "risktaking", "altruism",
 print(correlation_matrix)
 
 ```
+
+#############################################
+# checking the assumptions in a linear regression  
+```{r}
+# Scatterplot to check for linearity
+ggplot(cleaned_data, aes(x = age, y = risktaking)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "blue") +
+  labs(title = "Scatterplot for Linearity Check")
+```
+```{r}
+# Residual vs. Fitted plot to check for homoskedasticity
+model <- lm(risktaking ~ age, data = cleaned_data)
+ggplot() +
+  geom_point(aes(x = fitted(model), y = residuals(model))) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(title = "Residuals vs. Fitted Values for Homoskedasticity Check")
+```
+
+```{r}
+# Q-Q plot to check for normality of residuals
+qqnorm(residuals(model))
+qqline(residuals(model))
+```
+
+```{r}
+# Correlation matrix to check for multicollinearity
+cor(cleaned_data[c("age", "risktaking")])
+```
+
+```{r}
+# Durbin-Watson test for autocorrelation
+dwtest(model)
+```
+
+```{r}
+# Residual vs. Leverage plot to check for outliers
+ggplot() +
+  geom_point(aes(x = hatvalues(model), y = residuals(model))) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(title = "Residuals vs. Leverage for Outlier Check")
+```
+
+#############################################
+
+
+
 #Preparing for linear regression
 ```{r}
 # Check for missing values in 'Country' and 'Risktaking' columns
