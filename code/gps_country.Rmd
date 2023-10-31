@@ -1,0 +1,322 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#Load packages 
+```{r}
+library(data.table)
+library(tidyr)
+library(haven)
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+```
+
+
+#Add data GPS
+```{r}
+# Einlesen des Datensets
+gps_data <- haven::read_dta("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/GPS_dataset_individual_level/individual_new.dta")
+
+# Anzeige der ersten Zeilen des Datensets
+head(country_data)
+```
+# Number of courtries 
+```{r}
+# Determine the number of different countries
+number_of_countries <- length(unique(gps_data$country))
+
+# Display the number of different countries
+number_of_countries
+```
+
+
+# Clean the data from missing values
+```{r}
+# Clean the data by removing records with missing values
+cleaned_data <- gps_data %>%
+  drop_na(country, isocode, risktaking, gender, age)
+
+# Calculate the number of records removed per variable
+records_removed_per_variable <- colSums(is.na(gps_data)) - colSums(is.na(cleaned_data))
+
+# Display the cleaned data
+cleaned_data
+
+# Display the number of records removed per variable
+records_removed_per_variable
+```
+
+# List of all variable
+```{r}
+# List all variables
+variable_list <- names(cleaned_data) # OR colnames(your_data)
+
+# Display the list of variables
+print(variable_list)
+```
+
+# Variance of some Items
+```{r}
+# Calculate the variance of the "patience" variable
+variance_patience <- var(cleaned_data$patience, na.rm = TRUE)
+variance_risktaking <- var(cleaned_data$risktaking, na.rm = TRUE)
+variance_age <- var(cleaned_data$age, na.rm = TRUE)
+
+# Display the variance of the "patience" variable
+variance_patience
+variance_risktaking
+variance_age
+```
+# Histogram of some variables
+```{r}
+hist(cleaned_data$age, main = "Histogram of Age", xlab = "age", ylab = "Frequency")
+hist(cleaned_data$patience, main = "Histogram of patience", xlab = "patience", ylab = "Frequency")
+hist(cleaned_data$risktaking, main = "Histogram of risktaking", xlab = "risktaking", ylab = "Frequency")
+```
+# Boxplot of some variables
+```{r}
+boxplot(cleaned_data$age, main = "Boxplot of Age")
+boxplot(cleaned_data$patience, main = "Boxplot of Patience")
+boxplot(cleaned_data$risktaking, main = "Boxplot of Risktaking")
+```
+# All about the age
+```{r}
+# Age Range
+age_min <- min(cleaned_data$age, na.rm = TRUE)
+age_max <- max(cleaned_data$age, na.rm = TRUE)
+
+# Average Age
+average_age <- mean(cleaned_data$age, na.rm = TRUE)
+
+# Median Age
+median_age <- median(cleaned_data$age, na.rm = TRUE)
+
+# Display the age statistics
+cat("Age Range: ", age_min, " to ", age_max, "\n")
+cat("Average Age: ", average_age, "\n")
+cat("Median Age: ", median_age, "\n")
+```
+
+# All about the gender
+```{r}
+# Calculate the counts of females (gender = 1) and males (gender = 2)
+gender_counts <- table(cleaned_data$gender)
+
+# Display the counts
+cat("Number of Females: ", gender_counts[1], "\n")
+cat("Number of Males: ", gender_counts[2], "\n")
+```
+
+# Table with country and gender
+```{r}
+# Create a table that breaks down the number of participants by country and gender
+gender_by_country <- xtabs(~ country + gender, data = cleaned_data)
+
+# Rename columns and rows for better readability
+colnames(gender_by_country) <- c("Female", "Male")
+rownames(gender_by_country) <- unique(cleaned_data$country)
+
+# Display the table
+gender_by_country
+```
+# Create a table with the following information: country, isocode, n (count of participants), female percentage (%), mean age, age range, and risktaking
+```{r}
+# Group the data by country
+table_data <- gps_data %>%
+  group_by(country, isocode) %>%
+  summarize(
+    n = n(),
+    female_percentage = mean(gender == 1) * 100,
+    mean_age = mean(age, na.rm = TRUE),
+    age_range = paste(min(age, na.rm = TRUE), "-", max(age, na.rm = TRUE)),
+    mean_risktaking = mean(risktaking, na.rm = TRUE)
+  )
+
+# Display the table
+table_data
+```
+
+# Create a new column "age_group" with the age categories
+```{r}
+cleaned_data$agecat <- cut(
+  cleaned_data$age,
+  breaks = c(15, 20, 30, 40, 50, 60, 70, 80, Inf), # The category boundaries
+  labels = c("15-19", "20-29", "30-39", "40-49", "50-59", "60-69", "70-79", "80+"), # The category labels
+  right = FALSE # Left end (inclusive), right end (exclusive)
+)
+
+# Display the new column
+head(cleaned_data)
+```
+
+# Number of participants in each age category
+```{r}
+# number of participants in each age category
+agecat_counts <- table(cleaned_data$agecat)
+
+# Display the number of participants in the age categories
+print(agecat_counts)
+```
+
+
+# Perform a correlation analysis on variables patience, risktaking, altruism and trust
+```{r}
+# Calculate the correlation matrix with NA removal
+correlation_matrix <- cor(cleaned_data[, c("patience", "risktaking", "altruism", "trust")], use = "pairwise.complete.obs")
+
+# Print the correlation matrix
+print(correlation_matrix)
+
+```
+#Preparing for linear regression
+```{r}
+# Check for missing values in 'Country' and 'Risktaking' columns
+missing_country <- anyNA(cleaned_data$country)
+missing_risktaking <- anyNA(cleaned_data$risktaking)
+
+# Print the results
+cat("Missing values in 'Country': ", missing_country, "\n")
+cat("Missing values in 'Risktaking': ", missing_risktaking, "\n")
+
+```
+
+
+```{r}
+# Clean the data by removing records with missing values
+cleaned_data <- gps_data %>%
+  drop_na(country, risktaking, age)
+
+# Split the data by country and perform linear regression for each country
+regression_results <- cleaned_data %>%
+  group_by(country) %>%
+  do(model = lm(risktaking ~ age, data = .)) %>%
+  summarize(
+    country = first(country),
+    intercept = summary(model)$coefficients[1],
+    slope = summary(model)$coefficients[2],
+    r_squared = summary(model)$r.squared
+  )
+
+# Display regression results for each country
+print(regression_results)
+```
+
+
+# analyze the results by using "Balkendiagramm
+```{r}
+ggplot(data = regression_results, aes(x = country, y = intercept)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(title = "Intercepts for Risktaking by Country", x = "Country", y = "Intercept Value") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+# View the countries with intercept values over 0.75
+```{r}
+high_intercept_countries <- subset(regression_results, intercept > 0.75)
+
+# View the countries with intercept values over 0.75
+print(high_intercept_countries)
+```
+
+
+# Scatterplots for 'high_intercept_countries' contains the top 17 countries
+```{r}
+# Create scatterplots with regression lines for countries with intercept > 0.75 and smaller points
+plots <- lapply(1:nrow(regression_results), function(i) {
+  country <- regression_results$country[i]
+  intercept <- regression_results$intercept[i]
+  
+  if (intercept > 0.75) {
+    p <- ggplot(subset(cleaned_data, country == country), aes(x = age, y = risktaking)) +
+      geom_point(size = 0.5) +  # Set the size to a smaller value (e.g., 2)
+      geom_smooth(method = "lm", formula = y ~ x, se = FALSE, color = "blue") +
+      labs(title = paste("Linear Regression for", country),
+           subtitle = paste("Intercept:", round(intercept, 2)))
+    print(p)
+  }
+})
+
+# Save the plots in a directory
+dir.create("individual_country_plots", showWarnings = FALSE)
+setwd("individual_country_plots")
+
+for (i in seq_along(plots)) {
+  filename <- paste0("plot_", i, ".png")
+  ggsave(filename, plot = plots[[i]], width = 8, height = 6)
+}
+
+# Switch back to the original working directory
+setwd("..")
+
+print("Individual plots for countries with intercept > 0.75 and smaller points are saved in the 'individual_country_plots' directory.")
+```
+
+# Create scatterplots with regression lines for individual countries
+```{r}
+# Examples for countries
+regression_results <- data.frame(
+  country = c("Algeria", "Argentina", "Austria"),
+  intercept = c(0.92053422, 0.51698822, 0.42606684),
+  slope = c(-0.0146641801, -0.0115569623, -0.0108763042),
+  r_squared = c(5.232529e-02, 5.638271e-02, 3.539810e-02	)
+)
+
+# Create scatterplots with regression lines for each country
+plots <- lapply(seq_len(nrow(regression_results)), function(i) {
+  country <- regression_results$country[i]
+  intercept <- regression_results$intercept[i]
+  slope <- regression_results$slope[i]
+  r_squared <- regression_results$r_squared[i]
+  
+  p <- ggplot(subset(cleaned_data, country == country), aes(x = age, y = risktaking)) +
+    geom_point() +
+    geom_smooth(method = "lm", formula = y ~ x, se = FALSE, color = "blue") +
+    labs(title = paste("Linear Regression for", country),
+         subtitle = paste("Intercept:", round(intercept, 2),
+                           "Slope:", round(slope, 2),
+                           "R-squared:", round(r_squared, 2)))
+  print(p)
+})
+
+# Save the plots in a directory
+dir.create("individual_country_plots", showWarnings = FALSE)
+setwd("individual_country_plots")
+
+for (i in seq_along(plots)) {
+  filename <- paste0("plot_", i, ".png")
+  ggsave(filename, plot = plots[[i]], width = 8, height = 6)
+}
+
+# Switch back to the original working directory
+setwd("..")
+
+print("Individual plots are saved in the 'individual_country_plots' directory.")
+```
+
+# Create a scatterplot with separate regression lines for each country
+```{r}
+#Create a scatterplot with separate regression lines for each country
+ggplot(cleaned_data, aes(x = age, y = risktaking, color = country)) +
+  geom_point(size = 0.2) +                           # Adjust point size
+  geom_smooth(method = "lm", se = FALSE, size = 0.5, linetype = "solid") + # Adjust line size and type
+  labs(title = "Scatterplot with Regression Lines for risktaking and age by Country", 
+       x = "Age", y = "Risktaking") +
+  theme(legend.position = "bottom",              # Move the legend below the graph
+        legend.key.size = unit(0.1, "in"))      # Adjust the size of the legend key
+```
+
+# Specify the desired width and height
+width <- 8  # Adjust the width as needed
+height <- 6  # Adjust the height as needed
+
+# Create a scatterplot with separate regression lines for each country
+plot <- ggplot(your_dataset, aes(x = age, y = risktaking, color = country)) +
+  geom_point() +                            # Add points
+  geom_smooth(method = "lm", se = FALSE) +   # Add regression lines
+  labs(title = "Scatterplot with Regression Lines for risktaking and age by Country", 
+       x = "Age", y = "Risktaking") +
+  theme(legend.position = "bottom")         # Move the legend below the graph
+
+# Save the plot with the specified width and height
+ggsave("your_plot.png", plot = plot, width = width, height = height)

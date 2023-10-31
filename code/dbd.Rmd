@@ -1,0 +1,85 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#### To Do: 
+# 1. Load 
+# 2. Key variables
+# 3. descriptives --> how many countries, participants 
+# 4. How to visualize? do we want to do the visualization? Per Country or all together // coulors? etc. 
+# 5. What do we want to present? 
+- Presentation 19.12.2023 
+- finalise presentation 05.12.2023 with rui
+- Send presentation 27.11.2023 
+- Presentation content 
+  - why we do this 
+  - research gap 
+  - method 
+  - results
+  - challenges 
+  - conclusion 
+  ---> Do the Presentation on GoogleSlides 
+- cancel 12.12.2023 und 19.12.2023 
+
+# etc. ..... 
+
+#Install packages 
+```{r}
+install.packages("haven")
+```
+
+#Load packages 
+```{r}
+library(data.table)
+library(tidyr)
+library(haven)
+library(ggplot2)
+```
+
+
+#Add data GBD
+```{r}
+# Arbeitsverzeichnis ändern
+setwd("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/GBD")
+```
+
+
+```{r}
+# Store file names in a vector
+filenames <- c(
+  "IHME-GBD_2019_DATA1.csv",
+  "IHME-GBD_2019_DATA2.csv",
+  "IHME-GBD_2019_DATA3.csv",
+  "IHME-GBD_2019_DATA4.csv"
+)
+
+datalist <- list() # Create an empty list to store the data
+
+# Loop to read the files
+for (filename in filenames) {
+  data <- read.csv(filename)
+  datalist[[filename]] <- data
+}
+
+# List the names of the imported files
+for (i in 1:length(datalist)) {
+  cat("Imported file:", filenames[i], "\n")
+}
+
+head(datalist[["IHME-GBD_2019_DATA1.csv"]]) # Accessing the first rows of the first file
+```
+
+# Combine the data from the four files
+```{r}
+combined_data <- do.call(rbind, datalist)
+
+first_row <- head(combined_data, n = 1) #display the first row of the combined dataset
+```
+
+
+
+
+
+
+
