@@ -32,6 +32,33 @@ Children
 Employment
 Education
 
+Do we want to combine the data?
+Find about the overlap: countries in both cases? 
+Risk item  --> revert 
+facet plot: plot by country
+20 countries in a plot
+Order countries by continent? 
+Scatterplot: (average age, average risk)
+Average older or younger population in countries--> more risk? 
+Mixed effects model with hierarchy (people clustered into countries)
+What are we trying to find out? 
+
+Regression that considers countries
+Average / country effect
+x: risk taking; y: age (plot by how steep the slope is --> regresion for each country)
+Slope/intercept --> plot
+Mixed effect model --> extract mixed and random effect model (save intercept and slope)
+Able to visualize
+Indep. regression for each country for each data sets 
+Table with countries, N, intercept and slope (risk and age), effect for age, effect for gender
+Hardship Index? Do we see the same effect in the countries?
+What visualization? --> Goal? Rationale? Do a sketch of what we want to do 
+1.) plot age 
+2. ) How much data per country? Age distribution per country? (include age and gender in plots)
+Work on the list!!
+
+
+
 
 ```{r}
 library(data.table)
@@ -276,6 +303,9 @@ ggplot(data, aes(happiness, risk, color = as.factor(sex)))+
 ggplot(data, aes(happiness, risk, color = as.factor(agecat)))+
   geom_point()+
   geom_smooth(method = "lm", se = TRUE)
+```
+```{r}
+table(data$country_lab)
 ```
 
 
