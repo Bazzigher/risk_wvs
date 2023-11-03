@@ -4,59 +4,10 @@ output: html_notebook
 ---
 Variables: 
 
-Risk                  
-Money                
-Security      
-Good time 
-Help 
-Success 
-Proper
-Environment 
-Tradition
-Creativity 
-
-Friends important 
-Family important 
-Leisure time
-Happiness 
-Health (subjective)
-Satisfaction
-Freedom 
-
-Sex
+Risk
 Age 
+Sex
 Country
-Wave
-Marital status
-Children 
-Employment
-Education
-
-Do we want to combine the data?
-Find about the overlap: countries in both cases? 
-Risk item  --> revert 
-facet plot: plot by country
-20 countries in a plot
-Order countries by continent? 
-Scatterplot: (average age, average risk)
-Average older or younger population in countries--> more risk? 
-Mixed effects model with hierarchy (people clustered into countries)
-What are we trying to find out? 
-
-Regression that considers countries
-Average / country effect
-x: risk taking; y: age (plot by how steep the slope is --> regresion for each country)
-Slope/intercept --> plot
-Mixed effect model --> extract mixed and random effect model (save intercept and slope)
-Able to visualize
-Indep. regression for each country for each data sets 
-Table with countries, N, intercept and slope (risk and age), effect for age, effect for gender
-Hardship Index? Do we see the same effect in the countries?
-What visualization? --> Goal? Rationale? Do a sketch of what we want to do 
-1.) plot age 
-2. ) How much data per country? Age distribution per country? (include age and gender in plots)
-Work on the list!!
-
 
 
 
@@ -113,8 +64,7 @@ WV6_data <- load("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/WV6_
 WV6_data <- WV6_Data_R_v20201117 
 print(WV6_data)
 ```
-`
-``{r}
+
 #rename variables
 ```{r}
 WV6_data <- WV6_data %>%
@@ -144,40 +94,66 @@ WV5_data
 WV6_data
 data = rbind(WV5_data, WV6_data)
 data
-```
 
 #number of countries
-```{r}
+
 length(unique(data$country_lab))
 ```
-
-#number of participants
+#exclusion of participants and omission of missing data (na)
 ```{r}
+data = subset(data, risk > 0 & sex > 0 & age >0 )
+data_Wave5 = subset(WV5_data, risk > 0 & sex > 0 & age >0 )
+data_Wave6 = subset(WV6_data, risk > 0 & sex > 0 & age >0)
+data <- na.omit(data)
+data_Wave5 <- na.omit(data_Wave5)
+data_Wave6 <- na.omit(data_Wave6)
+
+
+
+#number of participants and number of participants per country
+
 nrow(data)
+nrow(data_Wave5)
+nrow(data_Wave6)
 ```
-#exclusion of participants
 ```{r}
-data = subset(data, risk > 0 & sex > 0 & age > 0)
+# Load the dplyr package
+library(dplyr)
 
-length(unique(data$country_lab))
- 
+# Assuming the data frame is called 'data' and the column containing the country information is called 'country'
+country_counts <- data %>%
+  count(country_lab)
 
-data
+# Print the result
+print(country_counts)
+
 ```
+
+#number and list and participants pro countries pro Wave (including both Waves together)
+```{r}
+table(data_Wave5$country_lab)
+length(unique(data_Wave5$country_lab)) 
+table(data_Wave6$country_lab)
+length(unique(data_Wave6$country_lab))
+length(unique(data$country_lab)) 
+table(data$country_lab)
+```
+
+
 ```{r}
 data$risk = 6 - data$risk + 1
 data$risk_ord=data$risk 
 data$risk = 10*scale(data$risk, center=TRUE,scale=TRUE)+50
 data
 
+
 ```
-
-
-
 
 #number of males vs females (1 = males; 2 = females)
 ```{r}
 table(data$sex)
+table(data_Wave5$sex)
+table(data_Wave6$sex)
 ```
 
 
@@ -199,19 +175,17 @@ data$agecat[data$age>=80] = "80+"
 data$sex[data$sex == 1] <- "male"
 data$sex[data$sex == 2] <- "female"
 
+data_Wave5$sex[data_Wave5$sex == 1] <- "male"
+data_Wave5$sex[data_Wave5$sex == 2] <- "female"
+
+data_Wave6$sex[data_Wave6$sex == 1] <- "male"
+data_Wave6$sex[data_Wave6$sex == 2] <- "female"
+
 #average age of participants
 mean(data$age)
+median(data$age)
 ```
-#education variables 
-```{r}
-attach(data)
-data$education_cat[education < 3] = "incomplete or no primary education"
-data$education_cat[education > 2 & education <= 6] <- "no uni"
-data$education_cat[education >= 7] <- "uni"
-detach(data)
-table(data$education)
-data
-```
+
 #wave variables
 ```{r}
 data$wave[data$wave == 5] <- "Wave 5"
@@ -223,6 +197,8 @@ data
 #age range
 ```{r}
 range(data$age) 
+range(data_Wave5$age)
+range(data_Wave6$age)
 ```
 #risk taking Frequency
 ```{r}
@@ -293,27 +269,25 @@ ggplot(data, aes(age, risk, color = as.factor(country_lab)))+
   geom_point()+
   geom_smooth(method = "lm", se = TRUE)
 ```
+```{r}
+```
 
 ```{r}
+# read in file that contains hardship indicators manually collected from CIA factbook, WHO, and World Bank 
+# (see Supplemental Materials for URL sources)
+countryfacts = read.csv("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/countryfacts_selection.csv", as.is = TRUE, header = TRUE) 
+
+# Create a vector of labels with the same length as the number of columns in 'countryfacts'
+labels <- c("code","country","codeWVS","Homicide","GDP","InfMort","LifeExp","GINI","GenderPEdu","code2")
 
 
 
 
-
-
-```
-```{r}
-ncol(countryfacts)  # this will print the number of columns in countryfacts
-length(labels)       # this will print the length of the labels vector
-
-```
-
-
+# Print the result
+print(countryfacts)
 ```
 
 
-
-  
 
 
 
