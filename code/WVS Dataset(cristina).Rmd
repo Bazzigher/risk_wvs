@@ -86,13 +86,13 @@ library(dplyr)
 
 #rename the variables
 WV5_data <- WV5_data_df %>%
-  rename(sex = V235, age = V237, country = V2, wave = V1, family_important = V4, friends_important = V5, leisure_time = V6, happiness = V10, health = V11, satisfaction = V22, freedom = V46, marital_status = V55, children = V56, creativity = V80, money = V81, security = V82, goodtime = V83, help = V84, success = V85, risk = V86, proper = V87, environment = V88, tradition = V89, employment = V241, education = V238)
+  rename(sex = V235, age = V237, country = V2, wave = V1, risk = V86)
 WV5_data
 
 
 #select only the variables of interest
 WV5_data <- WV5_data %>%
-  select(sex, age, country, wave, family_important, friends_important, leisure_time, happiness, health, satisfaction, freedom, marital_status, children, creativity, money, security, goodtime, help, success, risk, proper, environment, tradition, employment, education)
+  select(sex, age, country, wave, risk)
 WV5_data
 ```
 
@@ -118,12 +118,12 @@ print(WV6_data)
 #rename variables
 ```{r}
 WV6_data <- WV6_data %>%
-  rename(wave = V1, sex = V240, age = V242,country = V2, marital_status = V57, children = V58, employment = V229, education = V248, risk = V76, money = V71, security = V72, goodtime =  V73, help = V74B, success = V75, proper = V77, environment = V78, tradition = V79, creativity = V70, family_important = V4, friends_important = V5, leisure_time = V6, happiness = V10, health = V11, satisfaction = V23, freedom = V55 )
+  rename(wave = V1, sex = V240, age = V242,country = V2, risk = V76)
 
 
 #select only the variables of interest
 WV6_data <- WV6_data %>%
-  select(wave, sex, age, country, sex, marital_status, children, employment, education, risk, money, security, goodtime, help, success, proper, environment, tradition, creativity, family_important, friends_important, leisure_time, happiness, health, satisfaction, freedom)
+  select(wave, sex, age, country, sex,risk)
 WV6_data
 
 ```
@@ -157,12 +157,24 @@ nrow(data)
 ```
 #exclusion of participants
 ```{r}
-data = subset(data, risk > 0 & sex > 0 & age > 0 & education > 0 & employment > 0 & marital_status > 0 & children >= 0 & family_important > 0 & friends_important > 0 & leisure_time > 0 & happiness > 0 & health > 0 & satisfaction > 0 & freedom > 0 & marital_status > 0 & creativity > 0 & money > 0 & security > 0 & goodtime >0 & help > 0 & success > 0, risk > 0 & proper > 0 & environment > 0 & tradition > 0 & employment > 0 & education > 0) 
+data = subset(data, risk > 0 & sex > 0 & age > 0)
 
+length(unique(data$country_lab))
  
 
 data
 ```
+```{r}
+data$risk = 6 - data$risk + 1
+data$risk_ord=data$risk 
+data$risk = 10*scale(data$risk, center=TRUE,scale=TRUE)+50
+data
+
+```
+
+
+
+
 #number of males vs females (1 = males; 2 = females)
 ```{r}
 table(data$sex)
@@ -255,30 +267,13 @@ data = na.omit(data)
 summary(data)
 ```
 ```{r}
-#risk vs education
-ggplot(data, aes(risk, education))+
-  geom_point()+
-  geom_smooth(method = "lm")
-
-model = lm(risk ~ education, data = data)
-summary(model)
-```
-```{r}
-#risk vs freedom
-ggplot(data, aes(risk, freedom))+
-  geom_point()+
-  geom_smooth(method = "lm")
-
-model1 = lm(risk ~ freedom, data = data)
-summary(model1)
-```
-```{r}
 #risk distribution according to Waves 5 and 6 
 ggplot(data, aes(as.factor(wave), risk))+
   geom_boxplot()
 ```
 ```{r}
 #risk vs age
+library(ggplot2)
 ggplot(data, aes(risk, age))+
   geom_point()+
   geom_smooth(method = "lm")
@@ -293,26 +288,42 @@ ggplot(data1, aes(as.factor(country_lab), risk))+
   geom_boxplot()
 ```
 ```{r}
-#happiness vs risk depending on sex
-ggplot(data, aes(happiness, risk, color = as.factor(sex)))+
+#age vs risk depending on country
+ggplot(data, aes(age, risk, color = as.factor(country_lab)))+
   geom_point()+
   geom_smooth(method = "lm", se = TRUE)
 ```
+
 ```{r}
-# happiness vs risk depending on age
-ggplot(data, aes(happiness, risk, color = as.factor(agecat)))+
-  geom_point()+
-  geom_smooth(method = "lm", se = TRUE)
+
+
+
+
+
+
 ```
 ```{r}
-table(data$country_lab)
+ncol(countryfacts)  # this will print the number of columns in countryfacts
+length(labels)       # this will print the length of the labels vector
+
+```
+
+
 ```
 
 
 
+  
 
 
-```
+
+
+
+
+
+
+
+
 
 
 
