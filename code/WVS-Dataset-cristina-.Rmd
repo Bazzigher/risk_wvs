@@ -308,10 +308,6 @@ summary(data)
 # Load the dplyr package
 library(dplyr)
 
-# Create age categories
-data <- data %>%
-  mutate(agecat = cut(age, breaks = c(0, 18, 35, 50, 65, 100), 
-                      labels = c('0-18', '19-35', '36-50', '51-65', '66+')))
 
 # Count the number of occurrences of each age category for each country
 agepercountries_counts <- data %>%
@@ -359,11 +355,112 @@ print(age_distribution_per_country)
 
 ```
 
+```{r}
+# Load the dplyr package if not already loaded
+if (!require(dplyr)) {
+  install.packages("dplyr")
+  library(dplyr)
+}
+
+# Group the data by sex and calculate the mean risk for each sex
+risk_by_sex <- data %>%
+  group_by(sex) %>%
+  summarize(mean_risk = mean(risk_ord, na.rm = TRUE))
+
+# Calculate the difference in mean risk between sexes
+sex_difference <- diff(risk_by_sex$mean_risk)
+
+# Print the result
+print(risk_by_sex)
+print(sex_difference)
+
+
 ```
+```{r}
+# Load the dplyr package if not already loaded
+if (!require(dplyr)) {
+  install.packages("dplyr")
+  library(dplyr)
+}
+
+# Group the data by country_lab and calculate the mean risk for each country_lab
+risk_by_country_lab <- data %>%
+  group_by(country_lab) %>%
+  summarize(mean_risk = mean(risk_ord, na.rm = TRUE))
+
+# Print the result
+print(risk_by_country_lab)
+```
+
+```{r}
+# Load the dplyr package if not already loaded
+if (!require(dplyr)) {
+  install.packages("dplyr")
+  library(dplyr)
+}
+
+
+
+# Group the data by age_cat and calculate the mean risk for each age category
+risk_by_agecat <- data %>%
+  group_by(agecat) %>%
+  summarize(mean_risk = mean(risk_ord, na.rm = TRUE))
+
+# Print the result
+print(risk_by_agecat)
+
 ```
 
 
+```{r}
+data
+```
+```{r}
+# Load the dplyr package if not already loaded
+if (!require(dplyr)) {
+  install.packages("dplyr")
+  library(dplyr)
+}
 
+# Create the 'hardship' column in the 'countryfacts' data frame
+countryfacts <- countryfacts %>%
+  mutate(hardship = (homiciderate + gdp + infantmortality + lifeexpectancy + gini + femalemale_primedu) / 6)
+countryfacts
+
+
+
+# View the distribution of the 'hardship_index' column for each country
+hardship_index_distribution <- countryfacts %>%
+  group_by(label) %>%
+  summarize(
+    mean = mean(hardship, na.rm = TRUE),
+    median = median(hardship, na.rm = TRUE),
+    sd = sd(hardship, na.rm = TRUE),
+    min = min(hardship, na.rm = TRUE),
+    max = max(hardship, na.rm = TRUE),
+    n = sum(!is.na(hardship))
+  )
+
+# Print the result
+print(hardship_index_distribution)
+
+
+
+  
+
+
+
+
+
+
+
+
+
+```
+
+```{r}
+countryfacts
+```
 
 
 
