@@ -471,10 +471,11 @@ pAlgeria = ggplot(dataAlgeria, aes(age, risk_ord))+
 pAlgeria
 model = lm(risk_ord ~ age, dataAlgeria)
 summary(model)
-
 ```
+
+
 ```{r}
-data
+dataAlgeria
 ```
 #Andorra
 ```{r}
