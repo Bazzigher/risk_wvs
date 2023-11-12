@@ -4,6 +4,10 @@ output: html_notebook
 ---
 
 # Find out how the risktaking was set together and how they are measured
+For each preference, the survey items are combined into a single preference measure using the weights that (endogenously) emerged from this experimental validation procedure. In particular, the experimental validation procedure allows an analysis of which linear combination of survey items performs best in predicting the corresponding experimental behavior. These weights are used to compute the final preference measures, in line with the goal of constructing variables that have experimental counterparts.
+At the same time, future research using the GPS may wish to focus on selected subsets of our items by, say, focusing attention on the quantitative survey formats.
+Finally, for ease of interpretation, each preference measure is standardized at the individual level, so that, by construction, each preference has a mean of zero and a standard deviation of one in the individual-level world sample.
+
 # Find out about the overlap
 - same countries 
 - facid wrap --> Plot by country
@@ -16,11 +20,9 @@ output: html_notebook
 
 ###########
 Next steps: 
-- what visualisation do we want to do (why)? 
-- write read me --> why do we do certain steps 
+- what visualization do we want to do (why)? 
 - always age and gender in the plots
 - Intercept age, intercept for age, intercept gender, intercept n
-
 
 #Load packages 
 ```{r}
@@ -32,7 +34,6 @@ library(dplyr)
 library(gridExtra)
 library(lmtest)
 ```
-
 
 #Add data GPS
 ```{r}
@@ -50,7 +51,6 @@ number_of_countries <- length(unique(gps_data$country))
 # Display the number of different countries
 number_of_countries
 ```
-
 
 # Clean the data from missing values
 ```{r}
@@ -77,24 +77,6 @@ variable_list <- names(cleaned_data) # OR colnames(your_data)
 print(variable_list)
 ```
 
-# Variance of some Items
-```{r}
-# Calculate the variance of the "patience" variable
-variance_patience <- var(cleaned_data$patience, na.rm = TRUE)
-variance_risktaking <- var(cleaned_data$risktaking, na.rm = TRUE)
-variance_age <- var(cleaned_data$age, na.rm = TRUE)
-
-# Display the variance of the "patience" variable
-variance_patience
-variance_risktaking
-variance_age
-```
-# Histogram of some variables
-```{r}
-hist(cleaned_data$age, main = "Histogram of Age", xlab = "age", ylab = "Frequency")
-hist(cleaned_data$patience, main = "Histogram of patience", xlab = "patience", ylab = "Frequency")
-hist(cleaned_data$risktaking, main = "Histogram of risktaking", xlab = "risktaking", ylab = "Frequency")
-```
 # Boxplot of some variables
 ```{r}
 boxplot(cleaned_data$age, main = "Boxplot of Age")
@@ -138,9 +120,33 @@ gender_by_country <- xtabs(~ country + gender, data = cleaned_data)
 colnames(gender_by_country) <- c("Female", "Male")
 rownames(gender_by_country) <- unique(cleaned_data$country)
 
-# Display the table
-gender_by_country
+# Calculate the total participants by summing the rows
+total_participants <- rowSums(gender_by_country)
+
+# Create a data frame with country, total participants, female, and male
+result_table <- data.frame(
+  country = rownames(gender_by_country),
+  total_participants = total_participants,
+  female = gender_by_country[, "Female"],
+  male = gender_by_country[, "Male"]
+)
+
+# Display the result table
+result_table
 ```
+
+```{r}
+# Intercept und Slope für Alter
+intercept_age <- coef(model)["(Intercept)"]
+slope_age <- coef(model)["age"]
+
+# Intercept und Slope für Geschlecht
+intercept_gender <- coef(model)["(Intercept)"]
+slope_gender <- coef(model)["gender"]
+
+summary(model)
+```
+
 # Create a table with the following information: country, isocode, n (count of participants), female percentage (%), mean age, age range, and risktaking
 ####### add intercept and slope (age, gender, parental status, occupational status, education)
 ```{r}
@@ -155,8 +161,33 @@ table_data <- gps_data %>%
     mean_risktaking = mean(risktaking, na.rm = TRUE)
   )
 
-# Display the table
+
+# Intercept and slope for age
+intercept_age <- 0.5  # Replace with your actual intercept
+slope_age <- 0.2      # Replace with your actual slope
+
+# Intercept and slope for gender
+intercept_gender <- -0.3  # Replace with your actual intercept
+slope_gender <- 0.1       # Replace with your actual slope
+
+# Add the intercept and slope information to the table
+table_data <- table_data %>%
+  mutate(
+    intercept_age = intercept_age,
+    slope_age = slope_age,
+    intercept_gender = intercept_gender,
+    slope_gender = slope_gender,
+    intercept_parental = intercept_parental,
+    slope_parental = slope_parental,
+    intercept_occupation = intercept_occupation,
+    slope_occupation = slope_occupation,
+    intercept_education = intercept_education,
+    slope_education = slope_education
+  )
+
+# Display the updated table
 table_data
+
 ```
 
 # Create a new column "age_group" with the age categories
