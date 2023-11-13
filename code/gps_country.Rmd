@@ -16,11 +16,6 @@ Each preference measure is standardized at the individual level, so that, by con
 - Plot it by how steep the slope is
 --> Run it in an mixed effect model (see paper from Rui)
 
-###########
-Next steps: 
-- what visualization do we want to do (why)? 
-- always age and gender in the plots
-
 #Load packages 
 ```{r}
 library(data.table)
@@ -545,7 +540,18 @@ table(WV6_data$country_lab)
 WV6_data
 ```
 
+#combine the 3 dataset (Wave 6 + Wave 5 + gps)
+```{r}
+WV5_data
+WV6_data
+cleaned_data
+data = rbind(WV5_data, WV6_data, cleaned_data)
+data
 
+#number of countries
+
+length(unique(data$country_lab))
+```
 ```{r}
 # extract the countries in each file 
 country_WV5 <- unique(WV5_data$country)
