@@ -31,9 +31,7 @@ library(ggplot2)
 library(dplyr)
 library(gridExtra)
 library(lmtest)
-install.packages("maps")
 library(maps)
-install.packages("mapdata")
 library(mapdata)
 ```
 
@@ -83,6 +81,20 @@ cleaned_data <- cleaned_data %>%
 cleaned_data
 ```
 
+# Create a new column "age_group" with the age categories
+```{r}
+cleaned_data$agecat <- cut(
+  cleaned_data$age,
+  breaks = c(15, 20, 30, 40, 50, 60, 70, 80, Inf), # The category boundaries
+  labels = c("15-19", "20-29", "30-39", "40-49", "50-59", "60-69", "70-79", "80+"), # The category labels
+  right = FALSE # Left end (inclusive), right end (exclusive)
+)
+
+# Display the new column
+head(cleaned_data)
+```
+
+
 #######################################################################################################################
 #######################################################################################################################
 # Descriptive 
@@ -95,19 +107,24 @@ number_of_countries <- length(unique(cleaned_data$country))
 # Display the number of different countries
 number_of_countries
 ```
+
+
+# Worldmap of the recorded countries
 ```{r}
-# Anzahl der Länder nach der Datenbereinigung
-number_of_countries <- length(unique(cleaned_data$country))
+world_map <- map_data("world") # Create a world map with country borders
 
-# Balkendiagramm erstellen
-barplot(number_of_countries, 
-        main = "Number of Countries",
-        xlab = "Count",
-        ylab = "Country",
-        col = "skyblue",
-        horiz = TRUE)
+recorded_countries <- unique(cleaned_data$country) # Get the list of recorded countries from your cleaned_data
+
+world_map$recorded <- ifelse(world_map$region %in% recorded_countries, "Recorded", "Not Recorded") # Create a new variable indicating whether a country has been recorded or not
+
+# Plot the world map with recorded countries highlighted
+ggplot(world_map, aes(x = long, y = lat, group = group, fill = recorded)) +
+  geom_polygon(color = "white") +
+  scale_fill_manual(values = c("Recorded" = "darkblue", "Not Recorded" = "lightgrey"), guide = "legend") +
+  theme_void() +
+  labs(title = "Recorded Countries on World Map", fill = "Status") +
+  theme(legend.position = "bottom")
 ```
-
 
 # All about the age
 ```{r}
@@ -125,6 +142,24 @@ median_age <- median(cleaned_data$age, na.rm = TRUE)
 cat("Age Range: ", age_min, " to ", age_max, "\n")
 cat("Average Age: ", average_age, "\n")
 cat("Median Age: ", median_age, "\n")
+```
+
+# Number of participants in each age category
+```{r}
+# number of participants in each age category
+agecat_counts <- table(cleaned_data$agecat)
+
+# Display the number of participants in the age categories
+print(agecat_counts)
+```
+
+# Boxplot of Age Distribution per Country 
+```{r}
+ggplot(cleaned_data, aes(x = country, y = age)) +
+  geom_boxplot(fill = "lightblue", color = "blue") +
+  labs(title = "Distribution of Age per Country", x = "Country", y = "Age") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 ```
 
 # All about the gender
@@ -160,19 +195,42 @@ result_table <- data.frame(
 # Display the result table
 result_table
 ```
-
+# Analysis of item risktaking 
 ```{r}
-# Boxplot der Altersverteilung pro Land
-ggplot(cleaned_data, aes(x = country, y = age)) +
+# Summary statistics for risktaking
+risk_summary <- summary(cleaned_data$risktaking)
+
+# Histogram of risktaking
+ggplot(cleaned_data, aes(x = risktaking)) +
+  geom_histogram(binwidth = 1, fill = "lightblue", color = "blue", alpha = 0.7) +
+  labs(title = "Distribution of Risk-Taking", x = "Risk-Taking Score", y = "Frequency") +
+  theme_minimal()
+
+# Boxplot of risktaking by gender
+ggplot(cleaned_data, aes(x = as.factor(gender), y = risktaking, fill = as.factor(gender))) +
+  geom_boxplot() +
+  labs(title = "Risk-Taking by Gender", x = "Gender", y = "Risk-Taking Score") +
+  theme_minimal()
+
+# Boxplot of risktaking by age group
+cleaned_data$age_group <- cut(cleaned_data$age, breaks = c(0, 25, 35, 45, 55, Inf),
+                               labels = c("18-25", "26-35", "36-45", "46-55", "56+"))
+ggplot(cleaned_data, aes(x = age_group, y = risktaking, fill = age_group)) +
+  geom_boxplot() +
+  labs(title = "Risk-Taking by Age Group", x = "Age Group", y = "Risk-Taking Score") +
+  theme_minimal()
+
+# Boxplot of risktaking by country
+ggplot(cleaned_data, aes(x = country, y = risktaking)) +
   geom_boxplot(fill = "lightblue", color = "blue") +
-  labs(title = "Distribution of Age per Country", x = "Country", y = "Age") +
+  labs(title = "Risk-Taking by Country", x = "Country", y = "Risk-Taking Score") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 ```
 
 
 
-
+################################################################################################################################################################################################################################################
 ```{r}
 # Intercept and Slope for age
 intercept_age <- coef(model)["(Intercept)"]
@@ -184,9 +242,19 @@ slope_gender <- coef(model)["gender"]
 
 summary(model)
 ```
+```{r}
+# Fit das Modell mit "gender"
+model_gender <- lm(risktaking ~ gender, data = cleaned_data)
+
+# Intercept und Slope für gender
+intercept_gender <- coef(model_gender)["(Intercept)"]
+slope_gender <- coef(model_gender)["gender"]
+
+summary(model_gender)
+```
+
 
 # Create a table with the following information: country, isocode, n (count of participants), female percentage (%), mean age, age range, and risktaking
-####### add intercept and slope (age, gender, parental status, occupational status, education)
 ```{r}
 # Group the data by country
 table_data <- gps_data %>%
@@ -199,14 +267,13 @@ table_data <- gps_data %>%
     mean_risktaking = mean(risktaking, na.rm = TRUE)
   )
 
-
 # Intercept and slope for age
-intercept_age <- 0.5  # Replace with your actual intercept
-slope_age <- 0.2      # Replace with your actual slope
+intercept_age <- 0.5759701
+slope_age <- -0.0137902
 
 # Intercept and slope for gender
-intercept_gender <- -0.3  # Replace with your actual intercept
-slope_gender <- 0.1       # Replace with your actual slope
+intercept_gender <- 0.124666 
+slope_gender <- -0.227338 
 
 # Add the intercept and slope information to the table
 table_data <- table_data %>%
@@ -215,12 +282,6 @@ table_data <- table_data %>%
     slope_age = slope_age,
     intercept_gender = intercept_gender,
     slope_gender = slope_gender,
-    intercept_parental = intercept_parental,
-    slope_parental = slope_parental,
-    intercept_occupation = intercept_occupation,
-    slope_occupation = slope_occupation,
-    intercept_education = intercept_education,
-    slope_education = slope_education
   )
 
 # Display the updated table
@@ -228,38 +289,8 @@ table_data
 
 ```
 
-# Create a new column "age_group" with the age categories
-```{r}
-cleaned_data$agecat <- cut(
-  cleaned_data$age,
-  breaks = c(15, 20, 30, 40, 50, 60, 70, 80, Inf), # The category boundaries
-  labels = c("15-19", "20-29", "30-39", "40-49", "50-59", "60-69", "70-79", "80+"), # The category labels
-  right = FALSE # Left end (inclusive), right end (exclusive)
-)
-
-# Display the new column
-head(cleaned_data)
-```
-
-# Number of participants in each age category
-```{r}
-# number of participants in each age category
-agecat_counts <- table(cleaned_data$agecat)
-
-# Display the number of participants in the age categories
-print(agecat_counts)
-```
 
 
-# Perform a correlation analysis on variables patience, risktaking, altruism and trust
-```{r}
-# Calculate the correlation matrix with NA removal
-correlation_matrix <- cor(cleaned_data[, c("patience", "risktaking", "altruism", "trust")], use = "pairwise.complete.obs")
-
-# Print the correlation matrix
-print(correlation_matrix)
-
-```
 
 #############################################
 # checking the assumptions in a linear regression  
@@ -461,4 +492,71 @@ ggplot(cleaned_data, aes(x = age, y = risktaking, color = country)) +
         legend.key.size = unit(0.1, "in"))  # Adjust the size of the legend key
 ```
 
+
+
+#################################################################################################################################################################
+# Combined List of all 3 files
+
+
+```{r}
+# Load the data
+WV5_data <- readRDS("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/WV6_dataset_wave_5_6/F00007944-WV5_Data_R_v20180912.rds") # Data of Wave 5
+
+#rename the variables
+WV5_data <- WV5_data_df %>%
+  rename(sex = V235, age = V237, country = V2, wave = V1, risk = V86)
+WV5_data
+
+#select only the variables of interest
+WV5_data <- WV5_data %>%
+  select(sex, age, country, wave, risk)
+WV5_data
+
+#decode the country names 
+countrynames = read.csv("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/WV6_dataset_wave_5_6/countrynames.txt", header=FALSE,as.is=TRUE)
+colnames(countrynames) = c("code", "name")
+WV5_data$country_lab = countrynames$name [match(WV5_data$country, countrynames$code)]
+table(WV5_data$country_lab)
+WV5_data
+```
+
+#Read Dataset (Wave 6)
+```{r}
+WV6_data <- load("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/WV6_dataset_wave_5_6/WV6_Data_R_v20201117.rdata") 
+WV6_data <- WV6_Data_R_v20201117 
+print(WV6_data)
+```
+
+#rename variables
+```{r}
+WV6_data <- WV6_data %>%
+  rename(wave = V1, sex = V240, age = V242,country = V2, risk = V76)
+
+#select only the variables of interest
+WV6_data <- WV6_data %>%
+  select(wave, sex, age, country, sex,risk)
+WV6_data
+```
+#decode daraset (Wave 6)
+```{r}
+countrynames = read.csv("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/WV6_dataset_wave_5_6/countrynames.txt", header=FALSE,as.is=TRUE)
+colnames(countrynames) = c("code", "name")
+WV6_data$country_lab = countrynames$name [match(WV6_data$country, countrynames$code)]
+table(WV6_data$country_lab)
+WV6_data
+```
+
+
+```{r}
+# extract the countries in each file 
+country_WV5 <- unique(WV5_data$country)
+country_WV6 <- unique(WV6_data$country)
+country_gps <- unique(cleaned_data$country)
+
+# find common countries
+common_country <- Reduce(intersect, list(country_WV5, country_WV6, country_gps))
+
+# Print the common countries
+print(common_country)
+```
 
