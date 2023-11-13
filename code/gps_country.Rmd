@@ -4,9 +4,7 @@ output: html_notebook
 ---
 
 # Find out how the risktaking was set together and how they are measured
-For each preference, the survey items are combined into a single preference measure using the weights that (endogenously) emerged from this experimental validation procedure. In particular, the experimental validation procedure allows an analysis of which linear combination of survey items performs best in predicting the corresponding experimental behavior. These weights are used to compute the final preference measures, in line with the goal of constructing variables that have experimental counterparts.
-At the same time, future research using the GPS may wish to focus on selected subsets of our items by, say, focusing attention on the quantitative survey formats.
-Finally, for ease of interpretation, each preference measure is standardized at the individual level, so that, by construction, each preference has a mean of zero and a standard deviation of one in the individual-level world sample.
+Each preference measure is standardized at the individual level, so that, by construction, each preference has a mean of zero and a standard deviation of one in the individual-level world sample.
 
 # Find out about the overlap
 - same countries 
@@ -33,14 +31,16 @@ library(ggplot2)
 library(dplyr)
 library(gridExtra)
 library(lmtest)
+install.packages("maps")
+library(maps)
+install.packages("mapdata")
+library(mapdata)
 ```
 
 #Add data GPS
 ```{r}
-# Einlesen des Datensets
 gps_data <- haven::read_dta("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/GPS_dataset_individual_level/individual_new.dta")
 
-# Anzeige der ersten Zeilen des Datensets
 head(country_data)
 ```
 # Number of courtries 
@@ -76,13 +76,39 @@ variable_list <- names(cleaned_data) # OR colnames(your_data)
 # Display the list of variables
 print(variable_list)
 ```
-
-# Boxplot of some variables
+#select only the variables of interest
 ```{r}
-boxplot(cleaned_data$age, main = "Boxplot of Age")
-boxplot(cleaned_data$patience, main = "Boxplot of Patience")
-boxplot(cleaned_data$risktaking, main = "Boxplot of Risktaking")
+cleaned_data <- cleaned_data %>%
+  select(country, isocode, ison, date, risktaking, gender, age)
+cleaned_data
 ```
+
+#######################################################################################################################
+#######################################################################################################################
+# Descriptive 
+
+# Number of courtries after data cleaning
+```{r}
+# Determine the number of different countries
+number_of_countries <- length(unique(cleaned_data$country))
+
+# Display the number of different countries
+number_of_countries
+```
+```{r}
+# Anzahl der Länder nach der Datenbereinigung
+number_of_countries <- length(unique(cleaned_data$country))
+
+# Balkendiagramm erstellen
+barplot(number_of_countries, 
+        main = "Number of Countries",
+        xlab = "Count",
+        ylab = "Country",
+        col = "skyblue",
+        horiz = TRUE)
+```
+
+
 # All about the age
 ```{r}
 # Age Range
@@ -136,11 +162,23 @@ result_table
 ```
 
 ```{r}
-# Intercept und Slope für Alter
+# Boxplot der Altersverteilung pro Land
+ggplot(cleaned_data, aes(x = country, y = age)) +
+  geom_boxplot(fill = "lightblue", color = "blue") +
+  labs(title = "Distribution of Age per Country", x = "Country", y = "Age") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+
+
+
+```{r}
+# Intercept and Slope for age
 intercept_age <- coef(model)["(Intercept)"]
 slope_age <- coef(model)["age"]
 
-# Intercept und Slope für Geschlecht
+# Intercept and Slope for gender
 intercept_gender <- coef(model)["(Intercept)"]
 slope_gender <- coef(model)["gender"]
 
