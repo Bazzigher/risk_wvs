@@ -20,7 +20,6 @@ Each preference measure is standardized at the individual level, so that, by con
 Next steps: 
 - what visualization do we want to do (why)? 
 - always age and gender in the plots
-- Intercept age, intercept for age, intercept gender, intercept n
 
 #Load packages 
 ```{r}
