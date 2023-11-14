@@ -149,6 +149,11 @@ print(agecat_counts)
 
 # Boxplot of Age Distribution per Country 
 ```{r}
+ggplot(cleaned_data, aes(x = age)) +
+  geom_histogram(binwidth = 0.5, fill = "lightblue", color = "blue") +
+  labs(x = "Age", y = "Frequency", title = "Histogram of Age Distributionn") +
+  theme_minimal()
+
 ggplot(cleaned_data, aes(x = country, y = age)) +
   geom_boxplot(fill = "lightblue", color = "blue") +
   labs(title = "Distribution of Age per Country", x = "Country", y = "Age") +
@@ -204,7 +209,14 @@ ggplot(cleaned_data, aes(x = risktaking)) +
 ggplot(cleaned_data, aes(x = as.factor(gender), y = risktaking, fill = as.factor(gender))) +
   geom_boxplot() +
   labs(title = "Risk-Taking by Gender", x = "Gender", y = "Risk-Taking Score") +
-  theme_minimal()
+  scale_x_discrete(labels = c("0" = "male", "1" = "female")) +
+  theme_minimal() +
+  guides(fill = FALSE)
+
+# Risk vs age
+ggplot(cleaned_data, aes(risktaking, age)) +
+  geom_point(size = 0.2) +  
+  geom_smooth(method = "lm")
 
 # Boxplot of risktaking by age group
 cleaned_data$age_group <- cut(cleaned_data$age, breaks = c(0, 25, 35, 45, 55, Inf),
@@ -212,7 +224,8 @@ cleaned_data$age_group <- cut(cleaned_data$age, breaks = c(0, 25, 35, 45, 55, In
 ggplot(cleaned_data, aes(x = age_group, y = risktaking, fill = age_group)) +
   geom_boxplot() +
   labs(title = "Risk-Taking by Age Group", x = "Age Group", y = "Risk-Taking Score") +
-  theme_minimal()
+  theme_minimal() +
+  guides(fill = FALSE)
 
 # Boxplot of risktaking by country
 ggplot(cleaned_data, aes(x = country, y = risktaking)) +
@@ -226,13 +239,12 @@ ggplot(cleaned_data, aes(x = country, y = risktaking)) +
 
 ################################################################################################################################################################################################################################################
 ```{r}
+# Fit das Modell mit "age"
+model_gender <- lm(risktaking ~ age, data = cleaned_data)
+
 # Intercept and Slope for age
 intercept_age <- coef(model)["(Intercept)"]
 slope_age <- coef(model)["age"]
-
-# Intercept and Slope for gender
-intercept_gender <- coef(model)["(Intercept)"]
-slope_gender <- coef(model)["gender"]
 
 summary(model)
 ```
@@ -479,7 +491,7 @@ ggplot(cleaned_data, aes(x = age, y = risktaking, color = country)) +
   geom_point(size = 0.5) +                      # Adjust point size
   geom_smooth(method = "lm", se = FALSE, size = 0.5) + # Solid line for individual countries
   geom_abline(intercept = coef(overall_lm)[1], slope = coef(overall_lm)[2], 
-              color = "red", size = 1) + # Add the overall regression line in red
+              color = "black", size = 1) + # Add the overall regression line in red
   labs(title = "Scatterplot with Regression Lines for risktaking and age by Country", 
        x = "Age", y = "Risktaking") +
   theme(legend.position = "bottom",          # Move the legend below the graph
@@ -491,19 +503,19 @@ ggplot(cleaned_data, aes(x = age, y = risktaking, color = country)) +
 #################################################################################################################################################################
 # Combined List of all 3 files
 
-
+# Prepare Wave 5
 ```{r}
 # Load the data
 WV5_data <- readRDS("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/WV6_dataset_wave_5_6/F00007944-WV5_Data_R_v20180912.rds") # Data of Wave 5
 
 #rename the variables
 WV5_data <- WV5_data_df %>%
-  rename(sex = V235, age = V237, country = V2, wave = V1, risk = V86)
+  rename(sex = V235, age = V237, country = V2, wave = V1, risktaking = V86)
 WV5_data
 
 #select only the variables of interest
 WV5_data <- WV5_data %>%
-  select(sex, age, country, wave, risk)
+  select(sex, age, country, wave, risktaking)
 WV5_data
 
 #decode the country names 
@@ -514,21 +526,22 @@ table(WV5_data$country_lab)
 WV5_data
 ```
 
-#Read Dataset (Wave 6)
+# Prepare Wave 6
 ```{r}
+#Read Dataset (Wave 6)
 WV6_data <- load("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/WV6_dataset_wave_5_6/WV6_Data_R_v20201117.rdata") 
 WV6_data <- WV6_Data_R_v20201117 
 print(WV6_data)
 ```
 
-#rename variables
+#rename variables in Wave 6
 ```{r}
 WV6_data <- WV6_data %>%
-  rename(wave = V1, sex = V240, age = V242,country = V2, risk = V76)
+  rename(wave = V1, sex = V240, age = V242,country = V2, risktaking = V76)
 
 #select only the variables of interest
 WV6_data <- WV6_data %>%
-  select(wave, sex, age, country, sex,risk)
+  select(wave, sex, age, country, sex,risktaking)
 WV6_data
 ```
 #decode daraset (Wave 6)
@@ -539,18 +552,25 @@ WV6_data$country_lab = countrynames$name [match(WV6_data$country, countrynames$c
 table(WV6_data$country_lab)
 WV6_data
 ```
+# Prepare GPS dataset (cleaned_data)
+```{r}
+# Rename "Country" in "country_lab"
+print(colnames(cleaned_data))
+
+```
+```{r}
+cleaned_data <- cleaned_data %>%
+  mutate(country_lab = country) %>%
+  select(-country)
+```
 
 #combine the 3 dataset (Wave 6 + Wave 5 + gps)
 ```{r}
-WV5_data
-WV6_data
-cleaned_data
-data = rbind(WV5_data, WV6_data, cleaned_data)
-data
+combined_data <- rbind(WV5_data, WV6_data, cleaned_data)
 
 #number of countries
 
-length(unique(data$country_lab))
+length(unique(combined_data$country_lab))
 ```
 ```{r}
 # extract the countries in each file 
