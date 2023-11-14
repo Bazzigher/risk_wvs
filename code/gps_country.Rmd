@@ -6,11 +6,6 @@ output: html_notebook
 # Find out how the risktaking was set together and how they are measured
 Each preference measure is standardized at the individual level, so that, by construction, each preference has a mean of zero and a standard deviation of one in the individual-level world sample.
 
-# Find out about the overlap
-- same countries 
-- facid wrap --> Plot by country
-- scatterplots --> mean country // mean risk 
-
 # Concept: What do we want 
 - Risktaking and age slope
 - Plot it by how steep the slope is
