@@ -97,7 +97,6 @@ number_of_countries <- length(unique(cleaned_data$country))
 number_of_countries
 ```
 
-
 # Worldmap of the recorded countries
 ```{r}
 world_map <- map_data("world") # Create a world map with country borders
@@ -235,7 +234,7 @@ ggplot(cleaned_data, aes(x = country, y = risktaking)) +
 ################################################################################################################################################################################################################################################
 ```{r}
 # Fit das Modell mit "age"
-model_gender <- lm(risktaking ~ age, data = cleaned_data)
+model_gender <- lm(risktaking ~ age + gender, data = cleaned_data)
 
 # Intercept and Slope for age
 intercept_age <- coef(model)["(Intercept)"]
@@ -256,6 +255,11 @@ summary(model_gender)
 
 
 # Create a table with the following information: country, isocode, n (count of participants), female percentage (%), mean age, age range, and risktaking
+
+### Four loup 
+Group by country
+mutate intercept 
+run and save intercept model 
 ```{r}
 # Group the data by country
 table_data <- gps_data %>%
