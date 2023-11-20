@@ -464,12 +464,41 @@ countryfacts
 ```{r}
 dataAlgeria <- subset(data, country_lab %in% c("Algeria"))
 library(ggplot2)
-pAlgeria = ggplot(dataAlgeria, aes(age, risk_ord))+
-  geom_point()+
-  geom_smooth(method = "lm")
-pAlgeria
-model = lm(risk_ord ~ age, dataAlgeria)
+
+
+pAlgeria <- ggplot(dataAlgeria, aes(x = scale(age), y = risk_ord, color = as.factor(sex))) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(title = "Scatterplot of risk_ord vs. age in Algeria", x = "Age", y = "Risk")
+
+print(pAlgeria)
+
+
+# Fit a linear model
+modelAlgeria <- lm(risk_ord ~ scale(age) * factor(sex), data = dataAlgeria)
 summary(model)
+
+# Extract coefficients
+coefficients <- coef(modelAlgeria)
+
+# Save the intercept and slope
+intercept_Algeria <- coefficients[1]
+slope_age_Algeria <- coefficients[2]
+slope_gender_Algeria <- coefficients[3]
+
+# Print the intercept and sloped
+print(intercept_Algeria)
+print(slope_age_Algeria)
+print(slope_gender_Algeria)
+
+
+
+
+
+
+
+
+
 ```
 
 
@@ -480,22 +509,53 @@ dataAlgeria
 ```{r}
 dataAndorra <- subset(data, country_lab %in% c("Andorra"))
 library(ggplot2)
-PAndorra = ggplot(dataAndorra, aes(age, risk_ord))+
+PAndorra = ggplot(dataAndorra, aes(x = scale(age), risk_ord, color = as.factor(sex)))+
   geom_point()+
   geom_smooth(method = "lm")
 PAndorra
+
+modelAndorra<- lm(risk_ord ~ scale(age) * factor(sex), data = dataAndorra)
+modelAndorra
+
+coefficients <- coef(modelAndorra)
+
+# Save the intercept and slopes
+intercept_Andorra <- coefficients[1]
+slope_age_Andorra <- coefficients[2]
+slope_gender_Andorra <- coefficients[3]
+
+# Print the intercept and slopes
+print(intercept_Andorra)
+print(slope_age_Andorra)
+print(slope_gender_Andorra)
+
+
 ```
 ```{r}
-country_counts
+table_data <- data %>%
+  group_by(country_lab) %>%
+  summarize(
+    n = n(),
+    mean_age = mean(age, na.rm = TRUE),
+    age_range = paste(min(age, na.rm = TRUE), "-", max(age, na.rm = TRUE)),
+    mean_risk = mean(risk, na.rm = TRUE)
+  )
+table_data
+
+
 ```
 #Argentina
 ```{r}
 dataArgentina <- subset(data, country_lab %in% c("Argentina"))
 library(ggplot2)
-pArgentina = ggplot(dataArgentina, aes(age, risk_ord))+
+pArgentina = ggplot(dataArgentina, aes(x = scale(age), risk_ord, color = as.factor(sex)))+
   geom_point()+
   geom_smooth(method = "lm")
 pArgentina
+
+ModelArgentina <- lm(risk_ord ~ scale(age) * factor(sex), data = dataArgentina)
+ModelArgentina
+
 ```
 #Armenia
 ```{r}
@@ -1187,9 +1247,37 @@ pZimbabwe = ggplot(dataZimbabwe, aes(age, risk_ord))+
 pZimbabwe
 ```
 
+```{r}
+#summarise the countries
+# Assuming your original data frame has uppercase variable names (Age and Risk)
 
+means_data <- data %>%
+  group_by(country_lab) %>%
+  summarise(
+    Mean_Age = mean(age),
+    Mean_Risk = mean(risk_ord))
+    
+    
+  
 
+means_data
 
+```
+```{r}
+countryfacts
+
+```
+```{r}
+gdp_data <- countryfacts %>%
+  select(, label, code, gdp)
+gdp_data
+
+```
+
+```{r}
+#effect for gender per country
+#effect age 
+```
 
 
 
