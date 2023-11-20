@@ -3,7 +3,7 @@ title: "R Notebook"
 output: html_notebook
 ---
 
-#Load packages 
+#Load packages
 ```{r}
 library(data.table)
 library(tidyr)
@@ -669,7 +669,6 @@ cat("Countries only in 'cleaned_data':", countries_only_in_cleaned_data, "\n")
 
 # Countymap based on common countires
 ```{r}
-install.packages("rnaturalearth")
 # Load the necessary libraries
 if (!requireNamespace("ggplot2", quietly = TRUE)) {
   install.packages("ggplot2")
@@ -687,31 +686,41 @@ library(rnaturalearth)
 # Get world map data
 world_map <- ne_countries(scale = "medium", returnclass = "sf")
 
-# Create data frames for different country statuses
-only_in_cleaned_data <- setdiff(cleaned_data$country, data$country_lab)
-only_in_data <- setdiff(data$country_lab, cleaned_data$country)
-common_countries <- intersect(cleaned_data$country, data$country_lab)
+# List of countries in different colors
+pink_countries <- c("Argentina", "Australia", "Brazil", "Canada", "Colombia", "Chile", "China", "Egypt", "Finland", "France", "Georgia",
+                    "Germany", "Ghana", "Guatemala", "Hungary", "India", "Indonesia", "Iran", "Iraq", "Italy", "Japan", "Jordan", "Mexico",
+                    "Moldova", "Morocco", "Netherlands", "Peru", "Poland", "Romania", "Russia", "Rwanda", "South Africa", "South Korea",
+                    "Spain", "Sweden", "Switzerland", "Thailand", "Turkey", "Ukraine", "United States", "Algeria", "Estonia", "Haiti",
+                    "Kazakhstan", "Nigeria", "Pakistan", "Philippines", "Zimbabwe")
 
-cleaned_data_map <- data.frame(country = only_in_cleaned_data, status = "Only in cleaned_data")
-data_map <- data.frame(country = only_in_data, status = "Only in data")
-common_countries_map <- data.frame(country = common_countries, status = "Common")
+green_countries <- c("Andorra", "Bulgaria", "Burkina Faso", "Cyprus", "Ethiopia", "Hong Kong", "Malaysia", "Mali", "New Zealand", "Norway",
+                     "NA", "Slovenia", "Taiwan", "Trinidad and Tobago", "Great Britain", "Uruguay", "Viet Nam", "Zambia", "Armenia",
+                     "Azerbaijan", "Belarus", "Ecuador", "Kuwait", "Kyrgyzstan", "Lebanon", "Libya", "Palestine", "Qatar", "Singapore",
+                     "Tunisia", "Uzbekistan", "Yemen")
+
+blue_countries <- c("Afghanistan", "Austria", "Bangladesh", "Bolivia", "Bosnia Herzegovina", "Botswana", "Cambodia", "Cameroon",
+                    "Costa Rica", "Croatia", "Czech Republic", "Greece", "Israel", "Kenya", "Lithuania", "Malawi", "Nicaragua", "Portugal",
+                    "Saudi Arabia", "Serbia", "Sri Lanka", "Suriname", "Tanzania", "Uganda", "United Arab Emirates", "United Kingdom",
+                    "Venezuela", "Vietnam")
+
+# Create data frames for different country colors
+pink_data <- data.frame(country = pink_countries, color = "pink")
+green_data <- data.frame(country = green_countries, color = "green")
+blue_data <- data.frame(country = blue_countries, color = "blue")
 
 # Combine the data frames
-world_map_data <- rbind(cleaned_data_map, data_map, common_countries_map)
+color_data <- rbind(pink_data, green_data, blue_data)
 
 # Merge with world map data
-world_map_data <- merge(world_map, world_map_data, by.x = "name", by.y = "country", all.x = TRUE)
+world_map_data <- merge(world_map, color_data, by.x = "name", by.y = "country", all.x = TRUE)
 
 # Create the world map with the desired colors
 ggplot() +
-  geom_sf(data = world_map_data, aes(fill = status), color = "white") +
-  scale_fill_manual(values = c("Only in cleaned_data" = "green", "Only in data" = "blue", "Common" = "pink")) +
-  labs(title = "Country Status on World Map", fill = "Status") +
+  geom_sf(data = world_map_data, aes(fill = color), color = "white") +
+  scale_fill_manual(values = c("pink" = "pink", "green" = "green", "blue" = "blue")) +
+  labs(title = "Country Colors on World Map", fill = "Color") +
   theme_void() +
   theme(legend.position = "bottom")
-
-
 ```
-
 
 
