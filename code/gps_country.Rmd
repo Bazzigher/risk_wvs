@@ -91,15 +91,15 @@ Add GDP-list
 gdp_data <- read.csv("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/GPS_dataset_individual_level/GDP_per_capita.csv")
 
 # Merge der Daten basierend auf der gemeinsamen Variable "country" und "name"
-merged_data <- merge(cleaned_data, gdp_data, by.x = "country", by.y = "name", all.x = TRUE)
+cleaned_data <- merge(cleaned_data, gdp_data, by.x = "country", by.y = "name", all.x = TRUE)
 
 # Anzeige der gemergten Daten
-head(merged_data)
+head(cleaned_data)
 ```
 #select only the variables of interest
 ```{r}
 cleaned_data <- cleaned_data %>%
-  select(country, isocode, ison, risktaking, gender, age, z_score_age, agecat, value.x, date_of_information.x, ranking.x)
+  select(country, isocode, ison, risktaking, gender, age, z_score_age, agecat, value, date_of_information, ranking, region)
 cleaned_data
 ```
 
@@ -107,7 +107,7 @@ cleaned_data
 ```{r}
 # Anzahl der Teilnehmenden pro Ranking und Land
 participants_by_ranking <- cleaned_data %>%
-  group_by(ranking.x, country) %>%
+  group_by(ranking, country) %>%
   summarize(participant_count = n())
 
 # Anzeige der Liste
@@ -143,6 +143,20 @@ ggplot(world_map, aes(x = long, y = lat, group = group, fill = recorded)) +
   theme_void() +
   labs(title = "Recorded Countries on World Map", fill = "Status") +
   theme(legend.position = "bottom")
+```
+
+# Summarize data across all regions
+```{r}
+summary_by_region <- cleaned_data %>%
+  group_by(region) %>%
+  summarize(
+    mean_age = mean(age, na.rm = TRUE),
+    mean_risk = mean(risktaking, na.rm = TRUE),
+    total_participants = n()
+  )
+
+# Display the summarized data
+print(summary_by_region)
 ```
 
 # All about the age
@@ -261,27 +275,24 @@ ggplot(cleaned_data, aes(x = country, y = risktaking)) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 ```
 
-# Scatterplot für risktaking in Abhängigkeit von Alter (age) und Geschlecht (gender)
-```{r}
-# Scatterplot für Risktaking in Abhängigkeit von Alter (Age)
-ggplot(cleaned_data, aes(x = age, y = risktaking)) +
-  geom_point(aes(color = gender)) +
-  labs(title = "Scatterplot of Risktaking by Age", x = "Age", y = "Risktaking", color = "Gender") +
-  theme_minimal()
-```
 
+# Risk vs age with color-coded gender
 ```{r}
-# Scatterplot für Risktaking in Abhängigkeit von Alter (Age) mit separaten Loess-Linien für Männer und Frauen
-ggplot(cleaned_data, aes(x = age, y = risktaking, color = gender)) +
-  geom_point() +
-  geom_smooth(method = "loess", se = FALSE, size = 1, aes(group = gender), 
-              linetype = "solid", color = "red", show.legend = FALSE) +  # Loess-Linie für Männer
-  geom_smooth(method = "loess", se = FALSE, size = 1, aes(group = gender), 
-              linetype = "solid", color = "green", show.legend = FALSE) +  # Loess-Linie für Frauen
-  labs(title = "Scatterplot of Risktaking by Age with Loess Lines for Gender", x = "Age", y = "Risktaking", color = "Gender") +
-  theme_minimal()
+ggplot(cleaned_data, aes(z_score_age, risktaking, color = factor(gender))) +
+  geom_point(size = 0.1) +  
+  geom_smooth(method = "lm") +
+  scale_color_manual(values = c("blue", "red"), labels = c("Male", "Female")) +
+  labs(color = "Gender")
+
+# GDP vs risktaking with color-coded gender and customized legend labels
+ggplot(cleaned_data, aes(x = ranking, y = risktaking, color = factor(gender))) +
+  geom_point(size = 0.2) +  
+  geom_smooth(method = "lm") +
+  scale_color_manual(values = c("blue", "red"), labels = c("Male", "Female")) +
+  labs(x = "GDP", y = "Risktaking", color = "Gender")
 
 ```
+
 
 ################################################################################################################################################################################################################################################
 ```{r}
@@ -294,17 +305,6 @@ slope_age <- coef(model)["age"]
 
 summary(model)
 ```
-```{r}
-# Fit das Modell mit "gender"
-model_gender <- lm(risktaking ~ gender, data = cleaned_data)
-
-# Intercept und Slope für gender
-intercept_gender <- coef(model_gender)["(Intercept)"]
-slope_gender <- coef(model_gender)["gender"]
-
-summary(model_gender)
-```
-
 
 # Create a table with the following information: country, isocode, n (count of participants), female percentage (%), mean age, age range, and risktaking
 
@@ -343,10 +343,7 @@ table_data <- table_data %>%
 
 # Display the updated table
 table_data
-
 ```
-
-
 
 
 #############################################
@@ -429,7 +426,7 @@ print(regression_results)
 ```
 
 
-# analyze the results by using "Balkendiagramm
+# analyze the results by using "Balkendiagramm"
 ###### what does 0 mean? // centered age = mean age of the sample
 ```{r}
 ggplot(data = regression_results, aes(x = country, y = intercept)) +
@@ -448,19 +445,16 @@ print(high_intercept_countries)
 
 # Scatterplots for 'high_intercept_countries' contains the top 17 countries
 ```{r}
-# Create scatterplots with regression lines for countries with intercept > 0.75 and smaller points
-plots <- lapply(1:nrow(regression_results), function(i) {
-  country <- regression_results$country[i]
-  intercept <- regression_results$intercept[i]
-  
-  if (intercept > 0.75) {
-    p <- ggplot(subset(cleaned_data, country == country), aes(x = age, y = risktaking)) +
-      geom_point(size = 0.5) +  # Set the size to a smaller value (e.g., 2)
-      geom_smooth(method = "lm", formula = y ~ x, se = FALSE, color = "blue") +
-      labs(title = paste("Linear Regression for", country),
-           subtitle = paste("Intercept:", round(intercept, 2)))
-    print(p)
-  }
+# Create scatterplots with regression lines for countries with intercept > 0.75
+plots <- lapply(high_intercept_countries$country, function(country) {
+  p <- ggplot(subset(cleaned_data, country == country), aes(x = age, y = risktaking, color = factor(gender))) +
+    geom_point(size = 0.5) +
+    geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
+    labs(title = paste("Linear Regression for", country),
+         subtitle = paste("Intercept:", round(high_intercept_countries$intercept[high_intercept_countries$country == country], 2)),
+         color = "Gender") +
+    scale_color_manual(values = c("0" = "blue", "1" = "red"), labels = c("Male", "Female"))
+  print(p)
 })
 
 # Save the plots in a directory
@@ -475,7 +469,36 @@ for (i in seq_along(plots)) {
 # Switch back to the original working directory
 setwd("..")
 
-print("Individual plots for countries with intercept > 0.75 and smaller points are saved in the 'individual_country_plots' directory.")
+print("Individual plots for countries with intercept > 0.75 are saved in the 'individual_country_plots' directory.")
+
+```
+
+# Scatterplots for 'high_intercept_countries' contains the top 17 countries
+```{r}
+plots <- lapply(high_intercept_countries$country, function(country) {
+  p <- ggplot(subset(cleaned_data, country == country), aes(x = ranking.x, y = risktaking, color = factor(gender))) +
+    geom_point(size = 0.5) +
+    geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
+    labs(title = paste("Linear Regression for", country),
+         subtitle = paste("Intercept:", round(high_intercept_countries$intercept[high_intercept_countries$country == country], 2)),
+         color = "Gender") +
+    scale_color_manual(values = c("0" = "blue", "1" = "red"), labels = c("Male", "Female"))
+  print(p)
+})
+
+# Save the plots in a directory
+dir.create("individual_country_plots", showWarnings = FALSE)
+setwd("individual_country_plots")
+
+for (i in seq_along(plots)) {
+  filename <- paste0("plot_", i, ".png")
+  ggsave(filename, plot = plots[[i]], width = 8, height = 6)
+}
+
+# Switch back to the original working directory
+setwd("..")
+
+print("Individual plots for countries with intercept > 0.75 are saved in the 'individual_country_plots' directory.")
 ```
 
 # Create scatterplots with regression lines for individual countries
@@ -607,32 +630,88 @@ WV6_data
 ```{r}
 # Rename "Country" in "country_lab"
 print(colnames(cleaned_data))
-
-```
-```{r}
-cleaned_data <- cleaned_data %>%
-  mutate(country_lab = country) %>%
-  select(-country)
 ```
 
-#combine the 3 dataset (Wave 6 + Wave 5 + gps)
+#combine the 2 dataset (Wave 6 + Wave 5)
 ```{r}
-combined_data <- rbind(WV5_data, WV6_data, cleaned_data)
+WV5_data
+WV6_data
+data = rbind(WV5_data, WV6_data)
+data
 
 #number of countries
 
-length(unique(combined_data$country_lab))
+length(unique(data$country_lab))
 ```
+
+
+# Merge the datasets based on common variables
 ```{r}
-# extract the countries in each file 
-country_WV5 <- unique(WV5_data$country)
-country_WV6 <- unique(WV6_data$country)
-country_gps <- unique(cleaned_data$country)
+# Find common countries between the two datasets
+common_countries <- intersect(data$country_lab, cleaned_data$country)
 
-# find common countries
-common_country <- Reduce(intersect, list(country_WV5, country_WV6, country_gps))
+# Display the common countries
+print(common_countries)
 
-# Print the common countries
-print(common_country)
 ```
+
+# Find countries in "data" but not in "cleaned_data"
+```{r}
+countries_only_in_data <- setdiff(data$country_lab, cleaned_data$country)
+
+# Find countries in "cleaned_data" but not in "data"
+countries_only_in_cleaned_data <- setdiff(cleaned_data$country, data$country_lab)
+
+# Display the results
+cat("Countries only in 'data':", countries_only_in_data, "\n")
+cat("Countries only in 'cleaned_data':", countries_only_in_cleaned_data, "\n")
+```
+
+# Countymap based on common countires
+```{r}
+install.packages("rnaturalearth")
+# Load the necessary libraries
+if (!requireNamespace("ggplot2", quietly = TRUE)) {
+  install.packages("ggplot2")
+}
+if (!requireNamespace("sf", quietly = TRUE)) {
+  install.packages("sf")
+}
+if (!requireNamespace("rnaturalearth", quietly = TRUE)) {
+  install.packages("rnaturalearth")
+}
+library(ggplot2)
+library(sf)
+library(rnaturalearth)
+
+# Get world map data
+world_map <- ne_countries(scale = "medium", returnclass = "sf")
+
+# Create data frames for different country statuses
+only_in_cleaned_data <- setdiff(cleaned_data$country, data$country_lab)
+only_in_data <- setdiff(data$country_lab, cleaned_data$country)
+common_countries <- intersect(cleaned_data$country, data$country_lab)
+
+cleaned_data_map <- data.frame(country = only_in_cleaned_data, status = "Only in cleaned_data")
+data_map <- data.frame(country = only_in_data, status = "Only in data")
+common_countries_map <- data.frame(country = common_countries, status = "Common")
+
+# Combine the data frames
+world_map_data <- rbind(cleaned_data_map, data_map, common_countries_map)
+
+# Merge with world map data
+world_map_data <- merge(world_map, world_map_data, by.x = "name", by.y = "country", all.x = TRUE)
+
+# Create the world map with the desired colors
+ggplot() +
+  geom_sf(data = world_map_data, aes(fill = status), color = "white") +
+  scale_fill_manual(values = c("Only in cleaned_data" = "green", "Only in data" = "blue", "Common" = "pink")) +
+  labs(title = "Country Status on World Map", fill = "Status") +
+  theme_void() +
+  theme(legend.position = "bottom")
+
+
+```
+
+
 
