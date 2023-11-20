@@ -3,14 +3,6 @@ title: "R Notebook"
 output: html_notebook
 ---
 
-# Find out how the risktaking was set together and how they are measured
-Each preference measure is standardized at the individual level, so that, by construction, each preference has a mean of zero and a standard deviation of one in the individual-level world sample.
-
-# Concept: What do we want 
-- Risktaking and age slope
-- Plot it by how steep the slope is
---> Run it in an mixed effect model (see paper from Rui)
-
 #Load packages 
 ```{r}
 library(data.table)
@@ -58,7 +50,7 @@ records_removed_per_variable
 # List of all variable
 ```{r}
 # List all variables
-variable_list <- names(cleaned_data) # OR colnames(your_data)
+variable_list <- names(cleaned_data) 
 
 # Display the list of variables
 print(variable_list)
@@ -66,8 +58,18 @@ print(variable_list)
 #select only the variables of interest
 ```{r}
 cleaned_data <- cleaned_data %>%
-  select(country, isocode, ison, date, risktaking, gender, age)
+  select(country, isocode, ison, risktaking, gender, age)
 cleaned_data
+```
+
+# Calculate Z-Score for Age per Country
+```{r}
+cleaned_data <- cleaned_data %>%
+  group_by(country) %>%
+  mutate(z_score_age = scale(age))
+
+# Display the new column with Z-Scores per Country
+head(cleaned_data)
 ```
 
 # Create a new column "age_group" with the age categories
@@ -83,6 +85,35 @@ cleaned_data$agecat <- cut(
 head(cleaned_data)
 ```
 
+Add GDP-list
+```{r}
+# Lade GDP-Daten aus der CSV-Datei
+gdp_data <- read.csv("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/GPS_dataset_individual_level/GDP_per_capita.csv")
+
+# Merge der Daten basierend auf der gemeinsamen Variable "country" und "name"
+merged_data <- merge(cleaned_data, gdp_data, by.x = "country", by.y = "name", all.x = TRUE)
+
+# Anzeige der gemergten Daten
+head(merged_data)
+```
+#select only the variables of interest
+```{r}
+cleaned_data <- cleaned_data %>%
+  select(country, isocode, ison, risktaking, gender, age, z_score_age, agecat, value.x, date_of_information.x, ranking.x)
+cleaned_data
+```
+
+# Extrahiere die Spalte "ranking" aus dem gemergten Datenrahmen
+```{r}
+# Anzahl der Teilnehmenden pro Ranking und Land
+participants_by_ranking <- cleaned_data %>%
+  group_by(ranking.x, country) %>%
+  summarize(participant_count = n())
+
+# Anzeige der Liste
+print(participants_by_ranking)
+
+```
 
 #######################################################################################################################
 #######################################################################################################################
@@ -154,6 +185,7 @@ ggplot(cleaned_data, aes(x = country, y = age)) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 ```
+
 
 # All about the gender
 ```{r}
@@ -229,7 +261,27 @@ ggplot(cleaned_data, aes(x = country, y = risktaking)) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 ```
 
+# Scatterplot für risktaking in Abhängigkeit von Alter (age) und Geschlecht (gender)
+```{r}
+# Scatterplot für Risktaking in Abhängigkeit von Alter (Age)
+ggplot(cleaned_data, aes(x = age, y = risktaking)) +
+  geom_point(aes(color = gender)) +
+  labs(title = "Scatterplot of Risktaking by Age", x = "Age", y = "Risktaking", color = "Gender") +
+  theme_minimal()
+```
 
+```{r}
+# Scatterplot für Risktaking in Abhängigkeit von Alter (Age) mit separaten Loess-Linien für Männer und Frauen
+ggplot(cleaned_data, aes(x = age, y = risktaking, color = gender)) +
+  geom_point() +
+  geom_smooth(method = "loess", se = FALSE, size = 1, aes(group = gender), 
+              linetype = "solid", color = "red", show.legend = FALSE) +  # Loess-Linie für Männer
+  geom_smooth(method = "loess", se = FALSE, size = 1, aes(group = gender), 
+              linetype = "solid", color = "green", show.legend = FALSE) +  # Loess-Linie für Frauen
+  labs(title = "Scatterplot of Risktaking by Age with Loess Lines for Gender", x = "Age", y = "Risktaking", color = "Gender") +
+  theme_minimal()
+
+```
 
 ################################################################################################################################################################################################################################################
 ```{r}
