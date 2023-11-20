@@ -10,7 +10,6 @@ Sex
 Country
 
 
-
 ```{r}
 library(data.table)
 library(tidyr)
