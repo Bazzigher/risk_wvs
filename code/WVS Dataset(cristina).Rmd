@@ -140,11 +140,15 @@ table(data$country_lab)
 
 
 ```{r}
+# Transfrom risk item such that high values represent more risk taking
 data$risk = 6 - data$risk + 1
+# Risk item as ordinal variable 
 data$risk_ord=data$risk 
+  
+# Transform risk variable into T-score (mean = 50, sd = 10)
 data$risk = 10*scale(data$risk, center=TRUE,scale=TRUE)+50
-data
 
+data
 
 ```
 
@@ -466,7 +470,7 @@ dataAlgeria <- subset(data, country_lab %in% c("Algeria"))
 library(ggplot2)
 
 
-pAlgeria <- ggplot(dataAlgeria, aes(x = scale(age), y = risk_ord, color = as.factor(sex))) +
+pAlgeria <- ggplot(dataAlgeria, aes(x = z_age, y = risk, color = as.factor(sex))) +
   geom_point() +
   geom_smooth(method = "lm") +
   labs(title = "Scatterplot of risk_ord vs. age in Algeria", x = "Age", y = "Risk")
@@ -475,8 +479,8 @@ print(pAlgeria)
 
 
 # Fit a linear model
-modelAlgeria <- lm(risk_ord ~ scale(age) * factor(sex), data = dataAlgeria)
-summary(model)
+modelAlgeria <- lm(risk ~ z_age * factor(sex), data = dataAlgeria)
+summary(modelAlgeria)
 
 # Extract coefficients
 coefficients <- coef(modelAlgeria)
@@ -532,15 +536,26 @@ print(slope_gender_Andorra)
 
 ```
 ```{r}
+library(dplyr)
+
+library(dplyr)
+
+library(dplyr)
+
 table_data <- data %>%
   group_by(country_lab) %>%
-  summarize(
+  summarise(
     n = n(),
+    female_percentage = mean(case_when(sex == 2 ~ 1, TRUE ~ 0)) * 100,  # Adjust encoding
     mean_age = mean(age, na.rm = TRUE),
     age_range = paste(min(age, na.rm = TRUE), "-", max(age, na.rm = TRUE)),
     mean_risk = mean(risk, na.rm = TRUE)
   )
+
 table_data
+
+
+
 
 
 ```
@@ -548,20 +563,33 @@ table_data
 ```{r}
 dataArgentina <- subset(data, country_lab %in% c("Argentina"))
 library(ggplot2)
-pArgentina = ggplot(dataArgentina, aes(x = scale(age), risk_ord, color = as.factor(sex)))+
+pArgentina = ggplot(dataArgentina, aes(x = z_age, risk, color = as.factor(sex)))+
   geom_point()+
   geom_smooth(method = "lm")
 pArgentina
 
-ModelArgentina <- lm(risk_ord ~ scale(age) * factor(sex), data = dataArgentina)
+ModelArgentina =  lm(risk ~ z_age + factor(sex), data = dataArgentina)
 ModelArgentina
+
+
+coefficients <- coef(ModelArgentina)
+
+# Save the intercept and slopes
+intercept_Argentina <- coefficients[1]
+slope_age_Argentina <- coefficients[2]
+slope_gender_Argentina <- coefficients[3]
+
+# Print the intercept and slopes
+print(intercept_Argentina)
+print(slope_age_Argentina)
+print(slope_gender_Argentina)
 
 ```
 #Armenia
 ```{r}
 dataArmenia <- subset(data, country_lab %in% c("Armenia"))
 library(ggplot2)
-pArmenia = ggplot(dataArmenia, aes(age, risk_ord))+
+pArmenia = ggplot(dataArmenia, aes(age, risk_ord, color = as.factor(sex)))+
   geom_point()+
   geom_smooth(method = "lm")
 pArmenia
@@ -571,10 +599,28 @@ pArmenia
 ```{r}
 dataAustralia <- subset(data, country_lab %in% c("Australia"))
 library(ggplot2)
-pAustralia = ggplot(dataAustralia, aes(age, risk_ord))+
+pAustralia = ggplot(dataAustralia, aes(z_age, risk, color = as.factor(sex)))+
   geom_point()+
   geom_smooth(method = "lm")
 pAustralia
+
+ModelAustralia =  lm(risk ~ z_age + factor(sex), data = dataAustralia)
+ModelAustralia
+
+
+coefficients <- coef(ModelAustralia)
+
+# Save the intercept and slopes
+intercept_Australia <- coefficients[1]
+slope_age_Australia <- coefficients[2]
+slope_gender_Australia <- coefficients[3]
+
+# Print the intercept and slopes
+print(intercept_Australia)
+print(slope_age_Australia)
+print(slope_gender_Australia)
+
+
 ```
 #Azerbaijan
 ```{r}
@@ -598,10 +644,29 @@ pBelarus
 ```{r}
 dataBrazil <- subset(data, country_lab %in% c("Brazil"))
 library(ggplot2)
-pBrazil = ggplot(dataBrazil, aes(age, risk_ord))+
+pBrazil = ggplot(dataBrazil, aes(z_age, risk, color = as.factor(sex)))+
   geom_point()+
   geom_smooth(method = "lm")
 pBrazil
+
+ModelBrazil =  lm(risk ~ z_age + factor(sex), data = dataBrazil)
+ModelBrazil
+
+
+coefficients <- coef(ModelBrazil)
+
+# Save the intercept and slopes
+intercept_Brazil <- coefficients[1]
+slope_age_Brazil <- coefficients[2]
+slope_gender_Brazil <- coefficients[3]
+
+# Print the intercept and slopes
+print(intercept_Brazil)
+print(slope_age_Brazil)
+print(slope_gender_Brazil)
+
+
+
 ```
 #Bulgaria
 ```{r}
@@ -628,10 +693,26 @@ pBurkinaFaso
 ```{r}
 dataCanada <- subset(data, country_lab %in% c("Canada"))
 library(ggplot2)
-pCanada = ggplot(dataCanada, aes(age, risk_ord))+
+pCanada = ggplot(dataCanada, aes(z_age, risk, color = as.factor(sex)))+
   geom_point()+
   geom_smooth(method = "lm")
 pCanada
+
+ModelCanada =  lm(risk ~ z_age + factor(sex), data = dataCanada)
+ModelCanada
+
+
+coefficients <- coef(ModelCanada)
+
+# Save the intercept and slopes
+intercept_Canada <- coefficients[1]
+slope_age_Canada <- coefficients[2]
+slope_gender_Canada <- coefficients[3]
+
+# Print the intercept and slopes
+print(intercept_Canada)
+print(slope_age_Canada)
+print(slope_gender_Canada)
 ```
 #Chile
 ```{r}
@@ -653,21 +734,32 @@ pChina
 ```
 #Colombia
 ```{r}
-dataColombia <- subset(data, country_lab %in% c("Colombia"))
+dataColombia <- subset(data, country_lab %in% c("Colombia "))
 library(ggplot2)
-pColombia = ggplot(dataColombia, aes(age, risk_ord))+
+pColombia  = ggplot(dataColombia, aes(z_age, risk, color = as.factor(sex)))+
   geom_point()+
   geom_smooth(method = "lm")
 pColombia
-```
-#Cyprus (G)
-```{r}
-dataCyprus <- subset(data, country_lab %in% c("Cyprus (G)"))
-library(ggplot2)
-pCyprus = ggplot(dataCyprus, aes(age, risk_ord))+
-  geom_point()+
-  geom_smooth(method = "lm")
-pCyprus
+
+
+ModelColombia =  lm(risk ~ z_age + as.factor(sex), data = dataColombia)
+ModelColombia
+
+
+coefficients <- coef(ModelColombia)
+
+# Save the intercept and slopes
+intercept_Colombia <- coefficients[1]
+slope_age_Colombia <- coefficients[2]
+slope_gender_Colombia <- coefficients[3]
+
+# Print the intercept and slopes
+print(intercept_Colombia)
+print(slope_age_Colombia)
+print(slope_gender_Colombia)
+
+
+
 ```
 #Ecuador
 ```{r}
@@ -1273,11 +1365,63 @@ gdp_data <- countryfacts %>%
 gdp_data
 
 ```
+```{r}
+library(ggplot2)
+
+# Assuming 'data' is your data frame with a column 'age'
+data$z_age <- scale(data$age)
+
+ggplot(data, aes(z_age, risk, color = factor(sex))) +
+  geom_point(size = 0.1) +  
+  geom_smooth(method = "lm") +
+  scale_color_manual(values = c("blue", "red"), labels = c("Male", "Female")) +
+  labs(color = "Gender", x = "Age", y = "Risk Taking") +
+  theme_minimal()
+Model1 <- lm(risk ~ scale(age) * factor(sex), data = data)
+Model1
+```
+```{r}
+data
+```
+
+
 
 ```{r}
-#effect for gender per country
-#effect age 
+table_data <- data %>%
+  group_by(country_lab) %>%
+  summarize(
+    n = n(),
+    female_percentage = mean(sex == 1) * 100,
+    mean_age = mean(age, na.rm = TRUE),
+    age_range = paste(min(age, na.rm = TRUE), "-", max(age, na.rm = TRUE)),
+    mean_risk = mean(risk, na.rm = TRUE)
+  )
+
+table_data
+
+
+
+
+
+
 ```
+
+```{r}
+regression_results <- data %>%
+  group_by(country_lab) %>%
+  do(model = lm(risk ~ age + sex, data = .)) %>%
+  summarize(
+    country = first(country_lab),
+    intercept = coef(summary(model))[1, 1],
+    slope_age = coef(summary(model))[2, 1],
+    slope_gender = coef(summary(model))[3, 1]
+  )
+
+regression_results
+
+write.csv(regression_results, "/Users/cristinacandido/Documents/Github/risk_wvs/regression_results.csv", row.names = FALSE)
+```
+
 
 
 
