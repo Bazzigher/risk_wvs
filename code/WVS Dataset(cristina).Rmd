@@ -14,6 +14,12 @@ Country
 library(data.table)
 library(tidyr)
 library(maps)
+library(haven)
+library(ggplot2)
+library(dplyr)
+
+library(lmtest)
+library(mapdata)
 ```
 
 #read the data (Wave 5)
@@ -92,45 +98,43 @@ WV6_data
 ```{r}
 WV5_data
 WV6_data
-data = rbind(WV5_data, WV6_data)
-data
+WVS_data = rbind(WV5_data, WV6_data)
+WVS_data
 
-#number of countries
 
-length(unique(data$country))
 ```
 #exclusion of participants and omission of missing data (na)
 ```{r}
-data = subset(data, risktaking > 0 & gender > 0 & age >0 )
+WVS_data = subset(WVS_data, risktaking > 0 & gender > 0 & age >0 )
 data_Wave5 = subset(WV5_data, risktaking > 0 & gender > 0 & age >0 )
 data_Wave6 = subset(WV6_data, risktaking > 0 & gender > 0 & age >0)
-data <- na.omit(data)
+WVS_data <- na.omit(WVS_data)
 data_Wave5 <- na.omit(data_Wave5)
 data_Wave6 <- na.omit(data_Wave6)
 ```
 ```{r}
 # Transfrom risk item such that high values represent more risk taking
-data$risktaking = 6 - data$risktaking + 1
+WVS_data$risktaking = 6 - WVS_data$risktaking + 1
 
   
 # Transform risk variable into T-score (mean = 50, sd = 10)
-data$T_score_risktaking = 10*scale(data$risktaking, center=TRUE,scale=TRUE)+50
+WVS_data$T_score_risktaking = 10*scale(WVS_data$risktaking, center=TRUE,scale=TRUE)+50
 
-data
+WVS_data
 
 #Transform risk variable into Z score 
 
 # Assuming T-scores have a mean of 50 and a standard deviation of 10
-data$Z_score_risktaking = (data$T_score_risktaking - 50) / 10
+WVS_data$Z_score_risktaking = (WVS_data$T_score_risktaking - 50) / 10
 
 # Print the resulting data frame
-print(data)
+print(WVS_data)
 
 ```
 #World map 
 ```{r}
 world_map <- map_data("world")
-recorded_countries <- unique(data$country)
+recorded_countries <- unique(WVS_data$country)
 world_map$recorded <- ifelse(world_map$region %in% recorded_countries, "Recorded", "Not Recorded")
 
 ggplot(world_map, aes(x = long, y = lat, group = group, fill = recorded)) + 
@@ -142,33 +146,17 @@ ggplot(world_map, aes(x = long, y = lat, group = group, fill = recorded)) +
 
 ```
 
-
-
-
-```
-
-
-
-
 ```{r}
 # Load the dplyr package
 library(dplyr)
 
 # Assuming the data frame is called 'data' and the column containing the country information is called 'country'
-country_counts <- data %>%
+country_counts <- WVS_data %>%
   count(country)
 
 # Print the result
 print(country_counts)
 
-```
-
-
-
-#average age of participants
-```{r}
-mean(data$age)
-median(data$age)
 ```
 
 ```{r}
@@ -185,7 +173,6 @@ labels <- c("code","country","codeWVS","Homicide","GDP","InfMort","LifeExp","GIN
 # Print the result
 print(countryfacts)
 ```
-
 ```{r}
 # Load the dplyr package if not already loaded
 if (!require(dplyr)) {
@@ -216,12 +203,11 @@ hardship_index_distribution <- countryfacts %>%
 print(hardship_index_distribution)
 ```
 
-# table with female percentage, mean age, mean risk taking per countries (summary of the countries)
+#table with female percentage, mean age, mean risk taking per countries (summary of the countries)
 ```{r}
-
 library(dplyr)
 
-table_data <- data %>%
+table_data_WVS <- WVS_data %>%
   group_by(country) %>%
   summarise(
     n = n(),
@@ -231,33 +217,27 @@ table_data <- data %>%
     mean_risktaking = mean(Z_score_risktaking, na.rm = TRUE)
   )
 
-table_data
-data
-
-
-
-
-
+table_data_WVS
 ```
-
-#graph across countries: risk taking vs age vs gender (Z-score for age and risk taking)   
 ```{r}
-# Assuming 'data' is your data frame with a column 'age'
-data$z_age <- scale(data$age)
+#graph across countries: risk taking vs age vs gender (Z-score for age and risk taking)   
 
-ggplot(data, aes(z_age, Z_score_risktaking, color = factor(gender))) +
+ggplot(WVS_data, aes(z_age, Z_score_risktaking, color = factor(gender))) +
   geom_point(size = 0.1) +  
   geom_smooth(method = "lm") +
   scale_color_manual(values = c("blue", "red"), labels = c("Male", "Female")) +
-  labs(color = "Gender", x = "Age", y = "Risk Taking") +
-  theme_minimal()
-Model1 <- lm(Z_score_risktaking ~ z_age * factor(gender), data = data)
-Model1
+  labs(color = "Gender")
+
+
+WVS_data
+
 ```
 
-#regression table (risk taking and age -> Z-score)
+
 ```{r}
-regression_results <- data %>%
+#regression table (risk taking and age -> Z-score)
+
+regression_results_WVS <- WVS_data %>%
   group_by(country) %>%
   do(model = lm(Z_score_risktaking ~ z_age + gender, data = .)) %>%
   summarize(
@@ -267,16 +247,60 @@ regression_results <- data %>%
     slope_gender = coef(summary(model))[3, 1]
   )
 
-regression_results
+regression_results_WVS
 
-write.csv(regression_results, "/Users/cristinacandido/Documents/Github/risk_wvs/regression_results.csv", row.names = FALSE)
+
 ```
 
 
 ```{r}
+gps_data <- haven::read_dta("/Users/cristinacandido/Documents/Github/risk_wvs/data/individual_new.dta")
+
+gps_data
 ```
+```{r}
+# Clean the data by removing records with missing values
+gps_data <- gps_data %>%
+  drop_na(country, isocode, risktaking, gender, age)
 
+# Calculate the number of records removed per variable
+records_removed_per_variable <- colSums(is.na(gps_data)) - colSums(is.na(cleaned_data))
 
+# Display the cleaned data
+gps_data
+```
+```{r}
+#select only the variables of interest
+gps_data <- gps_data %>%
+  select(country, isocode, ison, risktaking, gender, age)
+gps_data
+```
+```{r}
+#Z-score for age 
+gps_data <- gps_data %>%
+  group_by(country) %>%
+  mutate(z_score_age = scale(age))
+
+# Display the new column with Z-Scores per Country
+gps_data
+```
+#table intercept and slope 
+```{r}
+regression_results_gps <- gps_data %>%
+  group_by(country) %>%
+  do(model = lm(risktaking ~ z_score_age + gender, data = .)) %>%
+  summarize(
+    country = first(country),
+    intercept = coef(summary(model))[1, 1],
+    slope_age = coef(summary(model))[2, 1],
+    slope_gender = coef(summary(model))[3, 1]
+  )
+
+regression_results_gps
+```
+```{r}
+
+```
 
 
 
