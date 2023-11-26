@@ -18,8 +18,6 @@ library(haven)
 library(ggplot2)
 library(dplyr)
 
-library(lmtest)
-library(mapdata)
 ```
 
 #read the data (Wave 5)
@@ -222,7 +220,7 @@ table_data_WVS
 ```{r}
 #graph across countries: risk taking vs age vs gender (Z-score for age and risk taking)   
 
-ggplot(WVS_data, aes(z_age, Z_score_risktaking, color = factor(gender))) +
+ggplot(WVS_data, aes(scale(age), Z_score_risktaking, color = factor(gender))) +
   geom_point(size = 0.1) +  
   geom_smooth(method = "lm") +
   scale_color_manual(values = c("blue", "red"), labels = c("Male", "Female")) +
@@ -239,7 +237,7 @@ WVS_data
 
 regression_results_WVS <- WVS_data %>%
   group_by(country) %>%
-  do(model = lm(Z_score_risktaking ~ z_age + gender, data = .)) %>%
+  do(model = lm(Z_score_risktaking ~ scale(age) + gender, data = .)) %>%
   summarize(
     country = first(country),
     intercept = coef(summary(model))[1, 1],
@@ -263,8 +261,7 @@ gps_data
 gps_data <- gps_data %>%
   drop_na(country, isocode, risktaking, gender, age)
 
-# Calculate the number of records removed per variable
-records_removed_per_variable <- colSums(is.na(gps_data)) - colSums(is.na(cleaned_data))
+
 
 # Display the cleaned data
 gps_data
@@ -299,9 +296,77 @@ regression_results_gps <- gps_data %>%
 regression_results_gps
 ```
 ```{r}
+common_countries <- intersect(WVS_data$country, gps_data$country)
+selected_countries <- c("Argentina", "Australia", "Brazil", "Canada", "Chile", "China", "Egypt", "Finland", "France", "Georgia",
+                         "Germany", "Ghana", "Hungary", "India", "Indonesia", "Iran", "Japan", "Jordan", "Mexico", "Moldova",
+                         "Morocco", "Netherlands", "Peru", "Poland", "Romania", "Russia", "Rwanda", "South Africa", "South Korea",
+                         "Spain", "Sweden", "Switzerland", "Thailand", "Turkey", "Ukraine", "United States", "Algeria", "Colombia",
+                         "Estonia", "Haiti", "Iraq", "Kazakhstan", "Nigeria", "Pakistan", "Philippines", "Zimbabwe")
+
+# Filter the original dataset
+new_WVS <- WVS_data[WVS_data$country %in% selected_countries, ]
+
+# View the new dataset
+new_WVS
+
 
 ```
 
+```{r}
+
+selected_countries <- c("Argentina", "Australia", "Brazil", "Canada", "Chile", "China", "Egypt", "Finland", "France", "Georgia",
+                         "Germany", "Ghana", "Hungary", "India", "Indonesia", "Iran", "Japan", "Jordan", "Mexico", "Moldova",
+                         "Morocco", "Netherlands", "Peru", "Poland", "Romania", "Russia", "Rwanda", "South Africa", "South Korea",
+                         "Spain", "Sweden", "Switzerland", "Thailand", "Turkey", "Ukraine", "United States", "Algeria", "Colombia",
+                         "Estonia", "Haiti", "Iraq", "Kazakhstan", "Nigeria", "Pakistan", "Philippines", "Zimbabwe")
+
+# Filter the original dataset
+new_gps <- gps_data[gps_data$country %in% selected_countries, ]
+
+# View the new dataset
+new_gps
+
+```
+```{r}
+regression_results_WVS_new <- new_WVS %>%
+  group_by(country) %>%
+  do(model = lm(Z_score_risktaking ~ scale(age) + gender, data = .)) %>%
+  summarize(
+    country = first(country),
+    intercept_WVS = coef(summary(model))[1, 1],
+    slope_age_WVS = coef(summary(model))[2, 1],
+    slope_gender_WVS = coef(summary(model))[3, 1]
+  )
+
+regression_results_WVS_new
+
+```
+```{r}
+regression_results_gps_new <- new_gps %>%
+  group_by(country) %>%
+  do(model = lm(risktaking ~ scale(age) + gender, data = .)) %>%
+  summarize(
+    country = first(country),
+    intercept_gps = coef(summary(model))[1, 1],
+    slope_age_gps = coef(summary(model))[2, 1],
+    slope_gender_gps = coef(summary(model))[3, 1]
+  )
+
+regression_results_gps_new
+
+```
+```{r}
+regression_results_gps_new
+regression_results_WVS_new
+# Assuming "country" is the common column
+merged_results <- merge(regression_results_gps_new, regression_results_WVS_new, by = "country", all = TRUE)
+
+merged_results
+
+```
+```{r}
+
+```
 
 
 
