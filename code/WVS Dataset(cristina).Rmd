@@ -365,11 +365,63 @@ merged_results
 
 ```
 ```{r}
+# Plotting comparing interecepts
+ggplot(merged_results, aes(x = intercept_gps, y = intercept_WVS, label = country)) +
+  geom_point(size = 3) +
+  geom_text(aes(label = country), vjust = -0.5, hjust = -0.5) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
+  labs(title = "Comparison of Intercept Values",
+       x = "Intercept_gps",
+       y = "Intercept_WVS") +
+  theme_minimal()
+
+# Assuming merged_results has columns intercept_gps and intercept_WVS
+model <- lm(intercept_WVS ~ intercept_gps, data = merged_results)
+
+# View the summary of the regression model
+summary(model)
+
+# Calculate the correlation
+correlation <- cor(merged_results$intercept_gps, merged_results$intercept_WVS)
+
+# Print the correlation coefficient
+print(correlation)
+
+
+
+  
+
+```
+
+```{r}
+library(ggplot2)
+
+
+
+# Plotting using ggplot2
+ggplot(merged_results, aes(x = slope_age_gps, y = slope_age_WVS, label = country)) +
+  geom_point(size = 3) +
+  geom_text(aes(label = country), vjust = -0.5, hjust = -0.5) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
+  labs(title = "Comparison of Slopes",
+       x = "Effect age on Risk GPS",
+       y = "Effect age on Risk WVS") +
+  theme_minimal()
 
 ```
 
 
-
+```{r}
+# Plotting using ggplot2
+ggplot(merged_results, aes(x = slope_gender_gps, y = slope_gender_WVS, label = country)) +
+  geom_point(size = 3) +
+  geom_text(aes(label = country), vjust = -0.5, hjust = -0.5) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
+  labs(title = "Comparison of Slopes",
+       x = "Effect gender on Risk GPS",
+       y = "Effect gender on Risk WVS") +
+  theme_minimal()
+```
 
 
 
