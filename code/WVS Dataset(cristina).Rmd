@@ -423,6 +423,30 @@ ggplot(merged_results, aes(x = slope_gender_gps, y = slope_gender_WVS, label = c
   theme_minimal()
 ```
 
+```{r}
+library(readxl)
+hardship_values <- read_excel(excel_path) # Read data from the Excel file
+
+print(colnames(gps_data)) # Display column names in cleaned_data
+
+print(colnames(hardship_values)) # Display column names in hardship_data
+
+cleaned_data <- left_join(gps_data, hardship_values, by = "country") # Perform the left_join operation
+
+cleaned_data
+
+```
+```{r}
+# Assuming your dataset is named data_WVS
+
+# Load the dplyr package
+library(dplyr)
+
+# Use the mutate function to change the country name
+data_WVS <- data_W %>%
+  mutate(country = ifelse(country == "Great Britain", "United Kingdom", country))
+
+```
 
 
 
