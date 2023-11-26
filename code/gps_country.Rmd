@@ -385,47 +385,6 @@ table_data
 
 
 #############################################
-# checking the assumptions in a linear regression  
-```{r}
-# Scatterplot to check for linearity
-ggplot(cleaned_data, aes(x = age, y = risktaking)) +
-  geom_point() +
-  geom_smooth(method = "lm", se = FALSE, color = "blue") +
-  labs(title = "Scatterplot for Linearity Check")
-```
-```{r}
-# Residual vs. Fitted plot to check for homoskedasticity
-model <- lm(risktaking ~ age, data = cleaned_data)
-ggplot() +
-  geom_point(aes(x = fitted(model), y = residuals(model))) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
-  labs(title = "Residuals vs. Fitted Values for Homoskedasticity Check")
-```
-
-```{r}
-# Q-Q plot to check for normality of residuals
-qqnorm(residuals(model))
-qqline(residuals(model))
-```
-
-```{r}
-# Correlation matrix to check for multicollinearity
-cor(cleaned_data[c("age", "risktaking")])
-```
-
-```{r}
-# Durbin-Watson test for autocorrelation
-dwtest(model)
-```
-
-```{r}
-# Residual vs. Leverage plot to check for outliers
-ggplot() +
-  geom_point(aes(x = hatvalues(model), y = residuals(model))) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
-  labs(title = "Residuals vs. Leverage for Outlier Check")
-```
-
 #############################################
 
 
@@ -694,60 +653,5 @@ cat("Countries only in 'data':", countries_only_in_data, "\n")
 cat("Countries only in 'cleaned_data':", countries_only_in_cleaned_data, "\n")
 ```
 
-# Countymap based on common countires
-```{r}
-# Load the necessary libraries
-if (!requireNamespace("ggplot2", quietly = TRUE)) {
-  install.packages("ggplot2")
-}
-if (!requireNamespace("sf", quietly = TRUE)) {
-  install.packages("sf")
-}
-if (!requireNamespace("rnaturalearth", quietly = TRUE)) {
-  install.packages("rnaturalearth")
-}
-library(ggplot2)
-library(sf)
-library(rnaturalearth)
-
-# Get world map data
-world_map <- ne_countries(scale = "medium", returnclass = "sf")
-
-# List of countries in different colors
-pink_countries <- c("Argentina", "Australia", "Brazil", "Canada", "Colombia", "Chile", "China", "Egypt", "Finland", "France", "Georgia",
-                    "Germany", "Ghana", "Guatemala", "Hungary", "India", "Indonesia", "Iran", "Iraq", "Italy", "Japan", "Jordan", "Mexico",
-                    "Moldova", "Morocco", "Netherlands", "Peru", "Poland", "Romania", "Russia", "Rwanda", "South Africa", "South Korea",
-                    "Spain", "Sweden", "Switzerland", "Thailand", "Turkey", "Ukraine", "United States", "Algeria", "Estonia", "Haiti",
-                    "Kazakhstan", "Nigeria", "Pakistan", "Philippines", "Zimbabwe")
-
-green_countries <- c("Andorra", "Bulgaria", "Burkina Faso", "Cyprus", "Ethiopia", "Hong Kong", "Malaysia", "Mali", "New Zealand", "Norway",
-                     "NA", "Slovenia", "Taiwan", "Trinidad and Tobago", "Great Britain", "Uruguay", "Viet Nam", "Zambia", "Armenia",
-                     "Azerbaijan", "Belarus", "Ecuador", "Kuwait", "Kyrgyzstan", "Lebanon", "Libya", "Palestine", "Qatar", "Singapore",
-                     "Tunisia", "Uzbekistan", "Yemen")
-
-blue_countries <- c("Afghanistan", "Austria", "Bangladesh", "Bolivia", "Bosnia Herzegovina", "Botswana", "Cambodia", "Cameroon",
-                    "Costa Rica", "Croatia", "Czech Republic", "Greece", "Israel", "Kenya", "Lithuania", "Malawi", "Nicaragua", "Portugal",
-                    "Saudi Arabia", "Serbia", "Sri Lanka", "Suriname", "Tanzania", "Uganda", "United Arab Emirates", "United Kingdom",
-                    "Venezuela", "Vietnam")
-
-# Create data frames for different country colors
-pink_data <- data.frame(country = pink_countries, color = "pink")
-green_data <- data.frame(country = green_countries, color = "green")
-blue_data <- data.frame(country = blue_countries, color = "blue")
-
-# Combine the data frames
-color_data <- rbind(pink_data, green_data, blue_data)
-
-# Merge with world map data
-world_map_data <- merge(world_map, color_data, by.x = "name", by.y = "country", all.x = TRUE)
-
-# Create the world map with the desired colors
-ggplot() +
-  geom_sf(data = world_map_data, aes(fill = color), color = "white") +
-  scale_fill_manual(values = c("pink" = "pink", "green" = "green", "blue" = "blue")) +
-  labs(title = "Country Colors on World Map", fill = "Color") +
-  theme_void() +
-  theme(legend.position = "bottom")
-```
 
 
