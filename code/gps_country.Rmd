@@ -62,7 +62,8 @@ cleaned_data <- cleaned_data %>%
 cleaned_data
 ```
 
-# Calculate Z-Score for Age per Country
+############################# Calculate Z-Score for Age per Country
+############## Median = 40 // SD = 15 
 ```{r}
 cleaned_data <- cleaned_data %>%
   group_by(country) %>%
@@ -85,7 +86,8 @@ cleaned_data$agecat <- cut(
 head(cleaned_data)
 ```
 
-Add GDP-list
+########## ########## ########## ########## Add Hardship-list
+########## ########## ########## ########## ########## Get the hardship facts together!!!!
 ```{r}
 # Lade GDP-Daten aus der CSV-Datei
 gdp_data <- read.csv("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/GPS_dataset_individual_level/GDP_per_capita.csv")
@@ -113,6 +115,13 @@ participants_by_ranking <- cleaned_data %>%
 # Anzeige der Liste
 print(participants_by_ranking)
 
+write.xlsx(participants_by_country, "Teilnehmer_nach_Land.xlsx", row.names = FALSE)
+
+# Pfad, wo die Excel-Datei gespeichert werden soll
+excel_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/"
+
+# Excel-Datei erstellen
+write.xlsx(participants_by_country, excel_path, row.names = FALSE)
 ```
 
 #######################################################################################################################
@@ -128,6 +137,14 @@ number_of_countries <- length(unique(cleaned_data$country))
 number_of_countries
 ```
 
+###########
+##########
+##########
+#CODE FOR THE PRESENTATION 
+###########
+##########
+##########
+
 # Worldmap of the recorded countries
 ```{r}
 world_map <- map_data("world") # Create a world map with country borders
@@ -139,11 +156,16 @@ world_map$recorded <- ifelse(world_map$region %in% recorded_countries, "Recorded
 # Plot the world map with recorded countries highlighted
 ggplot(world_map, aes(x = long, y = lat, group = group, fill = recorded)) +
   geom_polygon(color = "white") +
-  scale_fill_manual(values = c("Recorded" = "darkblue", "Not Recorded" = "lightgrey"), guide = "legend") +
+  scale_fill_manual(values = c("Recorded" = "darkblue", "Not Recorded" = "lightgrey"), guide = "none") +  # Set guide to "none" to remove the legend
   theme_void() +
-  labs(title = "Recorded Countries on World Map", fill = "Status") +
-  theme(legend.position = "bottom")
+  labs(title = "GPS", fill = "Status") +
+  theme(legend.position = "none", plot.title = element_text(hjust = 0.5))  # Remove legend and center the title
+
 ```
+###########
+########## --> Add mean gender 
+--> add new columns to the datasetv 
+--> put it to the data preparation 
 
 # Summarize data across all regions
 ```{r}
@@ -196,6 +218,12 @@ ggplot(cleaned_data, aes(x = age)) +
 ggplot(cleaned_data, aes(x = country, y = age)) +
   geom_boxplot(fill = "lightblue", color = "blue") +
   labs(title = "Distribution of Age per Country", x = "Country", y = "Age") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+ggplot(cleaned_data, aes(x = country, y = risktaking)) +
+  geom_boxplot(fill = "lightblue", color = "blue") +
+  labs(title = "Distribution of Age per Country", x = "Country", y = "Risktaking") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 ```
@@ -275,26 +303,30 @@ ggplot(cleaned_data, aes(x = country, y = risktaking)) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 ```
 
+###########
+###########
+###########
+Change backround 
+change x-Achse acording to the info from the presentation
 
-# Risk vs age with color-coded gender
+# Risk vs age with color-coded gender per Country
 ```{r}
 ggplot(cleaned_data, aes(z_score_age, risktaking, color = factor(gender))) +
   geom_point(size = 0.1) +  
   geom_smooth(method = "lm") +
   scale_color_manual(values = c("blue", "red"), labels = c("Male", "Female")) +
   labs(color = "Gender")
-
-# GDP vs risktaking with color-coded gender and customized legend labels
-ggplot(cleaned_data, aes(x = ranking, y = risktaking, color = factor(gender))) +
-  geom_point(size = 0.2) +  
-  geom_smooth(method = "lm") +
-  scale_color_manual(values = c("blue", "red"), labels = c("Male", "Female")) +
-  labs(x = "GDP", y = "Risktaking", color = "Gender")
-
 ```
 
 
 ################################################################################################################################################################################################################################################
+
+
+###########
+###########
+###########
+Laura has to rewrite the code --> Table already included with the lm
+
 ```{r}
 # Fit das Modell mit "age"
 model_gender <- lm(risktaking ~ age + gender, data = cleaned_data)
@@ -305,6 +337,12 @@ slope_age <- coef(model)["age"]
 
 summary(model)
 ```
+
+###########
+###########
+###########
+Laura has to rewrite the code --> Table already included with the lm
+
 
 # Create a table with the following information: country, isocode, n (count of participants), female percentage (%), mean age, age range, and risktaking
 
@@ -541,17 +579,6 @@ for (i in seq_along(plots)) {
 setwd("..")
 
 print("Individual plots are saved in the 'individual_country_plots' directory.")
-```
-
-# Create a scatterplot with separate regression lines for each country
-```{r}
-ggplot(cleaned_data, aes(x = age, y = risktaking, color = country)) +
-  geom_point(size = 0.2) +                           # Adjust point size
-  geom_smooth(method = "lm", se = FALSE, size = 0.5, linetype = "solid") + # Adjust line size and type
-  labs(title = "Scatterplot with Regression Lines for risktaking and age by Country", 
-       x = "Age", y = "Risktaking") +
-  theme(legend.position = "bottom",              # Move the legend below the graph
-        legend.key.size = unit(0.1, "in"))      # Adjust the size of the legend key
 ```
 
 # Scatterplot with include both individual country regression lines and an overall regression line
