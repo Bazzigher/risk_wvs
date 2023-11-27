@@ -32,7 +32,7 @@ WV5_data <- readRDS("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/F
 WV5_data_df <- as.data.frame(WV5_data)
 
 # show first five columns
-head(WV5_data_df[, 1:5])
+WV5_data_df
 ```
 
 # clean the data set
@@ -53,14 +53,26 @@ WV5_data
 
 ```{r}
 #decode the country names 
-countrynames = read.csv("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/countrynames.txt", header=FALSE,as.is=TRUE)
+#countrynames = read.csv("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/countrynames.txt", header=FALSE,as.is=TRUE)
 colnames(countrynames) = c("code", "name")
 WV5_data$country = countrynames$name [match(WV5_data$country_code, countrynames$code)]
 table(WV5_data$country)
 WV5_data
 
+# Assuming you have a data frame named 'WV5_data' with a column 'country_code'
+# and a data frame named 'countrynames' with columns 'code' and 'name'
+countrynames <- read.csv("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/countrynames.txt", header=FALSE, as.is=TRUE)
+colnames(countrynames) <- c("code", "iso_alpha")  # Change 'name' to 'iso_alpha' for clarity
 
-```
+# Merge the data frames based on 'country_code' and 'code'
+WV5_data <- merge(WV5_data, countrynames, by.x = "country_code", by.y = "code", all.x = TRUE)
+
+# Print the result
+print(WV5_data)
+
+
+
+
 
 #Read Dataset (Wave 6)
 ```{r}
@@ -72,12 +84,12 @@ print(WV6_data)
 #rename variables
 ```{r}
 WV6_data <- WV6_data %>%
-  rename(wave = V1, gender = V240, age = V242,country_code = V2, risktaking = V76)
+  rename(wave = V1, gender = V240, age = V242,country_code = V2, risktaking = V76, isocode = C_COW_ALPHA )
 
 
 #select only the variables of interest
 WV6_data <- WV6_data %>%
-  select(wave, gender, age, country_code,risktaking)
+  select(isocode, wave, gender, age, country_code,risktaking)
 WV6_data
 
 ```
@@ -225,18 +237,50 @@ table_data_WVS
 ```{r}
 #graph across countries: risk taking vs age vs gender (Z-score for age and risk taking)   
 
+
 # Risk vs age with color-coded gender per Country
-ggplot(WVS_data, aes(age, Z_score_risktaking, color = factor(gender))) +
+# Risk vs age with color-coded gender per Country
+# Skalierung des Z-Scores für das Alter anpassen
+WVS_data$z_score_age_scaled <- 15 * WVS_data$Z_score_age + 42
+
+
+ggplot(WVS_data, aes(z_score_age_scaled, Z_score_risktaking, color = factor(gender))) +
   geom_point(size = 0.1) +  
   geom_smooth(method = "lm") +
   geom_vline(xintercept = 42, linetype = "dashed", color = "black", size = 1) +  
-  scale_color_manual(values = c("blue", "red"), labels = c("Male", "Female"), name = "Gender") +
-  ggtitle("Risk vs Age") +
-  xlab("Age") +
-  theme_minimal()
+  scale_color_manual(values = c("blue", "red"), labels = c("Male", "Female")) +
+  labs(color = "Gender") +
+  ggtitle("Risk vs Age GPS") +
+  xlab("Age (Mean = 42, SD = 15)") +
+  scale_x_continuous(breaks = seq(0, 100, by = 15), limits = c(0, 100)) +  # Anpassung der Intervalle auf der X-Achse
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
 
 
 WVS_data
+
+ggplot(WVS_data, aes(z_score_age_scaled, Z_score_risktaking, color = factor(gender))) +
+  geom_point(size = 0.3, alpha = 0.5) +  # Adjust point size and transparency
+  geom_smooth(method = "lm", se = TRUE) +  # Add confidence intervals to the regression line
+  geom_vline(xintercept = 42, linetype = "dashed", color = "black", size = 1) +  
+  scale_color_manual(values = c("blue", "red"), labels = c("Male", "Female"), name = "Gender") +
+  labs(color = "Gender") +
+  ggtitle("Risk vs Age GPS") +
+  xlab("Age (Mean = 42, SD = 15) in Years") +  # Add units to x-axis label
+  ylab("Risk Taking (Z-score)") +  # Add units to y-axis label
+  scale_x_continuous(breaks = seq(0, 100, by = 15), limits = c(0, 100)) +
+  theme_minimal()+
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+
+
+# Assuming your data frame is named WVS_data
+participants_count <- nrow(WVS_data)
+
+# Print the number of participants
+cat("Number of participants:", participants_count, "\n")
+
 
 ```
 
