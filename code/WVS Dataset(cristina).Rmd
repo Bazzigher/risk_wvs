@@ -225,11 +225,15 @@ table_data_WVS
 ```{r}
 #graph across countries: risk taking vs age vs gender (Z-score for age and risk taking)   
 
-ggplot(WVS_data, aes(scale(age), Z_score_risktaking, color = factor(gender))) +
+# Risk vs age with color-coded gender per Country
+ggplot(WVS_data, aes(age, Z_score_risktaking, color = factor(gender))) +
   geom_point(size = 0.1) +  
   geom_smooth(method = "lm") +
-  scale_color_manual(values = c("blue", "red"), labels = c("Male", "Female")) +
-  labs(color = "Gender")
+  geom_vline(xintercept = 42, linetype = "dashed", color = "black", size = 1) +  
+  scale_color_manual(values = c("blue", "red"), labels = c("Male", "Female"), name = "Gender") +
+  ggtitle("Risk vs Age") +
+  xlab("Age") +
+  theme_minimal()
 
 
 WVS_data
