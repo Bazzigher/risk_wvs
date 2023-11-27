@@ -109,6 +109,11 @@ data_Wave6 = subset(WV6_data, risktaking > 0 & gender > 0 & age >0)
 WVS_data <- na.omit(WVS_data)
 data_Wave5 <- na.omit(data_Wave5)
 data_Wave6 <- na.omit(data_Wave6)
+
+
+# Use the mutate function to change the country name
+WVS_data <- WVS_data %>%
+  mutate(country = ifelse(country == "Great Britain", "United Kingdom", country))
 ```
 ```{r}
 # Transfrom risk item such that high values represent more risk taking
@@ -301,7 +306,7 @@ selected_countries <- c("Argentina", "Australia", "Brazil", "Canada", "Chile", "
                          "Germany", "Ghana", "Hungary", "India", "Indonesia", "Iran", "Japan", "Jordan", "Mexico", "Moldova",
                          "Morocco", "Netherlands", "Peru", "Poland", "Romania", "Russia", "Rwanda", "South Africa", "South Korea",
                          "Spain", "Sweden", "Switzerland", "Thailand", "Turkey", "Ukraine", "United States", "Algeria", "Colombia",
-                         "Estonia", "Haiti", "Iraq", "Kazakhstan", "Nigeria", "Pakistan", "Philippines", "Zimbabwe")
+                         "Estonia", "Haiti", "Iraq", "Kazakhstan", "Nigeria", "Pakistan", "Philippines", "Zimbabwe", "United Kingdom")
 
 # Filter the original dataset
 new_WVS <- WVS_data[WVS_data$country %in% selected_countries, ]
@@ -422,31 +427,74 @@ ggplot(merged_results, aes(x = slope_gender_gps, y = slope_gender_WVS, label = c
        y = "Effect gender on Risk WVS") +
   theme_minimal()
 ```
-
+#Hardship for gps data
 ```{r}
 library(readxl)
-hardship_values <- read_excel(excel_path) # Read data from the Excel file
+hardship_values <- read_excel("/Users/cristinacandido/Documents/Github/risk_wvs/data/Hardship.xlsx") # Read data from the Excel file
 
 print(colnames(gps_data)) # Display column names in cleaned_data
 
 print(colnames(hardship_values)) # Display column names in hardship_data
 
-cleaned_data <- left_join(gps_data, hardship_values, by = "country") # Perform the left_join operation
+hardshipgps <- left_join(gps_data, hardship_values, by = "country") # Perform the left_join operation
 
-cleaned_data
+hardshipgps
 
 ```
 ```{r}
-# Assuming your dataset is named data_WVS
+completegps <- hardshipgps %>%
+  group_by(country) %>%
+  summarise(
+    n = n(),
+    female_percentage = mean(gender == 1) * 100,
+    mean_age = mean(z_score_age, na.rm = TRUE),
+    mean_risktaking = mean(risktaking, na.rm = TRUE),
+    mean_hardshipindex = mean(hardship, na.rm = TRUE)
+  )
 
-# Load the dplyr package
-library(dplyr)
-
-# Use the mutate function to change the country name
-data_WVS <- data_W %>%
-  mutate(country = ifelse(country == "Great Britain", "United Kingdom", country))
+  completeWVS
+  
 
 ```
+
+```{r}
+#hardship for WVS
+hardship_values <- read_excel("/Users/cristinacandido/Documents/Github/risk_wvs/data/Hardship.xlsx") # Read data from the Excel file
+
+print(colnames(WVS_data)) # Display column names in cleaned_data
+
+print(colnames(hardship_values)) # Display column names in hardship_data
+
+hardshipWVS <- left_join(WVS_data, hardship_values, by = "country") # Perform the left_join operation
+
+hardshipWVS
+
+```
+```{r}
+# Assuming your dataset is named WVS_data
+# Assuming your dataset is named WVS_data
+WVS_data$Z_score_age <- scale(WVS_data$age, center = mean(WVS_data$age, na.rm = TRUE), scale = sd(WVS_data$age, na.rm = TRUE))
+
+WVS_data
+
+
+completeWVS <- hardshipWVS %>%
+  group_by(country) %>%
+  summarise(
+    n = n(),
+    female_percentage = mean(gender == 1) * 100,
+    mean_age = mean(Z_score_age, na.rm = TRUE),
+    mean_risktaking = mean(risktaking, na.rm = TRUE),
+    mean_hardshipindex = mean(hardship, na.rm = TRUE)
+  )
+
+  completeWVS
+```
+```{r}
+completegps
+completeWVS
+```
+
 
 
 
