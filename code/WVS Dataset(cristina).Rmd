@@ -59,23 +59,10 @@ WV5_data$country = countrynames$name [match(WV5_data$country_code, countrynames$
 table(WV5_data$country)
 WV5_data
 
-# Assuming you have a data frame named 'WV5_data' with a column 'country_code'
-# and a data frame named 'countrynames' with columns 'code' and 'name'
-countrynames <- read.csv("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/countrynames.txt", header=FALSE, as.is=TRUE)
-colnames(countrynames) <- c("code", "iso_alpha")  # Change 'name' to 'iso_alpha' for clarity
-
-# Merge the data frames based on 'country_code' and 'code'
-WV5_data <- merge(WV5_data, countrynames, by.x = "country_code", by.y = "code", all.x = TRUE)
-
-# Print the result
-print(WV5_data)
-
-
-
 
 
 #Read Dataset (Wave 6)
-```{r}
+
 WV6_data <- load("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/WV6_Data_R_v20201117.rdata") 
 WV6_data <- WV6_Data_R_v20201117 
 print(WV6_data)
@@ -84,12 +71,12 @@ print(WV6_data)
 #rename variables
 ```{r}
 WV6_data <- WV6_data %>%
-  rename(wave = V1, gender = V240, age = V242,country_code = V2, risktaking = V76, isocode = C_COW_ALPHA )
+  rename(wave = V1, gender = V240, age = V242,country_code = V2, risktaking = V76 )
 
 
 #select only the variables of interest
 WV6_data <- WV6_data %>%
-  select(isocode, wave, gender, age, country_code,risktaking)
+  select(wave, gender, age, country_code,risktaking)
 WV6_data
 
 ```
@@ -110,6 +97,9 @@ WV5_data
 WV6_data
 WVS_data = rbind(WV5_data, WV6_data)
 WVS_data
+
+
+
 
 
 ```
@@ -144,6 +134,14 @@ WVS_data$Z_score_risktaking = (WVS_data$T_score_risktaking - 50) / 10
 
 # Print the resulting data frame
 print(WVS_data)
+
+WVS_data <- WVS_data %>%
+  group_by(country) %>%
+  mutate(z_score_age)
+
+
+
+
 
 ```
 #World map 
@@ -241,11 +239,11 @@ table_data_WVS
 # Risk vs age with color-coded gender per Country
 # Risk vs age with color-coded gender per Country
 # Skalierung des Z-Scores für das Alter anpassen
-WVS_data$z_score_age_scaled <- 15 * WVS_data$Z_score_age + 42
+WVS_data$z_score_age_scaled <- 15 * WVS_data$z_score_age + 42
 
 
 ggplot(WVS_data, aes(z_score_age_scaled, Z_score_risktaking, color = factor(gender))) +
-  geom_point(size = 0.1) +  
+  geom_point(size = 0.01) +  
   geom_smooth(method = "lm") +
   geom_vline(xintercept = 42, linetype = "dashed", color = "black", size = 1) +  
   scale_color_manual(values = c("blue", "red"), labels = c("Male", "Female")) +
@@ -259,27 +257,12 @@ ggplot(WVS_data, aes(z_score_age_scaled, Z_score_risktaking, color = factor(gend
 
 WVS_data
 
-ggplot(WVS_data, aes(z_score_age_scaled, Z_score_risktaking, color = factor(gender))) +
-  geom_point(size = 0.3, alpha = 0.5) +  # Adjust point size and transparency
-  geom_smooth(method = "lm", se = TRUE) +  # Add confidence intervals to the regression line
-  geom_vline(xintercept = 42, linetype = "dashed", color = "black", size = 1) +  
-  scale_color_manual(values = c("blue", "red"), labels = c("Male", "Female"), name = "Gender") +
-  labs(color = "Gender") +
-  ggtitle("Risk vs Age GPS") +
-  xlab("Age (Mean = 42, SD = 15) in Years") +  # Add units to x-axis label
-  ylab("Risk Taking (Z-score)") +  # Add units to y-axis label
-  scale_x_continuous(breaks = seq(0, 100, by = 15), limits = c(0, 100)) +
-  theme_minimal()+
-  theme(plot.title = element_text(hjust = 0.5))
 
 
 
 
-# Assuming your data frame is named WVS_data
-participants_count <- nrow(WVS_data)
 
-# Print the number of participants
-cat("Number of participants:", participants_count, "\n")
+
 
 
 ```
@@ -416,17 +399,33 @@ merged_results <- merge(regression_results_gps_new, regression_results_WVS_new, 
 
 merged_results
 
+new_data <- read_excel("/Users/cristinacandido/Documents/Github/risk_wvs/data/Hardship.xlsx") # Read data from the Excel file
+
+labels <- c("code")
+
+print(new_data)
+
+new_data <- left_join(merged_results, new_data, by = "country") # Perform the left_join operation
+new_data
+
+new_data <- new_data %>%
+  select(country, intercept_gps, slope_age_gps, slope_gender_gps, intercept_WVS, slope_age_WVS, slope_gender_WVS, isocode )
+new_data
+
+
+
 ```
 ```{r}
 # Plotting comparing interecepts
-ggplot(merged_results, aes(x = intercept_gps, y = intercept_WVS, label = country)) +
-  geom_point(size = 3) +
-  geom_text(aes(label = country), vjust = -0.5, hjust = -0.5) +
+ggplot(new_data, aes(x = intercept_gps, y = intercept_WVS, label = isocode)) +
+  geom_point(size = 1.5) +  # Adjust the size parameter to make the points smaller
+  geom_text(aes(label = isocode), vjust = -0.5, hjust = -0.5) +
   geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
   labs(title = "Comparison of Intercept Values",
        x = "Intercept_gps",
        y = "Intercept_WVS") +
   theme_minimal()
+
 
 # Assuming merged_results has columns intercept_gps and intercept_WVS
 model <- lm(intercept_WVS ~ intercept_gps, data = merged_results)
@@ -452,9 +451,9 @@ library(ggplot2)
 
 
 # Plotting using ggplot2
-ggplot(merged_results, aes(x = slope_age_gps, y = slope_age_WVS, label = country)) +
+ggplot(new_data, aes(x = slope_age_gps, y = slope_age_WVS, label = isocode)) +
   geom_point(size = 3) +
-  geom_text(aes(label = country), vjust = -0.5, hjust = -0.5) +
+  geom_text(aes(label = isocode), vjust = -0.5, hjust = -0.5) +
   geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
   labs(title = "Comparison of Slopes",
        x = "Effect age on Risk GPS",
@@ -507,15 +506,17 @@ completegps <- hardshipgps %>%
 
 ```{r}
 #hardship for WVS
+library(readxl)
 hardship_values <- read_excel("/Users/cristinacandido/Documents/Github/risk_wvs/data/Hardship.xlsx") # Read data from the Excel file
 
-print(colnames(WVS_data)) # Display column names in cleaned_data
+labels <- c("country", "code", "gdp", "gini", "Infant_mortality", "life_expect", "hardship")
 
-print(colnames(hardship_values)) # Display column names in hardship_data
+print(hardship_values)
 
 hardshipWVS <- left_join(WVS_data, hardship_values, by = "country") # Perform the left_join operation
-
 hardshipWVS
+
+
 
 ```
 ```{r}
@@ -527,14 +528,15 @@ WVS_data
 
 
 completeWVS <- hardshipWVS %>%
-  group_by(country) %>%
+  group_by(isocode,country) %>%
   summarise(
     n = n(),
     female_percentage = mean(gender == 1) * 100,
-    mean_age = mean(Z_score_age, na.rm = TRUE),
+    mean_age = mean(age, na.rm = TRUE),
     mean_risktaking = mean(risktaking, na.rm = TRUE),
     mean_hardshipindex = mean(hardship, na.rm = TRUE)
   )
+
 
   completeWVS
 ```
