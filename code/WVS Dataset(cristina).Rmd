@@ -137,7 +137,9 @@ print(WVS_data)
 
 WVS_data <- WVS_data %>%
   group_by(country) %>%
-  mutate(z_score_age)
+  mutate(z_score_age = scale(age))
+WVS_data
+
 
 
 
@@ -242,17 +244,18 @@ table_data_WVS
 WVS_data$z_score_age_scaled <- 15 * WVS_data$z_score_age + 42
 
 
-ggplot(WVS_data, aes(z_score_age_scaled, Z_score_risktaking, color = factor(gender))) +
-  geom_point(size = 0.01) +  
+ggplot(WVS_data, aes(z_score_age_scaled, Z_score_risktaking, color = as.factor(gender))) +
+  geom_point(position = position_jitter(width = 0.1, height = 0.1), size = 0.1) +  
   geom_smooth(method = "lm") +
   geom_vline(xintercept = 42, linetype = "dashed", color = "black", size = 1) +  
   scale_color_manual(values = c("blue", "red"), labels = c("Male", "Female")) +
   labs(color = "Gender") +
-  ggtitle("Risk vs Age GPS") +
-  xlab("Age (Mean = 42, SD = 15)") +
-  scale_x_continuous(breaks = seq(0, 100, by = 15), limits = c(0, 100)) +  # Anpassung der Intervalle auf der X-Achse
+  xlab("Age") +
+  ylab("Risk Taking") +
+  scale_x_continuous(breaks = seq(0, 100, by = 15), limits = c(0, 100)) +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5))
+
 
 
 WVS_data
@@ -354,7 +357,7 @@ selected_countries <- c("Argentina", "Australia", "Brazil", "Canada", "Chile", "
                          "Germany", "Ghana", "Hungary", "India", "Indonesia", "Iran", "Japan", "Jordan", "Mexico", "Moldova",
                          "Morocco", "Netherlands", "Peru", "Poland", "Romania", "Russia", "Rwanda", "South Africa", "South Korea",
                          "Spain", "Sweden", "Switzerland", "Thailand", "Turkey", "Ukraine", "United States", "Algeria", "Colombia",
-                         "Estonia", "Haiti", "Iraq", "Kazakhstan", "Nigeria", "Pakistan", "Philippines", "Zimbabwe")
+                         "Estonia", "Haiti", "Iraq", "Kazakhstan", "Nigeria", "Pakistan", "Philippines", "Zimbabwe", "United Kingdom")
 
 # Filter the original dataset
 new_gps <- gps_data[gps_data$country %in% selected_countries, ]
@@ -418,13 +421,57 @@ new_data
 ```{r}
 # Plotting comparing interecepts
 ggplot(new_data, aes(x = intercept_gps, y = intercept_WVS, label = isocode)) +
-  geom_point(size = 1.5) +  # Adjust the size parameter to make the points smaller
+  geom_point(size = 1.5) +
   geom_text(aes(label = isocode), vjust = -0.5, hjust = -0.5) +
   geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
   labs(title = "Comparison of Intercept Values",
        x = "Intercept_gps",
        y = "Intercept_WVS") +
-  theme_minimal()
+  theme_minimal() +
+  xlim(c(0, 1.2)) +
+  ylim(c(0, 1.2)) +
+  coord_fixed()
+
+# Assuming you have a data frame named 'new_data' with columns 'intercept_gps', 'intercept_WVS', and 'isocode'
+
+# Install and load the necessary packages
+library(ggplot2)
+library(ggrepel)
+library(wordcloud)
+
+# Assuming you have a data frame named 'new_data' with columns 'intercept_gps', 'intercept_WVS', and 'isocode'
+
+# Scatter plot with labels
+library(ggplot2)
+library(ggrepel)
+
+# Assuming you have a data frame named 'new_data' with columns 'intercept_gps', 'intercept_WVS', and 'isocode'
+
+ggplot(new_data, aes(x = intercept_gps, y = intercept_WVS, label = isocode)) +
+  geom_point(size = 3) +
+  geom_text_repel(
+    aes(label = isocode),
+    box.padding = 0.5,
+    point.padding = 0.1,
+    force = 5
+  ) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
+  labs(x = "Intercept Global Preference Study",
+       y = "Intercept World Value Survey") +
+  theme_minimal() +
+  xlim(c(0, 1.07)) +
+  ylim(c(0, 1.07)) +
+  coord_fixed()
+
+
+# Annotate with word cloud
+wordcloud(words = new_data$isocode, freq = rep(1, nrow(new_data)), scale = c(2, 0.5))
+
+
+# Annotate with word cloud
+wordcloud(words = new_data$isocode, freq = rep(1, nrow(new_data)), scale = c(2, 0.5))
+
+
 
 
 # Assuming merged_results has columns intercept_gps and intercept_WVS
@@ -453,26 +500,54 @@ library(ggplot2)
 # Plotting using ggplot2
 ggplot(new_data, aes(x = slope_age_gps, y = slope_age_WVS, label = isocode)) +
   geom_point(size = 3) +
-  geom_text(aes(label = isocode), vjust = -0.5, hjust = -0.5) +
+  geom_text_repel(
+    aes(label = isocode),
+    box.padding = 0.5,
+    point.padding = 0.1,
+    force = 5
+  ) +
   geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
-  labs(title = "Comparison of Slopes",
-       x = "Effect age on Risk GPS",
-       y = "Effect age on Risk WVS") +
-  theme_minimal()
+  labs(x = "Effect of Age on Risk Taking Global Preference Study",
+       y = "Effect of Age on Risk Taking World Value Survey") +
+  theme_minimal() +
+  xlim(-0.5, 0) +
+  ylim(c(-0.5, 0)) +
+  coord_fixed()
+
+new_data
+
+correlation <- cor(new_data$slope_age_gps, new_data$slope_age_WVS)
+
+# Print the correlation coefficient
+print(correlation)
 
 ```
 
 
 ```{r}
 # Plotting using ggplot2
-ggplot(merged_results, aes(x = slope_gender_gps, y = slope_gender_WVS, label = country)) +
+ggplot(new_data, aes(x = slope_gender_gps, y = slope_gender_WVS, label = isocode)) +
   geom_point(size = 3) +
-  geom_text(aes(label = country), vjust = -0.5, hjust = -0.5) +
+  geom_text_repel(
+    aes(label = isocode),
+    box.padding = 0.5,
+    point.padding = 0.1,
+    force = 5
+  ) +
   geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
-  labs(title = "Comparison of Slopes",
-       x = "Effect gender on Risk GPS",
-       y = "Effect gender on Risk WVS") +
-  theme_minimal()
+  labs(x = "Effect of Gender on Risk Taking Global Preference Study",
+       y = "Effect of Gender on Risk Taking World Value Survey") +
+  theme_minimal() +
+  xlim(-0.6, 0.12) +
+  ylim(c(-0.6, 0.12)) +
+  coord_fixed()
+
+new_data
+
+correlation <- cor(new_data$slope_gender_gps, new_data$slope_gender_WVS)
+
+# Print the correlation coefficient
+print(correlation)
 ```
 #Hardship for gps data
 ```{r}
@@ -545,6 +620,9 @@ completegps
 completeWVS
 ```
 
+```{r}
+hardshipWVS
+```
 
 
 
