@@ -14,6 +14,7 @@ library(gridExtra)
 library(lmtest)
 library(maps)
 library(mapdata)
+library(readxl)
 ```
 
 #Add data GPS
@@ -21,14 +22,6 @@ library(mapdata)
 gps_data <- haven::read_dta("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/GPS_dataset_individual_level/individual_new.dta")
 
 head(country_data)
-```
-# Number of courtries 
-```{r}
-# Determine the number of different countries
-number_of_countries <- length(unique(gps_data$country))
-
-# Display the number of different countries
-number_of_countries
 ```
 
 # Clean the data from missing values
@@ -63,7 +56,6 @@ cleaned_data
 ```
 
 ############################# Calculate Z-Score for Age per Country
-############## Median = 40 // SD = 15 
 ```{r}
 cleaned_data <- cleaned_data %>%
   group_by(country) %>%
@@ -72,6 +64,7 @@ cleaned_data <- cleaned_data %>%
 # Display the new column with Z-Scores per Country
 head(cleaned_data)
 ```
+
 
 # Create a new column "age_group" with the age categories
 ```{r}
@@ -85,43 +78,64 @@ cleaned_data$agecat <- cut(
 # Display the new column
 head(cleaned_data)
 ```
-
-########## ########## ########## ########## Add Hardship-list
-########## ########## ########## ########## ########## Get the hardship facts together!!!!
+# Calculate the the mean and add column
 ```{r}
-# Lade GDP-Daten aus der CSV-Datei
-gdp_data <- read.csv("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/GPS_dataset_individual_level/GDP_per_capita.csv")
+# Calculate mean values for risktaking, gender, and age per country
+country_means <- cleaned_data %>%
+  group_by(country) %>%
+  summarize(
+    mean_risktaking = mean(risktaking, na.rm = TRUE),
+    mean_gender = mean(gender, na.rm = TRUE),
+    mean_age = mean(age, na.rm = TRUE), 
+    mean_z_score_age = mean(z_score_age, na.rm = TRUE),
+  )
 
-# Merge der Daten basierend auf der gemeinsamen Variable "country" und "name"
-cleaned_data <- merge(cleaned_data, gdp_data, by.x = "country", by.y = "name", all.x = TRUE)
+# Merge mean values back to the original dataset
+cleaned_data <- merge(cleaned_data, country_means, by = "country", all.x = TRUE)
 
-# Anzeige der gemergten Daten
+# Display the updated dataset
 head(cleaned_data)
+
 ```
+
+#Hardship-list
+```{r}
+excel_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Hardship/Hardship.xlsx"
+
+hardship_values <- read_excel(excel_path) # Read data from the Excel file
+
+print(colnames(cleaned_data)) # Display column names in cleaned_data
+
+print(colnames(hardship_values)) # Display column names in hardship_data
+
+cleaned_data <- left_join(cleaned_data, hardship_values, by = "country") # Perform the left_join operation
+
+head(cleaned_data) # Display the updated dataset
+```
+
 #select only the variables of interest
 ```{r}
-cleaned_data <- cleaned_data %>%
-  select(country, isocode, ison, risktaking, gender, age, z_score_age, agecat, value, date_of_information, ranking, region)
-cleaned_data
+gps_country <- cleaned_data %>%
+  select(country, isocode, ison, mean_risktaking, mean_gender, mean_age, mean_z_score_age, hardship)
+gps_country
 ```
 
-# Extrahiere die Spalte "ranking" aus dem gemergten Datenrahmen
+# Calculate mean values for risktaking, gender, and age per country
 ```{r}
-# Anzahl der Teilnehmenden pro Ranking und Land
-participants_by_ranking <- cleaned_data %>%
-  group_by(ranking, country) %>%
-  summarize(participant_count = n())
+#select only the variables of interest
+gps_country <- cleaned_data %>%
+  group_by(country) %>%
+  summarize(
+    isocode = first(isocode),
+    ison = first(ison),
+    mean_risktaking = mean(risktaking, na.rm = TRUE),
+    mean_gender = mean(gender, na.rm = TRUE),
+    mean_age = mean(age, na.rm = TRUE),
+    hardship = first(hardship)
+  ) %>%
+  ungroup()
 
-# Anzeige der Liste
-print(participants_by_ranking)
-
-write.xlsx(participants_by_country, "Teilnehmer_nach_Land.xlsx", row.names = FALSE)
-
-# Pfad, wo die Excel-Datei gespeichert werden soll
-excel_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/"
-
-# Excel-Datei erstellen
-write.xlsx(participants_by_country, excel_path, row.names = FALSE)
+gps_country
 ```
 
 #######################################################################################################################
@@ -162,25 +176,8 @@ ggplot(world_map, aes(x = long, y = lat, group = group, fill = recorded)) +
   theme(legend.position = "none", plot.title = element_text(hjust = 0.5))  # Remove legend and center the title
 
 ```
-###########
-########## --> Add mean gender 
---> add new columns to the datasetv 
---> put it to the data preparation 
-
-# Summarize data across all regions
-```{r}
-summary_by_region <- cleaned_data %>%
-  group_by(region) %>%
-  summarize(
-    mean_age = mean(age, na.rm = TRUE),
-    mean_risk = mean(risktaking, na.rm = TRUE),
-    total_participants = n()
-  )
-
-# Display the summarized data
-print(summary_by_region)
-```
-
+#############################################################
+#############################################################
 # All about the age
 ```{r}
 # Age Range
@@ -306,16 +303,79 @@ ggplot(cleaned_data, aes(x = country, y = risktaking)) +
 ###########
 ###########
 ###########
-Change backround 
-change x-Achse acording to the info from the presentation
+FOR PRESENTATION
+############################# 
+
 
 # Risk vs age with color-coded gender per Country
 ```{r}
-ggplot(cleaned_data, aes(z_score_age, risktaking, color = factor(gender))) +
+# Skalierung des Z-Scores für das Alter anpassen
+cleaned_data$z_score_age_scaled <- 15 * cleaned_data$z_score_age + 42
+
+# Risk vs age with color-coded gender per Country
+ggplot(cleaned_data, aes(z_score_age_scaled, risktaking, color = factor(gender))) +
   geom_point(size = 0.1) +  
   geom_smooth(method = "lm") +
+  geom_vline(xintercept = 42, linetype = "dashed", color = "black", size = 1) +  # Vertikale Linie für den Mittelwert
   scale_color_manual(values = c("blue", "red"), labels = c("Male", "Female")) +
-  labs(color = "Gender")
+  labs(color = "Gender") +
+  ggtitle("Risk vs Age GPS") +
+  xlab("Age (Mean = 42, SD = 15)") +
+  scale_x_continuous(breaks = seq(0, 100, by = 15), limits = c(0, 100)) +  # Anpassung der Intervalle auf der X-Achse
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+# Risktaking vs. hardship across countries
+```{r}
+# Risktaking vs. Hardship across countries with summarized points
+ggplot(cleaned_data, aes(x = hardship, y = mean_risktaking)) +
+  geom_point(aes(color = isocode), size = 3) +
+  geom_text(aes(label = isocode), vjust = -0.5, hjust = 0.5, size = 3) +
+  labs(title = "Risktaking vs. Hardship across Countries GPS",
+       x = "Hardship", y = "Risktaking") +
+  theme_minimal() +
+  theme(legend.position = "none", plot.title = element_text(hjust = 0.5))
+```
+```{r}
+# Risktaking vs. Hardship across countries with summarized points
+ggplot(cleaned_data, aes(x = hardship, y = mean_z_score_age)) +
+  geom_point(aes(color = isocode), size = 3) +
+  geom_text(aes(label = isocode), vjust = -0.5, hjust = 0.5, size = 3) +
+  labs(title = "Risktaking vs. Age across Countries GPS",
+       x = "Hardship", y = "Age") +
+  theme_minimal() +
+  theme(legend.position = "none", plot.title = element_text(hjust = 0.5))
+```
+
+
+# Scatterplot of the relationship between hardship index and age-effect estimates
+```{r}
+model_age <- lm(hardship ~ mean_z_score_age, data = cleaned_data)
+model_gender <- lm(hardship ~ gender, data = cleaned_data)
+
+```
+
+```{r}
+# Coefficients for age-effect
+age_coefficients <- coef(model_age)
+
+# Coefficients for gender-effect
+gender_coefficients <- coef(model_gender)
+
+```
+
+```{r}
+
+# Scatterplot for age-effect
+ggplot(cleaned_data, aes(x = mean_z_score_age, y = hardship)) +
+  geom_point(size = 2) +
+  geom_smooth(method = "lm", formula = y ~ x, se = FALSE, color = "blue") +
+  labs(title = "Scatterplot of Hardship vs Age",
+       x = "Age", y = "Hardship") +
+  theme_minimal()
+
 ```
 
 
