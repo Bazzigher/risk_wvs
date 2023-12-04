@@ -52,12 +52,19 @@ WV5_data
 ```
 
 ```{r}
-#decode the country names 
-#countrynames = read.csv("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/countrynames.txt", header=FALSE,as.is=TRUE)
-colnames(countrynames) = c("code", "name")
-WV5_data$country = countrynames$name [match(WV5_data$country_code, countrynames$code)]
+# Read countrynames data from the CSV file
+countrynames <- read.csv("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/countrynames.txt", header = FALSE, as.is = TRUE)
+colnames(countrynames) <- c("code", "name")
+
+# Assuming WV5_data has a column named country_code
+WV5_data$country <- countrynames$name[match(WV5_data$country_code, countrynames$code)]
+
+# Check the frequency of each country in the new column
 table(WV5_data$country)
-WV5_data
+
+# Display the updated WV5_data
+print(WV5_data)
+
 
 
 
@@ -395,25 +402,31 @@ regression_results_gps_new
 
 ```
 ```{r}
+library(readxl)
+library(dplyr)  # Don't forget to load the dplyr package
+
 regression_results_gps_new
 regression_results_WVS_new
+
 # Assuming "country" is the common column
 merged_results <- merge(regression_results_gps_new, regression_results_WVS_new, by = "country", all = TRUE)
 
-merged_results
+# Read data from the Excel file
+new_data <- read_excel("/Users/cristinacandido/Documents/Github/risk_wvs/data/hardship.xlsx")
 
-new_data <- read_excel("/Users/cristinacandido/Documents/Github/risk_wvs/data/Hardship.xlsx") # Read data from the Excel file
-
-labels <- c("code")
-
+# Now you can work with the 'new_data' object
 print(new_data)
 
-new_data <- left_join(merged_results, new_data, by = "country") # Perform the left_join operation
-new_data
+# Perform the left_join operation
+new_data <- left_join(merged_results, new_data, by = "country")
 
+# Select specific columns
 new_data <- new_data %>%
-  select(country, intercept_gps, slope_age_gps, slope_gender_gps, intercept_WVS, slope_age_WVS, slope_gender_WVS, isocode )
-new_data
+  select(country, intercept_gps, slope_age_gps, slope_gender_gps, intercept_WVS, slope_age_WVS, slope_gender_WVS, isocode)
+
+# Print the final data
+print(new_data)
+
 
 
 
@@ -582,7 +595,7 @@ completegps <- hardshipgps %>%
 ```{r}
 #hardship for WVS
 library(readxl)
-hardship_values <- read_excel("/Users/cristinacandido/Documents/Github/risk_wvs/data/Hardship.xlsx") # Read data from the Excel file
+hardship_values <- read_excel("/Users/cristinacandido/Documents/Github/risk_wvs/data/hardship.xlsx") # Read data from the Excel file
 
 labels <- c("country", "code", "gdp", "gini", "Infant_mortality", "life_expect", "hardship")
 
