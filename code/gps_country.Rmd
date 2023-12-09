@@ -3,6 +3,11 @@ title: "R Notebook"
 output: html_notebook
 ---
 
+---
+title: "R Notebook"
+output: html_notebook
+---
+
 #Load packages
 ```{r}
 library(data.table)
@@ -15,6 +20,8 @@ library(lmtest)
 library(maps)
 library(mapdata)
 library(readxl)
+library(ggrepel)
+library(wordcloud)
 ```
 
 #Add data GPS
@@ -95,12 +102,11 @@ cleaned_data <- merge(cleaned_data, country_means, by = "country", all.x = TRUE)
 
 # Display the updated dataset
 head(cleaned_data)
-
 ```
 
 #Hardship-list
 ```{r}
-excel_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Hardship/Hardship.xlsx"
+excel_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Hardship/Hardship_complete.xlsx"
 
 hardship_values <- read_excel(excel_path) # Read data from the Excel file
 
@@ -112,6 +118,98 @@ cleaned_data <- left_join(cleaned_data, hardship_values, by = "country") # Perfo
 
 head(cleaned_data) # Display the updated dataset
 ```
+```{r}
+# Installiere und lade die openxlsx-Bibliothek
+if (!requireNamespace("openxlsx", quietly = TRUE)) {
+  install.packages("openxlsx")
+}
+library(openxlsx)
+
+# Setze das Arbeitsverzeichnis
+setwd("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Hardship")
+
+# Lese die Excel-Datei ein
+data <- read.xlsx("Hardship_complete.xlsx", sheet = 1)
+
+# Funktion zur Berechnung des Z-Scores
+calculate_zscore <- function(x) {
+  if(is.numeric(x)) {
+    return((x - mean(x, na.rm = TRUE)) / sd(x, na.rm = TRUE))
+  } else {
+    return(x)  # Lasse nicht-numerische Werte unverändert
+  }
+}
+
+# Wende die Funktion auf jede numerische Spalte an (außer der "country"-Spalte)
+z_scores <- as.data.frame(lapply(data[, -1], calculate_zscore))
+
+# Füge die "country"-Spalte zum Ergebnis hinzu
+z_scores <- cbind(data$country, z_scores)
+colnames(z_scores) <- colnames(data)
+
+# Zeige das Ergebnis an
+print(z_scores)
+```
+
+
+```{r}
+# Installiere und lade die openxlsx-Bibliothek
+if (!requireNamespace("openxlsx", quietly = TRUE)) {
+  install.packages("openxlsx")
+}
+library(openxlsx)
+
+# Setze das Arbeitsverzeichnis
+setwd("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Hardship")
+
+# Lese die Excel-Datei ein
+data <- read.xlsx("Hardship_complete.xlsx", sheet = 1)
+
+# Funktion zur Berechnung des Z-Scores
+calculate_zscore <- function(x) {
+  if (is.numeric(x)) {
+    return((x - mean(x, na.rm = TRUE)) / sd(x, na.rm = TRUE))
+  } else {
+    return(x)  # Lasse nicht-numerische Werte unverändert
+  }
+}
+
+# Wende die Funktion auf jede numerische Spalte an (außer der "country"-Spalte)
+z_scores <- as.data.frame(lapply(data[, -1], calculate_zscore))
+
+# Füge die "country"-Spalte zum Ergebnis hinzu
+z_scores <- cbind(data$country, z_scores)
+colnames(z_scores) <- colnames(data)
+
+# Füge die Durchschnittsspalte "hardship" hinzu
+z_scores$hardship <- rowMeans(data[, c("mean_homicide", "gdp", "gini_income", "Infant_mortality", "life_expect")], na.rm = TRUE)
+
+# Füge eine neue Zeile mit dem Durchschnitt ("hardship") für jedes Land hinzu
+average_row <- colMeans(z_scores[, sapply(z_scores, is.numeric)], na.rm = TRUE)
+average_row <- c("Average", average_row, mean(data$hardship, na.rm = TRUE))
+z_scores <- rbind(z_scores, average_row)
+
+# Zeige das Ergebnis an
+print(z_scores)
+```
+
+```{r}
+#Hardship-list
+excel_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Hardship/Hardship_complete.xlsx"
+
+hardship_values <- read_excel(excel_path) # Read data from the Excel file
+
+print(colnames(cleaned_data)) # Display column names in cleaned_data
+
+print(colnames(z_scores)) # Display column names in hardship_data
+
+# Füge die "hardship"-Spalte aus der hardship_values-Tabelle zu cleaned_data hinzu
+cleaned_data <- left_join(cleaned_data, select(z_scores, country, hardship), by = "country")
+
+head(cleaned_data) # Display the updated dataset
+
+```
+
 
 #select only the variables of interest
 ```{r}
@@ -205,100 +303,6 @@ agecat_counts <- table(cleaned_data$agecat)
 print(agecat_counts)
 ```
 
-# Boxplot of Age Distribution per Country 
-```{r}
-ggplot(cleaned_data, aes(x = age)) +
-  geom_histogram(binwidth = 0.5, fill = "lightblue", color = "blue") +
-  labs(x = "Age", y = "Frequency", title = "Histogram of Age Distributionn") +
-  theme_minimal()
-
-ggplot(cleaned_data, aes(x = country, y = age)) +
-  geom_boxplot(fill = "lightblue", color = "blue") +
-  labs(title = "Distribution of Age per Country", x = "Country", y = "Age") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-
-ggplot(cleaned_data, aes(x = country, y = risktaking)) +
-  geom_boxplot(fill = "lightblue", color = "blue") +
-  labs(title = "Distribution of Age per Country", x = "Country", y = "Risktaking") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-```
-
-
-# All about the gender
-```{r}
-# Calculate the counts of females (gender = 1) and males (gender = 2)
-gender_counts <- table(cleaned_data$gender)
-
-# Display the counts
-cat("Number of Females: ", gender_counts[1], "\n")
-cat("Number of Males: ", gender_counts[2], "\n")
-```
-
-# Table with country and gender
-```{r}
-# Create a table that breaks down the number of participants by country and gender
-gender_by_country <- xtabs(~ country + gender, data = cleaned_data)
-
-# Rename columns and rows for better readability
-colnames(gender_by_country) <- c("Female", "Male")
-rownames(gender_by_country) <- unique(cleaned_data$country)
-
-# Calculate the total participants by summing the rows
-total_participants <- rowSums(gender_by_country)
-
-# Create a data frame with country, total participants, female, and male
-result_table <- data.frame(
-  country = rownames(gender_by_country),
-  total_participants = total_participants,
-  female = gender_by_country[, "Female"],
-  male = gender_by_country[, "Male"]
-)
-
-# Display the result table
-result_table
-```
-# Analysis of item risktaking 
-```{r}
-# Summary statistics for risktaking
-risk_summary <- summary(cleaned_data$risktaking)
-
-# Histogram of risktaking
-ggplot(cleaned_data, aes(x = risktaking)) +
-  geom_histogram(binwidth = 1, fill = "lightblue", color = "blue", alpha = 0.7) +
-  labs(title = "Distribution of Risk-Taking", x = "Risk-Taking Score", y = "Frequency") +
-  theme_minimal()
-
-# Boxplot of risktaking by gender
-ggplot(cleaned_data, aes(x = as.factor(gender), y = risktaking, fill = as.factor(gender))) +
-  geom_boxplot() +
-  labs(title = "Risk-Taking by Gender", x = "Gender", y = "Risk-Taking Score") +
-  scale_x_discrete(labels = c("0" = "male", "1" = "female")) +
-  theme_minimal() +
-  guides(fill = FALSE)
-
-# Risk vs age
-ggplot(cleaned_data, aes(risktaking, age)) +
-  geom_point(size = 0.2) +  
-  geom_smooth(method = "lm")
-
-# Boxplot of risktaking by age group
-cleaned_data$age_group <- cut(cleaned_data$age, breaks = c(0, 25, 35, 45, 55, Inf),
-                               labels = c("18-25", "26-35", "36-45", "46-55", "56+"))
-ggplot(cleaned_data, aes(x = age_group, y = risktaking, fill = age_group)) +
-  geom_boxplot() +
-  labs(title = "Risk-Taking by Age Group", x = "Age Group", y = "Risk-Taking Score") +
-  theme_minimal() +
-  guides(fill = FALSE)
-
-# Boxplot of risktaking by country
-ggplot(cleaned_data, aes(x = country, y = risktaking)) +
-  geom_boxplot(fill = "lightblue", color = "blue") +
-  labs(title = "Risk-Taking by Country", x = "Country", y = "Risk-Taking Score") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-```
 
 ###########
 ###########
@@ -319,8 +323,7 @@ ggplot(cleaned_data, aes(z_score_age_scaled, risktaking, color = factor(gender))
   geom_vline(xintercept = 42, linetype = "dashed", color = "black", size = 1) +  # Vertikale Linie für den Mittelwert
   scale_color_manual(values = c("blue", "red"), labels = c("Male", "Female")) +
   labs(color = "Gender") +
-  ggtitle("Risk vs Age GPS") +
-  xlab("Age (Mean = 42, SD = 15)") +
+  xlab("Age") +
   scale_x_continuous(breaks = seq(0, 100, by = 15), limits = c(0, 100)) +  # Anpassung der Intervalle auf der X-Achse
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5))
@@ -339,22 +342,32 @@ ggplot(cleaned_data, aes(x = hardship, y = mean_risktaking)) +
   theme(legend.position = "none", plot.title = element_text(hjust = 0.5))
 ```
 ```{r}
-# Risktaking vs. Hardship across countries with summarized points
-ggplot(cleaned_data, aes(x = hardship, y = mean_z_score_age)) +
-  geom_point(aes(color = isocode), size = 3) +
-  geom_text(aes(label = isocode), vjust = -0.5, hjust = 0.5, size = 3) +
-  labs(title = "Risktaking vs. Age across Countries GPS",
-       x = "Hardship", y = "Age") +
+install.packages("ggrepel")
+library(ggrepel)
+library(wordcloud)
+ 
+# Assuming you have a data frame named 'new_data' with columns 'intercept_gps', 'intercept_WVS', and 'isocode'
+ 
+# Scatter plot with labels
+ggplot(gps_country, aes(x = risktaking, y = hardship, label = isocode)) +
+  geom_point(size = 3) +
+  geom_text_repel(
+    aes(label = isocode),
+    box.padding = 0.5,
+    point.padding = 0.1,
+    force = 5
+  ) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
+  labs(title = "Risk taking and hardship",
+       x = "Risk Taking",
+       y = "Hardship") +
   theme_minimal() +
-  theme(legend.position = "none", plot.title = element_text(hjust = 0.5))
-```
-
-
-# Scatterplot of the relationship between hardship index and age-effect estimates
-```{r}
-model_age <- lm(hardship ~ mean_z_score_age, data = cleaned_data)
-model_gender <- lm(hardship ~ gender, data = cleaned_data)
-
+  xlim(c(0, 1.2)) +
+  ylim(c(0, 1.2)) +
+  coord_fixed()
+ 
+# Annotate with word cloud
+wordcloud(words = gps_country$isocode, freq = rep(1, nrow(gps_country)), scale = c(2, 0.5))
 ```
 
 ```{r}
@@ -368,13 +381,19 @@ gender_coefficients <- coef(model_gender)
 
 ```{r}
 
-# Scatterplot for age-effect
+# Scatterplot for age-effect with scaled x-axis
 ggplot(cleaned_data, aes(x = mean_z_score_age, y = hardship)) +
   geom_point(size = 2) +
   geom_smooth(method = "lm", formula = y ~ x, se = FALSE, color = "blue") +
   labs(title = "Scatterplot of Hardship vs Age",
        x = "Age", y = "Hardship") +
+  scale_x_continuous(
+    breaks = seq(0, 100, by = 15),  # Anpassung der Intervalle auf der X-Achse
+    limits = c(0, 100),
+    labels = seq(42 - 15 * 3, 42 + 15 * 3, by = 15)  # Labels entsprechend der SD um den Mittelwert
+  ) +
   theme_minimal()
+
 
 ```
 
