@@ -55,12 +55,24 @@ variable_list <- names(cleaned_data)
 # Display the list of variables
 print(variable_list)
 ```
+
+############################# Calculate Z-Score for Age per Country
+```{r}
+cleaned_data <- cleaned_data %>%
+  group_by(country) %>%
+  mutate(z_score_age = scale(age))
+
+# Display the new column with Z-Scores per Country
+head(cleaned_data)
+```
+
 #select only the variables of interest
 ```{r}
 cleaned_data <- cleaned_data %>%
-  select(country, isocode, ison, risktaking, gender, age)
+  select(country, isocode, ison, risktaking, gender, z_score_age, age)
 cleaned_data
 ```
+
 # Add Hardship-list
 ```{r}
 # Installiere und lade die benötigten Bibliotheken (falls nicht bereits geschehen)
@@ -83,13 +95,10 @@ library(dplyr)
 
 # Lade die "Hardship_complete.xlsx"-Datei
 excel_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Hardship/Hardship_complete.xlsx"
-hardship_values <- read_excel(excel_path)
-
-# Führe einen left_join basierend auf der "country"-Spalte durch
-cleaned_data <- left_join(cleaned_data, hardship_values, by = "country")
+hardship_data_complete <- read_excel(excel_path)
 
 # Zeige das aktualisierte dataset an
-head(cleaned_data)
+head(hardship_data_complete)
 ```
 
 #################################################################
@@ -98,71 +107,27 @@ head(cleaned_data)
 #################################################################
 ############################# Calculate Z-Score for Age, mean_homicide, gini_income, Infant_mortality and life_expect per Country
 ```{r}
-# z-Score age
-cleaned_data <- cleaned_data %>%
-  group_by(country) %>%
-  mutate(z_score_age = scale(age))
-
-# z-Score mean_homicide
-cleaned_data <- cleaned_data %>%
-  group_by(country) %>%
-  mutate(z_score_homicide = scale(mean_homicide))
-
-# z-Score gini_income
-cleaned_data <- cleaned_data %>%
-  group_by(country) %>%
-  mutate(z_score_gini_income = scale(gini_income))
-
-# z-Score Infant_mortality
-cleaned_data <- cleaned_data %>%
-  group_by(country) %>%
-  mutate(z_score_infant_mort = scale(Infant_mortality))
-
-# z-Score life_expect
-cleaned_data <- cleaned_data %>%
-  group_by(country) %>%
-  mutate(z_score_life_expect = scale(life_expect))
-
-# Display the new column with Z-Scores per Country and Z-Score for gdp_income
-head(cleaned_data)
+hardship_data_complete
+# Z-standardize specific columns
+hardship_data_complete$gdp <- scale(hardship_data_complete$gdp)
+hardship_data_complete$gini_income <- scale(hardship_data_complete$gini_income)
+hardship_data_complete$Infant_mortality <- scale(hardship_data_complete$Infant_mortality)
+hardship_data_complete$life_expect <- scale(hardship_data_complete$life_expect)
+hardship_data_complete$mean_homicide <- scale(hardship_data_complete$mean_homicide)
+# Print the z-standardized data
+print(hardship_data_complete)
+hardship_data_complete <- hardship_data_complete %>%
+  mutate(hardship = (mean_homicide + gdp + Infant_mortality + life_expect + gini_income) / 5)
+hardship_data_complete
 ```
 
-# Add variable "hardship" (z-scores of homicide, gini, infant, life exprect and gdp)
+
+# Add Intercept and slope_age to the gps_country 
 ```{r}
-# Wähle nur die gewünschten z-Score-Spalten aus und konvertiere sie in numerische Daten
-selected_z_scores <- cleaned_data %>%
-  select(country, z_score_gdp, z_score_homicide, z_score_gini_income, z_score_infant_mort, z_score_life_expect) %>%
-  group_by(country) %>%
-  mutate_all(as.numeric)
-
-# Überprüfe, ob alle ausgewählten Spalten numerisch sind
-print(sapply(selected_z_scores, class))
-
-# Berechne den Durchschnitt der ausgewählten z-Scores für jede Zeile
-cleaned_data$hardship <- rowMeans(selected_z_scores[, -1], na.rm = TRUE)  # Vermeide Gruppierung in der Ergebnisspalte
-
-# Zeige das aktualisierte dataset an
-head(cleaned_data)
+# Führe einen left_join basierend auf der "country"-Spalte durch
+cleaned_data <- left_join(cleaned_data, hardship_data_complete, by = "country")
+cleaned_data
 ```
-# Load the Hardship-list with the z-Scores into a new excel file 
-```{r}
-# Installiere und lade die benötigten Bibliotheken (falls nicht bereits geschehen)
-if (!requireNamespace("writexl", quietly = TRUE)) {
-  install.packages("writexl")
-}
-library(writexl)
-
-# Wähle nur die gewünschten Variablen aus
-output_data <- cleaned_data %>%
-  select(country, isocode, z_score_gdp, z_score_age, z_score_homicide, 
-         z_score_gini_income, z_score_infant_mort, z_score_life_expect, hardship) %>%
-  distinct(country, .keep_all = TRUE)
-
-# Speichere die Daten in einer Excel-Datei
-write_xlsx(output_data, "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Hardship/Hardship_complete_output.xlsx")
-
-```
-
 
 
 # Create a new column "age_group" with the age categories
@@ -186,7 +151,7 @@ country_means <- cleaned_data %>%
     mean_risktaking = mean(risktaking, na.rm = TRUE),
     mean_gender = mean(gender, na.rm = TRUE),
     mean_age = mean(age, na.rm = TRUE), 
-    mean_z_score_age = mean(z_score_age, na.rm = TRUE),
+    mean_z_score_age = mean(age, na.rm = TRUE),
   )
 
 # Merge mean values back to the original dataset
@@ -200,7 +165,8 @@ head(cleaned_data)
 #select only the variables of interest
 ```{r}
 gps_country <- cleaned_data %>%
-  select(country, isocode, ison, mean_risktaking, mean_gender, mean_age, mean_z_score_age, hardship)
+  select(country, isocode.x, ison, risktaking, mean_risktaking, gender, z_score_age, mean_z_score_age, hardship
+)
 gps_country
 ```
 
@@ -210,15 +176,49 @@ gps_country
 gps_country <- cleaned_data %>%
   group_by(country) %>%
   summarize(
-    isocode = first(isocode),
+    isocode = first(isocode.x),
     ison = first(ison),
     mean_risktaking = mean(risktaking, na.rm = TRUE),
     mean_gender = mean(gender, na.rm = TRUE),
-    mean_age = mean(age, na.rm = TRUE),
+    mean_age = mean(z_score_age, na.rm = TRUE),
     hardship = first(hardship)
   ) %>%
   ungroup()
 
+gps_country
+```
+
+# Regression table
+```{r}
+# Führe die lineare Regression durch
+regression_model <- lm(risktaking ~ z_score_age + gender, data = cleaned_data)
+
+# Extrahiere die Koeffizienten der Regression
+coefficients <- summary(regression_model)$coefficients
+
+# Extrahiere den Intercept und die Slopes
+intercept <- coefficients["(Intercept)", "Estimate"]
+slope_age <- coefficients["z_score_age", "Estimate"]
+slope_gender <- coefficients["gender", "Estimate"]
+
+# Füge die Informationen zur Regressionstabelle dem gps_country-Datensatz hinzu
+gps_country <- gps_country %>%
+  mutate(
+    intercept = intercept,
+    slope_age = slope_age,
+    slope_gender = slope_gender
+  )
+
+# Zeige den aktualisierten gps_country-Datensatz an
+head(gps_country)
+```
+
+
+########
+# Add Intercept and slope_age to the gps_country 
+```{r}
+# Führe einen left_join basierend auf der "country"-Spalte durch
+gps_country <- left_join(gps_country, regression_results_gps, by = "country")
 gps_country
 ```
 
@@ -315,88 +315,30 @@ ggplot(cleaned_data, aes(z_score_age_scaled, risktaking, color = factor(gender))
 
 ```
 
-# Regression table
-```{r}
-regression_results_gps <- cleaned_data %>%
-  group_by(country) %>%
-  do(model = lm(risktaking ~ scale(age) + gender, data = .)) %>%
-  summarize(
-    country = first(country),
-    intercept = coef(summary(model))[1, 1],
-    slope_age = coef(summary(model))[2, 1],
-    slope_gender = coef(summary(model))[3, 1]
-  )
-
-regression_results_gps
-```
 
 
-# Regressionstabelle (risktaking and age)
-```{r}
-regression_results_gps <- cleaned_data %>%
-  group_by(country) %>%
-  do(model = lm(risktaking ~ scale(age) + gender, data = .)) %>%
-  summarize(
-    country = first(country),
-    intercept = coef(summary(model))[1, 1],
-    slope_age = coef(summary(model))[2, 1],
-    slope_gender = coef(summary(model))[3, 1]
-  )
-
-# Zusammenführen der Ergebnisse mit dem ursprünglichen Datensatz
-cleaned_data <- merge(cleaned_data, regression_results_gps, by = "country", all.x = TRUE)
-
-# Anzeige des aktualisierten Datensatzes
-head(cleaned_data)
-```
 
 ```{r}
-ggplot(cleaned_data, aes(x = hardship, y = slope_age, label = isocode)) +
-  geom_point(size = 3) +
+# Scatter plot with labels
+ggplot(gps_country, aes(x = hardship, y = intercept, label = isocode)) +
+  geom_point(size = 3, position = position_jitter(width = 0.05, height = 0.05)) +  # Jitter für bessere Verteilung
   geom_text_repel(
     aes(label = isocode),
-    box.padding = 0.5,
-    point.padding = 0.1,
-    force = 5
+    box.padding = 1,  # Größerer box.padding-Wert
+    point.padding = 0.5,  # Größerer point.padding-Wert
+    force = 5,
+    min.segment.length = 0.5,  # Größerer min.segment.length-Wert
+    max.overlaps = 100  # Erhöhen Sie max.overlaps, um mehr Überlappungen zu erlauben
   ) +
   geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
-  labs(x = "Hardship",
-       y = "Age Effect") +
+  labs(title = "",
+       x = "Hardship",
+       y = "Risk Taking") +
   theme_minimal() +
-  coord_fixed(ratio = 3)  # Adjust the ratio to achieve the desired square format
+  expand_limits(x = c(-1, 1.5), y = c(-1, 1.5))  # Festlegen der Achsenlimits
 ```
 
-```{r}
-# Regressionstabelle (Risikobereitschaft und Alter -> Z-Score)
-regression_results_gps <- cleaned_data %>%
-  group_by(country) %>%
-  do(model = lm(risktaking ~ scale(age) + gender, data = .)) %>%
-  summarize(
-    country = first(country),
-    intercept = coef(summary(model))[1, 1],
-    slope_age = coef(summary(model))[2, 1],
-    slope_gender = coef(summary(model))[3, 1]
-  )
 
-# Zusammenführen der Ergebnisse mit dem ursprünglichen Datensatz
-cleaned_data <- merge(cleaned_data, regression_results_gps, by = "country", all.x = TRUE)
-
-# Anzeige des aktualisierten Datensatzes
-head(cleaned_data)
-
-```
-
-# Risktaking vs. hardship across countries
-```{r}
-# Risktaking vs. hardship across countries
-ggplot(cleaned_data, aes(x = scale(hardship), y = mean_risktaking)) +
-  geom_point(color = "black", size = 1.5) +  # Schwarze Punkte der Größe 1,5
-  geom_text(aes(label = isocode), vjust = -0.5, hjust = 0.5, size = 3, color = "black", position = position_nudge(y = 0.02)) +  # Isocodes mit kleinen Linien
-  labs(title = "Risktaking vs. Hardship across Countries GPS",
-       x = "Hardship", y = "Risk Taking") +
-  theme_minimal() +
-  theme(legend.position = "none", plot.title = element_text(hjust = 0.5))
-```
 
 # Age vs. hardship across countries
 ```{r}
