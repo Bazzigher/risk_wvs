@@ -55,12 +55,6 @@ variable_list <- names(cleaned_data)
 # Display the list of variables
 print(variable_list)
 ```
-#select only the variables of interest
-```{r}
-cleaned_data <- cleaned_data %>%
-  select(country, isocode, ison, risktaking, gender, age)
-cleaned_data
-```
 
 ############################# Calculate Z-Score for Age per Country
 ```{r}
@@ -70,6 +64,69 @@ cleaned_data <- cleaned_data %>%
 
 # Display the new column with Z-Scores per Country
 head(cleaned_data)
+```
+
+#select only the variables of interest
+```{r}
+cleaned_data <- cleaned_data %>%
+  select(country, isocode, ison, risktaking, gender, z_score_age, age)
+cleaned_data
+```
+
+# Add Hardship-list
+```{r}
+# Installiere und lade die benötigten Bibliotheken (falls nicht bereits geschehen)
+if (!requireNamespace("data.table", quietly = TRUE)) {
+  install.packages("data.table")
+}
+library(data.table)
+if (!requireNamespace("tidyr", quietly = TRUE)) {
+  install.packages("tidyr")
+}
+library(tidyr)
+if (!requireNamespace("haven", quietly = TRUE)) {
+  install.packages("haven")
+}
+library(haven)
+if (!requireNamespace("dplyr", quietly = TRUE)) {
+  install.packages("dplyr")
+}
+library(dplyr)
+
+# Lade die "Hardship_complete.xlsx"-Datei
+excel_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Hardship/Hardship_complete.xlsx"
+hardship_data_complete <- read_excel(excel_path)
+
+# Zeige das aktualisierte dataset an
+head(hardship_data_complete)
+```
+
+#################################################################
+#################################################################
+#################################################################
+#################################################################
+############################# Calculate Z-Score for Age, mean_homicide, gini_income, Infant_mortality and life_expect per Country
+```{r}
+hardship_data_complete
+# Z-standardize specific columns
+hardship_data_complete$gdp <- scale(hardship_data_complete$gdp)
+hardship_data_complete$gini_income <- scale(hardship_data_complete$gini_income)
+hardship_data_complete$Infant_mortality <- scale(hardship_data_complete$Infant_mortality)
+hardship_data_complete$life_expect <- scale(hardship_data_complete$life_expect)
+hardship_data_complete$mean_homicide <- scale(hardship_data_complete$mean_homicide)
+# Print the z-standardized data
+print(hardship_data_complete)
+hardship_data_complete <- hardship_data_complete %>%
+  mutate(hardship = (mean_homicide + gdp + Infant_mortality + life_expect + gini_income) / 5)
+hardship_data_complete
+```
+
+
+# Add Intercept and slope_age to the gps_country 
+```{r}
+# Führe einen left_join basierend auf der "country"-Spalte durch
+cleaned_data <- left_join(cleaned_data, hardship_data_complete, by = "country")
+cleaned_data
 ```
 
 
@@ -94,7 +151,7 @@ country_means <- cleaned_data %>%
     mean_risktaking = mean(risktaking, na.rm = TRUE),
     mean_gender = mean(gender, na.rm = TRUE),
     mean_age = mean(age, na.rm = TRUE), 
-    mean_z_score_age = mean(z_score_age, na.rm = TRUE),
+    mean_z_score_age = mean(age, na.rm = TRUE),
   )
 
 # Merge mean values back to the original dataset
@@ -104,117 +161,12 @@ cleaned_data <- merge(cleaned_data, country_means, by = "country", all.x = TRUE)
 head(cleaned_data)
 ```
 
-#Hardship-list
-```{r}
-excel_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Hardship/Hardship_complete.xlsx"
-
-hardship_values <- read_excel(excel_path) # Read data from the Excel file
-
-print(colnames(cleaned_data)) # Display column names in cleaned_data
-
-print(colnames(hardship_values)) # Display column names in hardship_data
-
-cleaned_data <- left_join(cleaned_data, hardship_values, by = "country") # Perform the left_join operation
-
-head(cleaned_data) # Display the updated dataset
-```
-```{r}
-# Installiere und lade die openxlsx-Bibliothek
-if (!requireNamespace("openxlsx", quietly = TRUE)) {
-  install.packages("openxlsx")
-}
-library(openxlsx)
-
-# Setze das Arbeitsverzeichnis
-setwd("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Hardship")
-
-# Lese die Excel-Datei ein
-data <- read.xlsx("Hardship_complete.xlsx", sheet = 1)
-
-# Funktion zur Berechnung des Z-Scores
-calculate_zscore <- function(x) {
-  if(is.numeric(x)) {
-    return((x - mean(x, na.rm = TRUE)) / sd(x, na.rm = TRUE))
-  } else {
-    return(x)  # Lasse nicht-numerische Werte unverändert
-  }
-}
-
-# Wende die Funktion auf jede numerische Spalte an (außer der "country"-Spalte)
-z_scores <- as.data.frame(lapply(data[, -1], calculate_zscore))
-
-# Füge die "country"-Spalte zum Ergebnis hinzu
-z_scores <- cbind(data$country, z_scores)
-colnames(z_scores) <- colnames(data)
-
-# Zeige das Ergebnis an
-print(z_scores)
-```
-
-
-```{r}
-# Installiere und lade die openxlsx-Bibliothek
-if (!requireNamespace("openxlsx", quietly = TRUE)) {
-  install.packages("openxlsx")
-}
-library(openxlsx)
-
-# Setze das Arbeitsverzeichnis
-setwd("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Hardship")
-
-# Lese die Excel-Datei ein
-data <- read.xlsx("Hardship_complete.xlsx", sheet = 1)
-
-# Funktion zur Berechnung des Z-Scores
-calculate_zscore <- function(x) {
-  if (is.numeric(x)) {
-    return((x - mean(x, na.rm = TRUE)) / sd(x, na.rm = TRUE))
-  } else {
-    return(x)  # Lasse nicht-numerische Werte unverändert
-  }
-}
-
-# Wende die Funktion auf jede numerische Spalte an (außer der "country"-Spalte)
-z_scores <- as.data.frame(lapply(data[, -1], calculate_zscore))
-
-# Füge die "country"-Spalte zum Ergebnis hinzu
-z_scores <- cbind(data$country, z_scores)
-colnames(z_scores) <- colnames(data)
-
-# Füge die Durchschnittsspalte "hardship" hinzu
-z_scores$hardship <- rowMeans(data[, c("mean_homicide", "gdp", "gini_income", "Infant_mortality", "life_expect")], na.rm = TRUE)
-
-# Füge eine neue Zeile mit dem Durchschnitt ("hardship") für jedes Land hinzu
-average_row <- colMeans(z_scores[, sapply(z_scores, is.numeric)], na.rm = TRUE)
-average_row <- c("Average", average_row, mean(data$hardship, na.rm = TRUE))
-z_scores <- rbind(z_scores, average_row)
-
-# Zeige das Ergebnis an
-print(z_scores)
-```
-
-```{r}
-#Hardship-list
-excel_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Hardship/Hardship_complete.xlsx"
-
-hardship_values <- read_excel(excel_path) # Read data from the Excel file
-
-print(colnames(cleaned_data)) # Display column names in cleaned_data
-
-print(colnames(z_scores)) # Display column names in hardship_data
-
-# Füge die "hardship"-Spalte aus der hardship_values-Tabelle zu cleaned_data hinzu
-cleaned_data <- left_join(cleaned_data, select(z_scores, country, hardship), by = "country")
-
-head(cleaned_data) # Display the updated dataset
-
-```
-
 
 #select only the variables of interest
 ```{r}
 gps_country <- cleaned_data %>%
-  select(country, isocode, ison, mean_risktaking, mean_gender, mean_age, mean_z_score_age, hardship)
+  select(country, isocode.x, ison, risktaking, mean_risktaking, gender, z_score_age, mean_z_score_age, hardship
+)
 gps_country
 ```
 
@@ -224,15 +176,49 @@ gps_country
 gps_country <- cleaned_data %>%
   group_by(country) %>%
   summarize(
-    isocode = first(isocode),
+    isocode = first(isocode.x),
     ison = first(ison),
     mean_risktaking = mean(risktaking, na.rm = TRUE),
     mean_gender = mean(gender, na.rm = TRUE),
-    mean_age = mean(age, na.rm = TRUE),
+    mean_age = mean(z_score_age, na.rm = TRUE),
     hardship = first(hardship)
   ) %>%
   ungroup()
 
+gps_country
+```
+
+# Regression table
+```{r}
+# Führe die lineare Regression durch
+regression_model <- lm(risktaking ~ z_score_age + gender, data = cleaned_data)
+
+# Extrahiere die Koeffizienten der Regression
+coefficients <- summary(regression_model)$coefficients
+
+# Extrahiere den Intercept und die Slopes
+intercept <- coefficients["(Intercept)", "Estimate"]
+slope_age <- coefficients["z_score_age", "Estimate"]
+slope_gender <- coefficients["gender", "Estimate"]
+
+# Füge die Informationen zur Regressionstabelle dem gps_country-Datensatz hinzu
+gps_country <- gps_country %>%
+  mutate(
+    intercept = intercept,
+    slope_age = slope_age,
+    slope_gender = slope_gender
+  )
+
+# Zeige den aktualisierten gps_country-Datensatz an
+head(gps_country)
+```
+
+
+########
+# Add Intercept and slope_age to the gps_country 
+```{r}
+# Führe einen left_join basierend auf der "country"-Spalte durch
+gps_country <- left_join(gps_country, regression_results_gps, by = "country")
 gps_country
 ```
 
@@ -322,34 +308,58 @@ ggplot(cleaned_data, aes(z_score_age_scaled, risktaking, color = factor(gender))
   geom_smooth(method = "lm") +
   geom_vline(xintercept = 42, linetype = "dashed", color = "black", size = 1) +  # Vertikale Linie für den Mittelwert
   scale_color_manual(values = c("blue", "red"), labels = c("Male", "Female")) +
-  labs(color = "Gender") +
-  xlab("Age") +
+  labs(color = "Gender", x = "Age", y = "Risk Taking") +  # Hier wurden die Achsentitel geändert
   scale_x_continuous(breaks = seq(0, 100, by = 15), limits = c(0, 100)) +  # Anpassung der Intervalle auf der X-Achse
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5))
+
 ```
 
 
-# Risktaking vs. hardship across countries
+
+
 ```{r}
-# Risktaking vs. Hardship across countries with summarized points
-ggplot(cleaned_data, aes(x = hardship, y = mean_risktaking)) +
-  geom_point(aes(color = isocode), size = 3) +
-  geom_text(aes(label = isocode), vjust = -0.5, hjust = 0.5, size = 3) +
-  labs(title = "Risktaking vs. Hardship across Countries GPS",
-       x = "Hardship", y = "Risktaking") +
+# Scatter plot with labels
+ggplot(gps_country, aes(x = hardship, y = intercept, label = isocode)) +
+  geom_point(size = 3, position = position_jitter(width = 0.05, height = 0.05)) +  # Jitter für bessere Verteilung
+  geom_text_repel(
+    aes(label = isocode),
+    box.padding = 1,  # Größerer box.padding-Wert
+    point.padding = 0.5,  # Größerer point.padding-Wert
+    force = 5,
+    min.segment.length = 0.5,  # Größerer min.segment.length-Wert
+    max.overlaps = 100  # Erhöhen Sie max.overlaps, um mehr Überlappungen zu erlauben
+  ) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
+  labs(title = "",
+       x = "Hardship",
+       y = "Risk Taking") +
+  theme_minimal() +
+  expand_limits(x = c(-1, 1.5), y = c(-1, 1.5))  # Festlegen der Achsenlimits
+```
+
+
+
+# Age vs. hardship across countries
+```{r}
+# Skalierung des Z-Scores für das Alter anpassen
+cleaned_data$z_score_age_scaled <- 15 * cleaned_data$z_score_age + 42# Risktaking vs. hardship across countries
+ggplot(cleaned_data, aes(x = scale(hardship), y = scale(mean_z_score_age))) +
+  geom_point(color = "black", size = 1.5) +  # Schwarze Punkte der Größe 1,5
+  geom_text(aes(label = isocode), vjust = -0.5, hjust = 0.5, size = 3, color = "black", position = position_nudge(y = 0.02)) +  # Isocodes mit kleinen Linien
+  labs(title = "Hardship and Age across Countries GPS",
+       x = "Hardship", y = "Age") +
   theme_minimal() +
   theme(legend.position = "none", plot.title = element_text(hjust = 0.5))
 ```
+
+
 ```{r}
-install.packages("ggrepel")
-library(ggrepel)
-library(wordcloud)
- 
-# Assuming you have a data frame named 'new_data' with columns 'intercept_gps', 'intercept_WVS', and 'isocode'
- 
+# Convert 'hardship' to numeric
+cleaned_data$hardship <- as.numeric(as.character(cleaned_data$hardship))
+
 # Scatter plot with labels
-ggplot(gps_country, aes(x = risktaking, y = hardship, label = isocode)) +
+scatter_plot <- ggplot(cleaned_data, aes(x = hardship, y = mean_risktaking, label = isocode)) +
   geom_point(size = 3) +
   geom_text_repel(
     aes(label = isocode),
@@ -358,16 +368,19 @@ ggplot(gps_country, aes(x = risktaking, y = hardship, label = isocode)) +
     force = 5
   ) +
   geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
-  labs(title = "Risk taking and hardship",
-       x = "Risk Taking",
-       y = "Hardship") +
+  labs(title = "GPS",
+       x = "Hardship",
+       y = "Risk Taking") +
   theme_minimal() +
   xlim(c(0, 1.2)) +
   ylim(c(0, 1.2)) +
   coord_fixed()
- 
+
 # Annotate with word cloud
-wordcloud(words = gps_country$isocode, freq = rep(1, nrow(gps_country)), scale = c(2, 0.5))
+wordcloud_plot <- wordcloud(words = cleaned_data$isocode, freq = rep(1, nrow(cleaned_data)), scale = c(2, 0.5))
+
+# Arrange plots side by side
+grid.arrange(scatter_plot, wordcloud_plot, ncol = 2)
 ```
 
 ```{r}
