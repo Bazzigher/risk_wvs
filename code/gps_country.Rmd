@@ -139,7 +139,6 @@ hardship_data_complete
 
 # create a hardship index
 ```{r}
-
 hardship_data_complete$hardship=(hardship_data_complete$mean_homicide+hardship_data_complete$gdp+hardship_data_complete$gini_income+hardship_data_complete$life_expect+hardship_data_complete$Infant_mortality)/5
 
 hardship_data_complete
