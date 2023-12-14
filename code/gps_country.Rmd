@@ -173,7 +173,9 @@ regression_results_gps
 regression_gps <- left_join(regression_results_gps, hardship_data_complete %>% select(country,isocode, hardship), by = "country")
 regression_gps
 ```
-
+######
+Löschen?????
+######
 ```{r}
 # Calculate mean values for intercept, slope_age, slope_gender, und hardship pro country
 gps_regression <- regression_gps %>%
@@ -259,12 +261,23 @@ ggplot(cleaned_data, aes(z_score_age_scaled, risktaking, color = factor(gender))
   theme(plot.title = element_text(hjust = 0.5))
 
 ```
+# statistic overview for interpretation/check for significance 
+```{r}
+# Lineares Modell für Risk Taking vs. Age
+model_risk_age <- lm(risktaking ~ z_score_age_scaled + factor(gender), data = cleaned_data)
+
+# Zusammenfassung des Modells
+summary_risk_age <- summary(model_risk_age)
+
+# Zeige die vollständige Zusammenfassung an
+print(summary_risk_age)
+```
 
 #################
 # Hardship and intercept (Risk Taking)
 ```{r}
 # Scatter plot with labels
-ggplot(gps_regression, aes(x = mean_hardship, y = mean_intercept, label = isocode)) +
+ggplot(regression_gps, aes(x = hardship, y = intercept, label = isocode)) +
   geom_point(size = 3) +
   geom_text_repel(
     aes(label = isocode),
@@ -277,13 +290,13 @@ ggplot(gps_regression, aes(x = mean_hardship, y = mean_intercept, label = isocod
        y = "Risk Taking") +
   theme_minimal() +
   scale_y_continuous(limits = c(-0.74, 1)) +  # Hier werden die Limits für die Y-Achse festgelegt
-    scale_x_continuous(limits = c(-1, 1.5)) +  # Hier werden die Limits für die Y-Achse festgelegt
-  coord_fixed(1)
+    scale_x_continuous(limits = c(-2, 2)) +  # Hier werden die Limits für die Y-Achse festgelegt
+  coord_fixed(2)
 ```
 
 # Hardship and mean_slope_age (Age)
 ```{r}
-ggplot(gps_regression, aes(x = mean_hardship, y = mean_slope_age, label = isocode)) +
+ggplot(regression_gps, aes(x = hardship, y = slope_age, label = isocode)) +
   geom_point(size = 3) +
   geom_text_repel(
     aes(label = isocode),
@@ -296,28 +309,19 @@ ggplot(gps_regression, aes(x = mean_hardship, y = mean_slope_age, label = isocod
   labs(x = "Hardship",
        y = "Age Effect") +
   theme_minimal() +
-  coord_fixed(ratio = 5)  # Adjust the ratio to achieve the desired square format
-```
-
-# Hardship and mean_slope_age (Age) mit R²-Wert
-```{r}
-# Regressionstabelle
-regression_table <- regression_results_gps %>%
-  left_join(hardship_data_complete %>% select(country, isocode, hardship), by = "country") %>%
-  mutate_if(is.numeric, round, 3)  # Runde numerische Werte auf drei Dezimalstellen
-
-# Anzeige der Ergebnisse
-print(regression_table)
+  scale_y_continuous(limits = c(-0.5, 0)) +  # Hier werden die Limits für die Y-Achse festgelegt
+    scale_x_continuous(limits = c(-2, 2)) +  # Hier werden die Limits für die Y-Achse festgelegt
+  coord_fixed(7)
 ```
 
 # Correlation Hardship und Risk Taking
 ```{r}
 # Entferne Zeilen mit fehlenden Werten in den relevanten Spalten
-cleaned_regression <- gps_regression %>%
-  drop_na(mean_hardship, mean_intercept)
+cleaned_regression <- regression_gps %>%
+  drop_na(hardship, intercept)
 
 # Berechne die Korrelation erneut
-correlation <- cor(cleaned_regression$mean_hardship, cleaned_regression$mean_intercept)
+correlation <- cor(cleaned_regression$hardship, cleaned_regression$intercept)
 
 # Zeige die Korrelation an
 print(paste("Correlation Hardship und Risk Taking:", correlation))
@@ -326,13 +330,37 @@ print(paste("Correlation Hardship und Risk Taking:", correlation))
 # Correlation Hardship und Age
 ```{r}
 # Entferne Zeilen mit fehlenden Werten in den relevanten Spalten
-cleaned_regression <- gps_regression %>%
-  drop_na(mean_hardship, mean_slope_age)
+cleaned_regression <- regression_gps %>%
+  drop_na(hardship, slope_age)
 
 # Berechne die Korrelation erneut
-correlation <- cor(cleaned_regression$mean_hardship, cleaned_regression$mean_slope_age)
+correlation <- cor(cleaned_regression$hardship, cleaned_regression$slope_age)
 
 # Zeige die Korrelation an
 print(paste("Correlation Hardship und age:", correlation))
 ```
+
+# Output for linear model for hardship & risktaking
+```{r}
+# Lineares Modell für den ersten Fall
+model_intercept <- lm(hardship ~ intercept, data = regression_gps)
+
+# Zusammenfassung des Modells
+summary_intercept <- summary(model_intercept)
+
+# Zeige die vollständige Zusammenfassung an
+print(summary_intercept)
+````
+
+# Output for linear model for hardship & age
+```{r}
+# Lineares Modell für den ersten Fall
+model_intercept <- lm(hardship ~ slope_age, data = regression_gps)
+
+# Zusammenfassung des Modells
+summary_intercept <- summary(model_intercept)
+
+# Zeige die vollständige Zusammenfassung an
+print(summary_intercept)
+````
 
