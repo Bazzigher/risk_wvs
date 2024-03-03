@@ -707,7 +707,7 @@ ggplot(hardship_data_complete, aes(x = hardship, y = slope_age, label = isocode)
        y = "Age Effect") +
   theme_minimal() +
    xlim(-2, 2) +
-  coord_fixed(ratio = 9)
+  coord_fixed(ratio = 8)
  
 
 
@@ -732,10 +732,129 @@ ggplot(hardship_data_complete, aes(x = hardship, y = intercept, label = isocode)
   coord_fixed()
 ```
 
+```{r}
+# Output for linear model for hardship & risktaking
+
+# Lineares Modell für den ersten Fall
+model_intercept <- lm(hardship ~ intercept, data = hardship_data_complete)
+# Zusammenfassung des Modells
+summary_intercept <- summary(model_intercept)
+# Zeige die vollständige Zusammenfassung an
+print(summary_intercept)
+
+# Correlation Hardship und Risk Taking
+
+# Entferne Zeilen mit fehlenden Werten in den relevanten Spalten
+
+# Berechne die Korrelation erneut
+correlation <- cor(hardship_data_complete$hardship, hardship_data_complete$intercept)
+# Zeige die Korrelation an
+print(paste("Correlation Hardship und Risk Taking:", correlation))
+```
+
+```{r}
+# Output for linear model for hardship & risktaking
+
+# Lineares Modell für den ersten Fall
+model_intercept <- lm(hardship ~ slope_age, data = hardship_data_complete)
+# Zusammenfassung des Modells
+summary_intercept <- summary(model_intercept)
+# Zeige die vollständige Zusammenfassung an
+print(summary_intercept)
+
+# Correlation Hardship und Risk Taking
+
+# Entferne Zeilen mit fehlenden Werten in den relevanten Spalten
+
+# Berechne die Korrelation erneut
+correlation <- cor(hardship_data_complete$hardship, hardship_data_complete$slope_age)
+# Zeige die Korrelation an
+print(paste("Correlation Hardship und Risk Taking:", correlation))
+```
+
+```{r}
+# Output for linear model for hardship & risktaking
+
+# Lineares Modell für den ersten Fall
+model_intercept <- lm(hardship ~ slope_gender, data = hardship_data_complete)
+# Zusammenfassung des Modells
+summary_intercept <- summary(model_intercept)
+# Zeige die vollständige Zusammenfassung an
+print(summary_intercept)
+
+# Correlation Hardship und Risk Taking
+
+# Entferne Zeilen mit fehlenden Werten in den relevanten Spalten
+
+# Berechne die Korrelation erneut
+correlation <- cor(hardship_data_complete$hardship, hardship_data_complete$slope_gender)
+# Zeige die Korrelation an
+print(paste("Correlation Hardship und Risk Taking:", correlation))
+```
+
+```{r}
+WVS_data
+# Lineares Modell für Risk Taking vs. Age
+model_risk_age <- lm(Z_score_risktaking ~ z_score_age + factor(gender), data = WVS_data)
+
+# Zusammenfassung des Modells
+summary_risk_age <- summary(model_risk_age)
+
+# Zeige die vollständige Zusammenfassung an
+print(summary_risk_age)
+
+# Berechne die Korrelation erneut
+correlation <- cor(WVS_data$z_score_age, WVS_data$Z_score_risktaking, WVS_data$gender)
+# Zeige die Korrelation an
+print(paste("Correlation Hardship und Risk Taking:", correlation))
+
+```
+
+```{r}
+new_data
+```
 
 
 
 
+```{r}
+# Lineares Modell für Risk Taking vs. Age
+model <- lm(slope_gender_gps ~ slope_gender_WVS, data = new_data)
+
+# Zusammenfassung des Modells
+summary_model <- summary(model)
+
+# Zeige die vollständige Zusammenfassung an
+print(summary_model)
+
+# Berechne die Korrelation erneut
+correlation <- cor(new_data$slope_age_gps, new_data$slope_age_WVS)
+# Zeige die Korrelation an
+print(paste("Correlation Hardship und Risk Taking:", correlation))
+```
+
+```{r}
+library(ggrepel)
+
+
+library(ggrepel)
+
+ggplot(hardship_data_complete, aes(x = hardship, y = slope_gender, label = isocode)) +
+  geom_point(size = 3) +
+  geom_text_repel(
+    aes(label = isocode),
+    box.padding = 0.5,
+    point.padding = 0.1,
+    force = 5
+  ) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
+  labs(x = "Hardship",
+       y = "Gender Effect") +
+  theme_minimal() +
+   xlim(-2, 2) +
+  coord_fixed(ratio = 6)
+ 
+```
 
 
 
