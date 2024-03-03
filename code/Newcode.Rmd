@@ -18,6 +18,11 @@ When you save the notebook, an HTML file containing the code and output will be 
 The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
 
 ```{r}
-read.csv("practice_data.csv")
+library(readxl)
+new_hardship_indicators <- read_excel("/Users/cristinacandido/Documents/Github/risk_wvs/data/Hardship_complete.xlsx")
+new_hardship_indicators
+
+median(new_hardship_indicators$`primary_ female_ enrollment_ rate`, na.rm = TRUE)
+
 ```
 
