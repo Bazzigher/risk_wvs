@@ -19,10 +19,33 @@ The preview shows you a rendered HTML copy of the contents of the editor. Conseq
 
 ```{r}
 library(readxl)
-new_hardship_indicators <- read_excel("/Users/cristinacandido/Documents/Github/risk_wvs/data/Hardship_complete.xlsx")
-new_hardship_indicators
+hardship_complete <- read_excel("/Users/cristinacandido/Documents/Github/risk_wvs/data/Hardship_complete.xlsx")
+hardship_complete
 
-median(new_hardship_indicators$`primary_ female_ enrollment_ rate`, na.rm = TRUE)
 
 ```
+```{r}
+hardship_complete$mean_homicide=log(hardship_complete$mean_homicide)
+hardship_complete$gdp=log(hardship_complete$gdp)
+hardship_complete$Infant_mortality=log(hardship_complete$Infant_mortality)
+hardship_complete$life_expect=log(hardship_complete$life_expect)
+hardship_complete$gini_income=log(hardship_complete$gini_income)
+hardship_complete$`primary_ female_ enrollment_ rate`=log(hardship_complete$`primary_ female_ enrollment_ rate`)
+hardship_complete
 
+# Reverse Codierung
+hardship_complete$mean_homicide=scale(hardship_complete$mean_homicide)
+hardship_complete$gdp=scale(-hardship_complete$gdp)
+new_hardship_indicators$Infant_mortality=scale(hardship_complete$Infant_mortality)
+hardship_complete$life_expect=scale(-hardship_complete$life_expect)
+hardship_complete$gini_income=scale(hardship_complete$gini_income)
+hardship_complete$gini_income=scale(-hardship_complete$`primary_ female_ enrollment_ rate`)
+hardship_complete
+
+hardship_complete$hardship_index=(hardship_complete$mean_homicide+hardship_complete$gdp+hardship_complete$gini_income+hardship_complete$life_expect+hardship_complete$Infant_mortality+hardship_complete$`primary_ female_ enrollment_ rate`)/6
+
+hardship_complete
+
+
+```
+```{r}
