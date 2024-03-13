@@ -22,13 +22,15 @@ library(mapdata)
 library(readxl)
 library(ggrepel)
 library(wordcloud)
+library(lme4)
+library(lmerTest)
 ```
 
 #Add data GPS
 ```{r}
 gps_data <- haven::read_dta("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/GPS_dataset_individual_level/individual_new.dta")
 
-head(country_data)
+head(gps_data)
 ```
 
 # Clean the data from missing values
@@ -45,6 +47,16 @@ cleaned_data
 
 # Display the number of records removed per variable
 records_removed_per_variable
+```
+
+```{r}
+# Anzahl Teilnehmer
+anzahl_teilnehmer <- nrow(cleaned_data)
+cat("Anzahl Teilnehmer:", anzahl_teilnehmer, "\n")
+
+# Anzahl Items
+anzahl_items <- ncol(cleaned_data)
+cat("Anzahl Items:", anzahl_items, "\n")
 ```
 
 ############################# Calculate Z-Score for Age per Country
@@ -92,32 +104,31 @@ hardship_data_complete <- read_excel(excel_path)
 hardship_data_complete
 ```
 
-# Umwandlung der relevanten Spalten in numerische Werte
+# Conversion of relevant columns into numerical values
 ```{r}
-# Laden Sie das erforderliche Paket
+# load dplyr
 library(dplyr)
 
-# Auswahl nur numerischer Spalten (ohne 'country')
+# Select only numeric columns (excluding 'country').
 numerical_data <- select_if(hardship_data_complete, is.numeric)
 
-# Konvertieren Sie die Daten in numerische Werte
+# Convert the data into numerical values.
 numerical_data <- sapply(numerical_data, as.numeric)
 
-# Funktion zur Erstellung von Histogrammen für jedes Item
+# Function for creating histograms for each item
 create_histograms <- function(data) {
-  par(mfrow = c(2, 3))  # Festlegen der Anordnung der Histogramme
+  par(mfrow = c(2, 3))  # Setting the arrangement of the histograms
   for (i in 1:ncol(data)) {
     hist(data[, i], main = names(data)[i], xlab = names(hardship_data_complete)[i], ylab = "Frequency", col = "lightblue")
   }
 }
 
-# Anwenden der Funktion auf die numerischen Spalten
+# Applying the function to the numerical columns
 create_histograms(numerical_data)
-
 ```
 
 
-# log transform
+# log transform on several numerical columns to address skewness, stabilize variance, and potentially improve interpretability of the data
 ```{r}
 hardship_data_complete$mean_homicide=log(hardship_data_complete$mean_homicide)
 hardship_data_complete$gdp=log(hardship_data_complete$gdp)
@@ -174,8 +185,6 @@ regression_gps <- left_join(regression_results_gps, hardship_data_complete %>% s
 regression_gps
 ```
 ######
-Löschen?????
-######
 ```{r}
 # Calculate mean values for intercept, slope_age, slope_gender, und hardship pro country
 gps_regression <- regression_gps %>%
@@ -191,11 +200,6 @@ gps_regression <- regression_gps %>%
 print(gps_regression)
 ```
 
-
-###########
-##########
-##########
-#CODE FOR THE PRESENTATION 
 ###########
 ##########
 ##########
@@ -240,9 +244,6 @@ cat("Median Age: ", median_age, "\n")
 ###########
 ###########
 ###########
-FOR PRESENTATION
-############################# 
-
 
 # Risk vs age with color-coded gender per Country
 ```{r}
@@ -314,6 +315,26 @@ ggplot(regression_gps, aes(x = hardship, y = slope_age, label = isocode)) +
   coord_fixed(7)
 ```
 
+# Hardship and mean_slope_age (Age)
+```{r}
+ggplot(regression_gps, aes(x = hardship, y = slope_gender, label = isocode)) +
+  geom_point(size = 3) +
+  geom_text_repel(
+    aes(label = isocode),
+    box.padding = 0.5,
+    point.padding = 0.1,
+    force = 5
+  ) +
+
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
+  labs(x = "Hardship",
+       y = "Gender Effect") +
+  theme_minimal() +
+  scale_y_continuous(limits = c(-0.5, 0)) +  # Hier werden die Limits für die Y-Achse festgelegt
+    scale_x_continuous(limits = c(-2, 2)) +  # Hier werden die Limits für die Y-Achse festgelegt
+  coord_fixed(7)
+```
+
 # Correlation Hardship und Risk Taking
 ```{r}
 # Entferne Zeilen mit fehlenden Werten in den relevanten Spalten
@@ -340,6 +361,19 @@ correlation <- cor(cleaned_regression$hardship, cleaned_regression$slope_age)
 print(paste("Correlation Hardship und age:", correlation))
 ```
 
+# Correlation Hardship und Age
+```{r}
+# Entferne Zeilen mit fehlenden Werten in den relevanten Spalten
+cleaned_regression <- regression_gps %>%
+  drop_na(hardship, slope_gender)
+
+# Berechne die Korrelation erneut
+correlation <- cor(cleaned_regression$hardship, cleaned_regression$slope_age)
+
+# Zeige die Korrelation an
+print(paste("Correlation Hardship und gender:", correlation))
+```
+
 # Output for linear model for hardship & risktaking
 ```{r}
 # Lineares Modell für den ersten Fall
@@ -363,4 +397,78 @@ summary_intercept <- summary(model_intercept)
 # Zeige die vollständige Zusammenfassung an
 print(summary_intercept)
 ````
+
+# Output for linear model for hardship & age
+```{r}
+# Lineares Modell für den ersten Fall
+model_intercept <- lm(hardship ~ slope_gender, data = regression_gps)
+
+# Zusammenfassung des Modells
+summary_intercept <- summary(model_intercept)
+
+# Zeige die vollständige Zusammenfassung an
+print(summary_intercept)
+````
+
+######################
+######################
+######################
+MIXED EFFECT MODEL
+######################
+######################
+######################
+
+```{r}
+mixed_model <- merge(cleaned_data, hardship_data_complete, by = "country")
+head(mixed_model)
+```
+
+# intercept only model
+```{r}
+model0 <- lmer(risktaking ~ 1 + (1 | country), data = mixed_model)
+summary_model0 <- summary(model0)
+
+model1 <- lmer(risktaking ~ 1 + scale(z_score_age) + factor(gender) + (1 + scale(z_score_age) + factor(gender) | country), data = mixed_model)
+summary_model1 <- summary(model1)
+
+########### Question to Rui: In the Mata et al., 2016 paper you included "children, married, employed and education". In the GPS-Data set, these informaiton are not avaiable. Is this code still working or should I delet it? ###########
+
+model2 <- lmer(risktaking ~ 1 + scale(z_score_age) + factor(gender) + (1 + scale(z_score_age) + factor(gender) | country), data = mixed_model, control = lmerControl(optCtrl = list(maxfun = 30000), optimizer = "bobyqa"))
+summary_model2 <- summary(model2)
+
+model3 <- lmer(risktaking ~ 1 + scale(z_score_age) * hardship + factor(gender) * hardship + (1 + scale(z_score_age) + factor(gender) | country), data = mixed_model, control = lmerControl(optCtrl = list(maxfun = 30000), optimizer = "bobyqa"), REML = FALSE)
+summary_model3 <- summary(model3)
+```
+
+
+# ANOVA-Vergleiche
+```{r}
+anova(model0, model1)
+anova(model1, model2)
+anova(model2, model3)
+
+###### additional anova --> is that optional or should I delete it? 
+anova(model0, model2)
+anova(model0, model3)
+anova(model1, model3)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
