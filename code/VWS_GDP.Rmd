@@ -1,0 +1,767 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(data.table)
+library(tidyr)
+library(maps)
+library(haven)
+library(ggplot2)
+library(dplyr)
+library(readxl)
+library(ggrepel)
+library(wordcloud)
+```
+
+####################
+####################
+####################
+PREPARATION DATASETS FOR ANALYSIS
+####################
+####################
+####################
+
+####################
+PREP THE DATASET FOR ANALYSIS WVS 5 & 6
+####################
+
+#read the data (Wave 5)
+```{r}
+# Data of Wave 5
+WV5_data <- readRDS("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/WV6_dataset_wave_5_6/F00007944-WV5_Data_R_v20180912.rds")
+
+# Convert WV5_data-object in data.frame 
+WV5_data_df <- as.data.frame(WV5_data)
+
+# show first five columns
+WV5_data_df
+```
+
+# clean the data set
+```{r}
+#rename the variables
+WV5_data <- WV5_data_df %>%
+  rename(gender = V235, age = V237, country_code = V2, wave = V1, risktaking = V86, children = V56, married = V55, employed = V241, education = V238)
+WV5_data
+
+colnames(WV5_data)
+
+#select only the variables of interest
+WV5_data <- WV5_data %>%
+  dplyr::select(gender, age, country_code, wave, risktaking, children, employed, education, married)
+WV5_data
+```
+# Read countrynames data from the CSV file (to decode the dataset 5)
+```{r}
+countrynames <- read.csv("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/WV6_dataset_wave_5_6/countrynames.txt", header = FALSE, as.is = TRUE)
+colnames(countrynames) <- c("code", "name")
+
+# Assuming WV5_data has a column named country_code
+WV5_data$country <- countrynames$name[match(WV5_data$country_code, countrynames$code)]
+
+# Check the frequency of each country in the new column
+table(WV5_data$country)
+
+# Display the updated WV5_data
+print(WV5_data)
+```
+
+#Read Dataset (Wave 6)
+```{r}
+WV6_data <- load("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/WV6_dataset_wave_5_6/WV6_Data_R_v20201117.rdata") 
+WV6_data <- WV6_Data_R_v20201117 
+print(WV6_data)
+```
+
+#rename variables
+```{r}
+WV6_data <- WV6_data %>%
+  rename(wave = V1, gender = V240, age = V242,country_code = V2, risktaking = V76, children = V58, married = V57, employed = V229, education = V248)
+
+#select only the variables of interest
+WV6_data <- WV6_data %>%
+  dplyr::select(gender, age, country_code, wave, risktaking, children, employed, education, married)
+WV6_data
+```
+
+#decode daraset (Wave 6)
+```{r}
+countrynames = read.csv("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/WV6_dataset_wave_5_6/countrynames.txt", header=FALSE,as.is=TRUE)
+colnames(countrynames) = c("code", "name")
+WV6_data$country = countrynames$name [match(WV6_data$country_code, countrynames$code)]
+table(WV6_data$country)
+WV6_data
+```
+
+#combine the 2 dataset (Wave 6 + Wave 5)
+```{r}
+WV5_data
+WV6_data
+WVS_data = rbind(WV5_data, WV6_data)
+WVS_data
+```
+
+#exclusion of participants and omission of missing data (na)
+```{r}
+WVS_data = subset(WVS_data, risktaking > 0 & gender > 0 & age >0 & education > 0 & employed > 0 & married > 0 & children >= 0)
+data_Wave5 = subset(WV5_data, risktaking > 0 & gender > 0 & age >0 & education > 0 & employed > 0 & married > 0 & children >= 0)
+data_Wave6 = subset(WV6_data, risktaking > 0 & gender > 0 & age >0 & education > 0 & employed > 0 & married > 0 & children >= 0)
+WVS_data <- na.omit(WVS_data)
+data_Wave5 <- na.omit(data_Wave5)
+data_Wave6 <- na.omit(data_Wave6)
+
+# Use the mutate function to change the country name
+WVS_data <- WVS_data %>%
+  mutate(country = ifelse(country == "Great Britain", "United Kingdom", country))
+```
+
+#Transformation of item risktaking
+```{r}
+# Transfrom risk item such that high values represent more risk taking
+WVS_data$risktaking = 6 - WVS_data$risktaking + 1
+
+# Transform risk variable into T-score (mean = 50, sd = 10)
+WVS_data$T_score_risktaking = 10*scale(WVS_data$risktaking, center=TRUE,scale=TRUE)+50
+
+WVS_data
+
+#Transform risk variable into Z score 
+# Assuming T-scores have a mean of 50 and a standard deviation of 10
+WVS_data$Z_score_risktaking = (WVS_data$T_score_risktaking - 50) / 10
+
+# Print the resulting data frame
+print(WVS_data)
+
+WVS_data <- WVS_data %>%
+  group_by(country) %>%
+  mutate(z_score_age = scale(age))
+WVS_data
+```
+
+# Dichotomizing Variables: This helps estimating and interpreting the models later on...
+```{r}
+WVS_data$gender = ifelse(WVS_data$gender == 1, 0, 1) # sex: male vs. female
+WVS_data$children = ifelse(WVS_data$children == 0, 0, 1) # children: no vs. yes
+WVS_data$married = ifelse(WVS_data$married == 1, 1, 0) # married: yes vs. no
+WVS_data$employed = ifelse(WVS_data$employed < 4, 1, 0) # employed: yes vs. no
+WVS_data$education = ifelse(WVS_data$education < 4, 0, 1) # education: no primary vs. primary+ 
+```
+
+####################
+PREP THE DATASET FOR ANALYSIS GPS
+####################
+
+#Add data GPS
+```{r}
+gps_data <- haven::read_dta("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/GPS_dataset_individual_level/individual_new.dta")
+
+head(gps_data)
+```
+
+# Clean the data by removing records with missing values
+```{r}
+gps_data <- gps_data %>%
+  drop_na(country, isocode, risktaking, gender, age)
+
+# Display the cleaned data
+gps_data
+```
+
+#select only the variables of interest
+```{r}
+gps_data <- gps_data %>%
+  dplyr::select(country, isocode, ison, risktaking, gender, age)
+gps_data
+```
+# Transform age (z-score)
+```{r}
+gps_data <- gps_data %>%
+  group_by(country) %>%
+  mutate(z_score_age = scale(age))
+
+# Display the new column with Z-Scores per Country
+gps_data
+```
+
+####################
+PREP THE DATASET FOR ANALYSIS HARDSHIP
+####################
+
+# read in file that contains hardship indicators manually collected from CIA factbook, WHO, and World Bank 
+```{r}
+excel_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Hardship/Hardship_complete_2024.xlsx"
+hardship <- read_excel(excel_path)
+
+# Create a vector of labels with the same length as the number of columns in 'countryfacts'
+labels <- c("country","mean_homicide","gdp","gini_income","Infant_mortality","life_expect","primary_female_enrollment_rate")
+
+# Print the result
+print(hardship)
+```
+
+
+# Create the 'hardship' column in the 'hardship' data frame
+```{r}
+# Create the 'hardship' column in the 'hardship' data frame
+hardship <- hardship %>%
+  mutate(hardship = (mean_homicide + gdp + gini_income + Infant_mortality + life_expect + primary_female_enrollment_rate) / 6)
+hardship
+```
+# log transform
+```{r}
+hardship$mean_homicide=log(hardship$mean_homicide)
+hardship$gdp=log(hardship$gdp)
+hardship$Infant_mortality=log(hardship$Infant_mortality)
+hardship$life_expect=log(hardship$life_expect)
+hardship$gini_income=log(hardship$gini_income)
+hardship$primary_female_enrollment_rate=log(hardship$primary_female_enrollment_rate)
+
+# changing variables into the same direction
+
+# Reverse Codierung
+hardship$mean_homicide=scale(hardship$mean_homicide)
+hardship$gdp=scale(-hardship$gdp)
+hardship$Infant_mortality=scale(hardship$Infant_mortality)
+hardship$life_expect=scale(-hardship$life_expect)
+hardship$gini_income=scale(hardship$gini_income)
+hardship$primary_female_enrollment_rate=scale(hardship$primary_female_enrollment_rate)
+
+hardship
+```
+
+# create a hardship index
+```{r}
+hardship$hardship=(hardship$mean_homicide+hardship$gdp+hardship$gini_income+hardship$life_expect+hardship$Infant_mortality+hardship$primary_female_enrollment_rate)/6
+
+hardship
+```
+
+####################
+PREP THE DATASET FOR ANALYSIS MIXED-MODELS
+####################
+
+#Add Hardship to WVS_data
+```{r}
+WVS_mixed_model <- left_join(WVS_data, hardship, by = "country")
+WVS_mixed_model
+```
+
+#Add Hardship to gps_data
+```{r}
+gps_mixed_model <- left_join(gps_data, hardship, by = "country")
+gps_mixed_model
+```
+
+####################
+####################
+####################
+DESCRIPTIVE INFORMATION 
+####################
+####################
+####################
+
+#table with female percentage, mean age, mean risk taking per countries (summary of the countries)
+```{r}
+table_data_WVS <- WVS_data %>%
+  group_by(country) %>%
+  summarise(
+    n = n(),
+    female_percentage = mean(gender == 1) * 100,
+    mean_age = mean(age, na.rm = TRUE),
+    age_range = paste(min(age, na.rm = TRUE), "-", max(age, na.rm = TRUE)),
+    mean_risktaking = mean(Z_score_risktaking, na.rm = TRUE)
+  )
+
+table_data_WVS
+```
+
+# R code to count observations by country in the WVS_data dataset
+```{r}
+country_counts <- WVS_data %>%
+  count(country)
+
+# Print the result
+print(country_counts)
+```
+
+# View the distribution of the 'hardship_index' column for each country
+```{r}
+hardship_index_distribution <- hardship %>%
+  group_by(country) %>%
+  summarize(
+    mean = mean(hardship, na.rm = TRUE),
+    median = median(hardship, na.rm = TRUE),
+    sd = sd(hardship, na.rm = TRUE),
+    min = min(hardship, na.rm = TRUE),
+    max = max(hardship, na.rm = TRUE),
+    n = sum(!is.na(hardship))
+  )
+
+# Print the result
+print(hardship_index_distribution)
+```
+
+####################
+####################
+####################
+VISUALIZATION 
+####################
+####################
+####################
+
+#World map 
+```{r}
+world_map <- map_data("world")
+recorded_countries <- unique(WVS_data$country)
+world_map$recorded <- ifelse(world_map$region %in% recorded_countries, "Recorded", "Not Recorded")
+
+ggplot(world_map, aes(x = long, y = lat, group = group, fill = recorded)) + 
+  geom_polygon(color = "white") +
+  scale_fill_manual(values = c("Recorded" = "red", "Not Recorded" = "lightgrey"), guide = "none") +
+  theme_void() +
+  labs(title = "WVS", fill = "Status") +
+  theme(legend.position = "none", plot.title = element_text(hjust = 0.5))
+```
+
+#graph across countries: risk taking vs age vs gender (Z-score for age and risk taking)   
+```{r}
+# Risk vs age with color-coded gender per Country
+# Risk vs age with color-coded gender per Country
+# Skalierung des Z-Scores für das Alter anpassen
+WVS_data$z_score_age_scaled <- 15 * WVS_data$z_score_age + 42
+
+
+ggplot(WVS_data, aes(z_score_age_scaled, Z_score_risktaking, color = as.factor(gender))) +
+  geom_point(position = position_jitter(width = 0.1, height = 0.1), size = 0.1) +  
+  geom_smooth(method = "lm") +
+  geom_vline(xintercept = 42, linetype = "dashed", color = "black", size = 1) +  
+  scale_color_manual(values = c("blue", "red"), labels = c("Male", "Female")) +
+  labs(color = "Gender") +
+  xlab("Age") +
+  ylab("Risk Taking") +
+  scale_x_continuous(breaks = seq(0, 100, by = 15), limits = c(0, 100)) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+WVS_data
+```
+
+#regression table (risk taking and age -> Z-score)
+```{r}
+regression_results_WVS <- WVS_data %>%
+  group_by(country) %>%
+  do(model = lm(Z_score_risktaking ~ scale(age) + gender, data = .)) %>%
+  summarize(
+    country = first(country),
+    intercept = coef(summary(model))[1, 1],
+    slope_age = coef(summary(model))[2, 1],
+    slope_gender = coef(summary(model))[3, 1]
+  )
+
+regression_results_WVS
+```
+
+#table intercept and slope 
+```{r}
+regression_results_gps <- gps_data %>%
+  group_by(country) %>%
+  do(model = lm(risktaking ~ z_score_age + gender, data = .)) %>%
+  summarize(
+    country = first(country),
+    intercept = coef(summary(model))[1, 1],
+    slope_age = coef(summary(model))[2, 1],
+    slope_gender = coef(summary(model))[3, 1]
+  )
+
+regression_results_gps
+```
+
+# Countries, that are in both datasets
+```{r}
+common_countries <- intersect(WVS_data$country, gps_data$country)
+common_countries
+```
+
+
+# Filtering Selected Countries from dataset gps_data and creating a new set
+```{r}
+# Countries that are in both datasets
+common_countries <- intersect(WVS_data$country, gps_data$country)
+
+# Filter original dataset based on common countries
+new_gps <- gps_data[gps_data$country %in% common_countries, ]
+
+# View the new dataset
+new_gps
+```
+
+# Regression Analysis of Risk-Taking Behavior in New WVS Data
+```{r}
+regression_results_WVS_new <- new_WVS %>%
+  group_by(country) %>%
+  do(model = lm(Z_score_risktaking ~ scale(age) + gender, data = .)) %>%
+  summarize(
+    country = first(country),
+    intercept_WVS = coef(summary(model))[1, 1],
+    slope_age_WVS = coef(summary(model))[2, 1],
+    slope_gender_WVS = coef(summary(model))[3, 1]
+  )
+
+regression_results_WVS_new
+```
+
+# Regression Analysis of Risk-Taking Behavior in new_gps Data
+```{r}
+regression_results_gps_new <- new_gps %>%
+  group_by(country) %>%
+  do(model = lm(risktaking ~ scale(age) + gender, data = .)) %>%
+  summarize(
+    country = first(country),
+    intercept_gps = coef(summary(model))[1, 1],
+    slope_age_gps = coef(summary(model))[2, 1],
+    slope_gender_gps = coef(summary(model))[3, 1]
+  )
+
+regression_results_gps_new
+```
+
+#Merging Regression Results with Additional Data and Hardship Index
+```{r}
+regression_results_gps_new
+regression_results_WVS_new
+
+# Assuming "country" is the common column
+merged_results <- merge(regression_results_gps_new, regression_results_WVS_new, by = "country", all = TRUE)
+
+# Read data from the Excel file
+new_data <- read_excel("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Hardship/Hardship_complete_2024.xlsx")
+
+# Now you can work with the 'new_data' object
+print(new_data)
+
+# Perform the left_join operation
+new_data <- left_join(merged_results, new_data, by = "country")
+
+# Select specific columns
+new_data <- new_data %>%
+  dplyr::select(country, intercept_gps, slope_age_gps, slope_gender_gps, intercept_WVS, slope_age_WVS, slope_gender_WVS, isocode)
+
+# Print the final data
+print(new_data)
+
+hardship_index <- read_excel("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Hardship/Hardship_complete_2024.xlsx")
+print(hardship_index)
+
+hardship_data_complete <- left_join(regression_results_WVS, hardship_index, by = "country")
+hardship_data_complete
+```
+
+
+# log transform
+```{r}
+hardship_data_complete$mean_homicide=log(hardship_data_complete$mean_homicide)
+hardship_data_complete$gdp=log(hardship_data_complete$gdp)
+hardship_data_complete$Infant_mortality=log(hardship_data_complete$Infant_mortality)
+hardship_data_complete$life_expect=log(hardship_data_complete$life_expect)
+hardship_data_complete$gini_income=log(hardship_data_complete$gini_income)
+hardship_data_complete$primary_female_enrollment_rate=log(hardship_data_complete$primary_female_enrollment_rate)
+
+# changing variables into the same direction
+
+# Reverse Codierung
+hardship_data_complete$mean_homicide=scale(hardship_data_complete$mean_homicide)
+hardship_data_complete$gdp=scale(-hardship_data_complete$gdp)
+hardship_data_complete$Infant_mortality=scale(hardship_data_complete$Infant_mortality)
+hardship_data_complete$life_expect=scale(-hardship_data_complete$life_expect)
+hardship_data_complete$gini_income=scale(hardship_data_complete$gini_income)
+hardship_data_complete$primary_female_enrollment_rate=scale(hardship_data_complete$primary_female_enrollment_rate)
+
+hardship_data_complete
+```
+
+# create a hardship index
+```{r}
+hardship_data_complete$hardship=(hardship_data_complete$mean_homicide+hardship_data_complete$gdp+hardship_data_complete$gini_income+hardship_data_complete$life_expect+hardship_data_complete$Infant_mortality+hardship_data_complete$primary_female_enrollment_rate)/6
+
+hardship_data_complete
+```
+
+# Comparison of Intercept Values between GPS and WVS Data
+```{r}
+# Plotting comparing interecepts
+ggplot(new_data, aes(x = intercept_gps, y = intercept_WVS, label = isocode)) +
+  geom_point(size = 1.5) +
+  geom_text(aes(label = isocode), vjust = -0.5, hjust = -0.5) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
+  labs(title = "Comparison of Intercept Values",
+       x = "Intercept_gps",
+       y = "Intercept_WVS") +
+  theme_minimal() +
+  xlim(c(0, 1.2)) +
+  ylim(c(0, 1.2)) +
+  coord_fixed()
+
+# Assuming you have a data frame named 'new_data' with columns 'intercept_gps', 'intercept_WVS', and 'isocode'
+
+ggplot(new_data, aes(x = intercept_gps, y = intercept_WVS, label = isocode)) +
+  geom_point(size = 3) +
+  geom_text_repel(
+    aes(label = isocode),
+    box.padding = 0.5,
+    point.padding = 0.1,
+    force = 5
+  ) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
+  labs(x = "Intercept Global Preference Study",
+       y = "Intercept World Value Survey") +
+  theme_minimal() +
+  xlim(c(0, 1.07)) +
+  ylim(c(0, 1.07)) +
+  coord_fixed()
+
+# Annotate with word cloud
+wordcloud(words = new_data$isocode, freq = rep(1, nrow(new_data)), scale = c(2, 0.5))
+
+# Annotate with word cloud
+wordcloud(words = new_data$isocode, freq = rep(1, nrow(new_data)), scale = c(2, 0.5))
+
+# Assuming merged_results has columns intercept_gps and intercept_WVS
+model <- lm(intercept_WVS ~ intercept_gps, data = merged_results)
+
+# View the summary of the regression model
+summary(model)
+
+# Calculate the correlation
+correlation <- cor(merged_results$intercept_gps, merged_results$intercept_WVS)
+
+# Print the correlation coefficient
+print(correlation)
+```
+
+#Comparison of the Effect of Age on Risk Taking between GPS and WVS Data
+```{r}
+# Plotting using ggplot2
+ggplot(new_data, aes(x = slope_age_gps, y = slope_age_WVS, label = isocode)) +
+  geom_point(size = 3) +
+  geom_text_repel(
+    aes(label = isocode),
+    box.padding = 0.5,
+    point.padding = 0.1,
+    force = 5
+  ) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
+  labs(x = "Effect of Age on Risk Taking Global Preference Study",
+       y = "Effect of Age on Risk Taking World Value Survey") +
+  theme_minimal() +
+  xlim(-0.5, 0) +
+  ylim(c(-0.5, 0)) +
+  coord_fixed()
+
+new_data
+
+correlation <- cor(new_data$slope_age_gps, new_data$slope_age_WVS)
+
+# Print the correlation coefficient
+print(correlation)
+```
+
+
+#Comparison of the Effect of Gender on Risk Taking between GPS and WVS Data
+```{r}
+# Plotting using ggplot2
+ggplot(new_data, aes(x = slope_gender_gps, y = slope_gender_WVS, label = isocode)) +
+  geom_point(size = 3) +
+  geom_text_repel(
+    aes(label = isocode),
+    box.padding = 0.5,
+    point.padding = 0.1,
+    force = 5
+  ) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
+  labs(x = "Effect of Gender on Risk Taking Global Preference Study",
+       y = "Effect of Gender on Risk Taking World Value Survey") +
+  theme_minimal() +
+  xlim(-0.6, 0.12) +
+  ylim(c(-0.6, 0.12)) +
+  coord_fixed()
+
+new_data
+
+correlation <- cor(new_data$slope_gender_gps, new_data$slope_gender_WVS)
+
+# Print the correlation coefficient
+print(correlation)
+```
+
+#Calculation of Hardship Index for WVS Data
+```{r}
+#hardship for WVS
+hardship_values <- read_excel("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Hardship/hardship_complete_2024.xlsx") 
+
+labels <- c("country", "mean_homicide", "gdp", "gini_income", "Infant_mortality", "life_expect", "isocode", "primary_female_enrollment_rate")
+
+print(hardship_values)
+
+# Replace the column names as per your actual column names
+# Z-standardize specific columns
+hardship_values$gdp <- scale(hardship_values$gdp)
+hardship_values$gini_income <- scale(hardship_values$gini_income)
+hardship_values$Infant_mortality <- scale(hardship_values$Infant_mortality)
+hardship_values$life_expect <- scale(hardship_values$life_expect)
+hardship_values$mean_homicide <- scale(hardship_values$mean_homicide)
+hardship_values$primary_female_enrollment_rate <- scale(hardship_values$primary_female_enrollment_rate)
+
+hardship_values
+
+hardship_values <- hardship_values%>%
+  mutate(hardship = (mean_homicide + gdp + Infant_mortality + life_expect + gini_income + primary_female_enrollment_rate) / 6)
+hardship_values
+hardship_data_complete <- left_join(regression_results_WVS, hardship_values, by = "country")
+hardship_data_complete
+```
+
+#Relationship between Hardship and Risk Taking for WVS Data
+```{r}
+#For WVS
+ggplot(hardship_data_complete, aes(x = hardship, y = intercept, label = isocode)) +
+  geom_point(size = 3) +
+  geom_text_repel(
+    aes(label = isocode),
+    box.padding = 0.5,
+    point.padding = 0.1,
+    force = 5
+  ) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
+  labs(x = "Hardship",
+       y = "Risk Taking") +
+  theme_minimal() +
+  xlim(-2, 2) +
+  ylim(-0.6, 1) +
+  coord_fixed(ratio = 2.5)
+```
+
+# Association between Hardship and Age Effect on Risk Taking for WVS Data
+```{r}
+#For WVS
+ggplot(hardship_data_complete, aes(x = hardship, y = slope_age, label = isocode)) +
+  geom_point(size = 3) +
+  geom_text_repel(
+    aes(label = isocode),
+    box.padding = 0.5,
+    point.padding = 0.1,
+    force = 5
+  ) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
+  labs(x = "Hardship",
+       y = "Age Effect") +
+  theme_minimal() +
+   xlim(-2, 2) +
+  coord_fixed(ratio = 8)
+```
+
+# Relationship between Hardship and Risk Taking with Regression Line
+```{r}
+ggplot(hardship_data_complete, aes(x = hardship, y = intercept, label = isocode)) +
+  geom_point(size = 3) +
+  geom_text_repel(
+    aes(label = isocode),
+    box.padding = 0.5,
+    point.padding = 0.1,
+    force = 5
+  ) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
+  labs(x = "Hardship",
+       y = "Risk Taking") +
+  theme_minimal() +
+  coord_fixed()
+```
+
+# Linear Model Summary: Hardship and Risk Taking Relationship
+```{r}
+# Lineares Modell für den ersten Fall
+model_intercept <- lm(hardship ~ intercept, data = hardship_data_complete)
+summary_intercept <- summary(model_intercept)
+print(summary_intercept)
+
+# Correlation Hardship und Risk Taking
+correlation <- cor(hardship_data_complete$hardship, hardship_data_complete$intercept)
+
+print(paste("Correlation Hardship und Risk Taking:", correlation))
+```
+
+# Linear Model Summary: Relationship Between Hardship and Age Effect on Risk Taking
+```{r}
+# Lineares Modell für den ersten Fall
+model_intercept <- lm(hardship ~ slope_age, data = hardship_data_complete)
+summary_intercept <- summary(model_intercept)
+print(summary_intercept)
+
+# Correlation Hardship und Risk Taking
+correlation <- cor(hardship_data_complete$hardship, hardship_data_complete$slope_age)
+
+print(paste("Correlation Hardship und Risk Taking:", correlation))
+```
+# Linear Model Summary: Relationship Between Hardship and Gender Effect on Risk Taking
+```{r}
+# Lineares Modell für den ersten Fall
+model_intercept <- lm(hardship ~ slope_gender, data = hardship_data_complete)
+summary_intercept <- summary(model_intercept)
+print(summary_intercept)
+
+# Correlation Hardship und Risk Taking
+correlation <- cor(hardship_data_complete$hardship, hardship_data_complete$slope_gender)
+
+print(paste("Correlation Hardship und Risk Taking:", correlation))
+```
+
+# Analysis of Risk Taking vs. Age with Gender Factor in WVS Data
+```{r}
+WVS_data
+# Lineares Modell für Risk Taking vs. Age
+model_risk_age <- lm(Z_score_risktaking ~ z_score_age + factor(gender), data = WVS_data)
+summary_risk_age <- summary(model_risk_age)
+print(summary_risk_age)
+
+correlation <- by(WVS_data, WVS_data$gender, function(x) cor(x$z_score_age, x$Z_score_risktaking))
+
+print(paste("Correlation Hardship und Risk Taking:", correlation))
+```
+
+# show new_data
+```{r}
+new_data
+```
+
+# Comparison of Gender Effects on Risk Taking Between Global Preference Study and World Value Survey Data
+```{r}
+# Lineares Modell für Risk Taking vs. Age
+model <- lm(slope_gender_gps ~ slope_gender_WVS, data = new_data)
+summary_model <- summary(model)
+print(summary_model)
+
+correlation <- cor(new_data$slope_age_gps, new_data$slope_age_WVS)
+print(paste("Correlation Hardship und Risk Taking:", correlation))
+```
+
+# Relationship between Hardship and Gender Effect on Risk Taking
+```{r}
+ggplot(hardship_data_complete, aes(x = hardship, y = slope_gender, label = isocode)) +
+  geom_point(size = 3) +
+  geom_text_repel(
+    aes(label = isocode),
+    box.padding = 0.5,
+    point.padding = 0.1,
+    force = 5
+  ) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
+  labs(x = "Hardship",
+       y = "Gender Effect") +
+  theme_minimal() +
+   xlim(-2, 2) +
+  coord_fixed(ratio = 6)
+```
+
+
+
