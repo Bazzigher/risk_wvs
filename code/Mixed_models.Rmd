@@ -297,14 +297,12 @@ head(WVS_data)
 ```{r}
 WVS_mixed_model <- left_join(WVS_data, hardship, by = "country")
 WVS_mixed_model
-head(WVS_mixed_model)
 ```
 
 #Add Hardship to gps_data
 ```{r}
 gps_mixed_model <- left_join(gps_data, hardship, by = "country")
 gps_mixed_model
-head(gps_mixed_model)
 ```
 
 
