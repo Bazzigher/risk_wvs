@@ -419,62 +419,6 @@ summary_model3=summary(model3)
 ```
 
 ```{r}
-# Zusammenfassung des Modells anzeigen
-summary_model3 <- summary(model3)
-
-# Gewünschte Werte extrahieren und formatieren
-results_model3 <- data.frame(
-  Predictor = c("Intercept", "Age", "Gender", "Parental status", "Marital status", "Occupational status", "Education", "Hardship", "Hardship × Age", "Hardship × Gender"),
-  Estimate = c(summary_model3$coefficients["(Intercept)", "Estimate"],
-               summary_model3$coefficients["scale(z_score_age)", "Estimate"],
-               summary_model3$coefficients["factor(gender)1", "Estimate"],
-               summary_model3$coefficients["factor(children)1", "Estimate"],
-               summary_model3$coefficients["factor(married)1", "Estimate"],
-               summary_model3$coefficients["factor(employed)1", "Estimate"],
-               summary_model3$coefficients["factor(education)1", "Estimate"],
-               summary_model3$coefficients["hardship", "Estimate"],
-               summary_model3$coefficients["scale(z_score_age):hardship", "Estimate"], # Wechselwirkung zwischen Age und Hardship
-               summary_model3$coefficients["factor(gender)1:hardship", "Estimate"]), # Wechselwirkung zwischen Gender und Hardship
-  SE = c(summary_model3$coefficients["(Intercept)", "Std. Error"],
-          summary_model3$coefficients["scale(z_score_age)", "Std. Error"],
-          summary_model3$coefficients["factor(gender)1", "Std. Error"],
-          summary_model3$coefficients["factor(children)1", "Std. Error"],
-          summary_model3$coefficients["factor(married)1", "Std. Error"],
-          summary_model3$coefficients["factor(employed)1", "Std. Error"],
-          summary_model3$coefficients["factor(education)1", "Std. Error"],
-          summary_model3$coefficients["hardship", "Std. Error"],
-          summary_model3$coefficients["scale(z_score_age):hardship", "Std. Error"],
-          summary_model3$coefficients["factor(gender)1:hardship", "Std. Error"]), 
-  T_score = c(summary_model3$coefficients["(Intercept)", "t value"],
-              summary_model3$coefficients["scale(z_score_age)", "t value"],
-              summary_model3$coefficients["factor(gender)1", "t value"],
-              summary_model3$coefficients["factor(children)1", "t value"],
-              summary_model3$coefficients["factor(married)1", "t value"],
-              summary_model3$coefficients["factor(employed)1", "t value"],
-              summary_model3$coefficients["factor(education)1", "t value"],
-              summary_model3$coefficients["hardship", "t value"],
-              summary_model3$coefficients["scale(z_score_age):hardship", "t value"],
-              summary_model3$coefficients["factor(gender)1:hardship", "t value"]),
-  p_value = c(summary_model3$coefficients["(Intercept)", "Pr(>|t|)"],
-              summary_model3$coefficients["scale(z_score_age)", "Pr(>|t|)"],
-              summary_model3$coefficients["factor(gender)1", "Pr(>|t|)"],
-              summary_model3$coefficients["factor(children)1", "Pr(>|t|)"],
-              summary_model3$coefficients["factor(married)1", "Pr(>|t|)"],
-              summary_model3$coefficients["factor(employed)1", "Pr(>|t|)"],
-              summary_model3$coefficients["factor(education)1", "Pr(>|t|)"],
-              summary_model3$coefficients["hardship", "Pr(>|t|)"],
-              summary_model3$coefficients["scale(z_score_age):hardship", "Pr(>|t|)"],
-              summary_model3$coefficients["factor(gender)1:hardship", "Pr(>|t|)"])
-)
-
-# Formatierung der p-Werte
-results_model3$p_value <- ifelse(results_model3$p_value < 0.001, "< .001", sprintf("%.3f", results_model3$p_value))
-
-# Ergebnisse anzeigen
-print(results_model3)
-```
-
-```{r}
 anova(model0,model1)
 anova(model1,model2)
 anova(model2,model3) 
