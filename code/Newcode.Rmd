@@ -8,7 +8,12 @@ This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute
 Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
 
 ```{r}
-plot(cars)
+library(data.table)
+library(tidyr)
+library(maps)
+library(haven)
+library(ggplot2)
+library(dplyr)
 ```
 
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
@@ -36,7 +41,7 @@ hardship_complete
 # Reverse Codierung
 hardship_complete$mean_homicide=scale(hardship_complete$mean_homicide)
 hardship_complete$gdp=scale(-hardship_complete$gdp)
-new_hardship_indicators$Infant_mortality=scale(hardship_complete$Infant_mortality)
+hardship_complete$Infant_mortality=scale(hardship_complete$Infant_mortality)
 hardship_complete$life_expect=scale(-hardship_complete$life_expect)
 hardship_complete$gini_income=scale(hardship_complete$gini_income)
 hardship_complete$gini_income=scale(-hardship_complete$`primary_ female_ enrollment_ rate`)
@@ -49,3 +54,116 @@ hardship_complete
 
 ```
 ```{r}
+```{r}
+# Data of Wave 5
+
+
+WV5_data <- readRDS("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/F00007944-WV5_Data_R_v20180912.rds")
+
+
+# Convert WV5_data-object in data.frame 
+WV5_data_df <- as.data.frame(WV5_data)
+
+# show first five columns
+WV5_data_df
+```
+
+```{r}
+#rename the variables
+WV5_data <- WV5_data_df %>%
+  rename(gender = V235, age = V237, country_code = V2, wave = V1, risktaking = V86)
+WV5_data
+
+colnames(WV5_data)
+
+
+
+#select only the variables of interest
+WV5_data <- WV5_data %>%
+  dplyr::select(gender, age, country_code, wave, risktaking)
+WV5_data
+```
+```{r}
+# Read countrynames data from the CSV file (to decode the dataset 5)
+countrynames <- read.csv("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/countrynames.txt", header = FALSE, as.is = TRUE)
+colnames(countrynames) <- c("code", "name")
+
+# Assuming WV5_data has a column named country_code
+WV5_data$country <- countrynames$name[match(WV5_data$country_code, countrynames$code)]
+
+# Check the frequency of each country in the new column
+table(WV5_data$country)
+
+# Display the updated WV5_data
+print(WV5_data)
+```
+```{r}
+#Read Dataset (Wave 6)
+
+WV6_data <- load("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/WV6_Data_R_v20201117.rdata") 
+WV6_data <- WV6_Data_R_v20201117 
+print(WV6_data)
+```
+
+```{r}
+WV6_data <- WV6_data %>%
+  rename(wave = V1, gender = V240, age = V242,country_code = V2, risktaking = V76 )
+
+
+#select only the variables of interest
+
+WV6_data <- WV6_data %>%
+  dplyr::select(wave, gender, age, country_code,risktaking)
+WV6_data
+```
+```{r}
+countrynames = read.csv("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/countrynames.txt", header=FALSE,as.is=TRUE)
+colnames(countrynames) = c("code", "name")
+WV6_data$country = countrynames$name [match(WV6_data$country_code, countrynames$code)]
+table(WV6_data$country)
+WV6_data
+```
+```{r}
+WV5_data
+WV6_data
+WVS_data = rbind(WV5_data, WV6_data)
+WVS_data
+```
+```{r}
+WVS_data = subset(WVS_data, risktaking > 0 & gender > 0 & age >0 )
+data_Wave5 = subset(WV5_data, risktaking > 0 & gender > 0 & age >0 )
+data_Wave6 = subset(WV6_data, risktaking > 0 & gender > 0 & age >0)
+WVS_data <- na.omit(WVS_data)
+data_Wave5 <- na.omit(data_Wave5)
+data_Wave6 <- na.omit(data_Wave6)
+
+
+# Use the mutate function to change the country name
+WVS_data <- WVS_data %>%
+  mutate(country = ifelse(country == "Great Britain", "United Kingdom", country))
+```
+```{r}
+# Transfrom risk item such that high values represent more risk taking
+WVS_data$risktaking = 6 - WVS_data$risktaking + 1
+
+  
+# Transform risk variable into T-score (mean = 50, sd = 10)
+WVS_data$T_score_risktaking = 10*scale(WVS_data$risktaking, center=TRUE,scale=TRUE)+50
+
+WVS_data
+
+#Transform risk variable into Z score 
+
+# Assuming T-scores have a mean of 50 and a standard deviation of 10
+WVS_data$Z_score_risktaking = (WVS_data$T_score_risktaking - 50) / 10
+
+# Print the resulting data frame
+print(WVS_data)
+
+WVS_data <- WVS_data %>%
+  group_by(country) %>%
+  mutate(z_score_age = scale(age))
+WVS_data
+```
+
+
