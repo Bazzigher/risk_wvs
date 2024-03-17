@@ -462,9 +462,8 @@ results_table <- data.frame(
 )
 
 # Drucken der Ergebnistabelle
-print(results_table)
+results_table
 ```
-
 
 
 
