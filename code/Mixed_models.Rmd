@@ -158,29 +158,6 @@ WVS_data$education_cat <- ifelse(WVS_data$education %in% c(1, 2), "incomplete or
 table(WVS_data$education_cat)
 ```
 
-#Transformation of item risktaking
-```{r}
-# Transfrom risk item such that high values represent more risk taking
-WVS_data$risktaking = 6 - WVS_data$risktaking + 1
-
-# Transform risk variable into T-score (mean = 50, sd = 10)
-WVS_data$T_score_risktaking = 10*scale(WVS_data$risktaking, center=TRUE,scale=TRUE)+50
-
-WVS_data
-
-#Transform risk variable into Z score 
-# Assuming T-scores have a mean of 50 and a standard deviation of 10
-#WVS_data$Z_score_risktaking = (WVS_data$T_score_risktaking - 50) / 10
-
-# Print the resulting data frame
-print(WVS_data)
-
-WVS_data <- WVS_data %>%
-  group_by(country) %>%
-  mutate(z_score_age = scale(age))
-WVS_data
-```
-
 # Dichotomizing Variables: This helps estimating and interpreting the models later on...
 ```{r}
 WVS_data$gender = ifelse(WVS_data$gender == 1, 0, 1) # sex: male vs. female
@@ -341,7 +318,6 @@ combined_plot
 
 #################################################
 # SUP MATERIALS:Correlation between hardship indicators 
-# heat map 
 ```{r}
 panel.cor = function(x, y, digits = 2, cex.cor, ...)
 {
@@ -402,12 +378,57 @@ if ("United States" %in% data$country) {
 print(data)
 ```
 
+#Transformation of item risktaking
 ```{r}
-# List all unique countries in the WVS_data dataset
-unique_countries <- unique(data$country)
+data$risktaking = 6 - data$risktaking + 1
+```
 
-# Display the list of unique countries
-print(unique_countries)
+# Risktaking as ordinal variable
+```{r}
+# Define intervals for risktaking
+interval <- cut(data$risktaking, breaks = c(-Inf, 1, 3, 5, Inf), labels = c("Very Low", "Low", "Medium", "High"), include.lowest = TRUE)
+
+# Add the ordinal variable "Risktaking_ordinal" to the data frame
+data$Risktaking_ordinal <- as.factor(interval)
+
+# Display the updated data matrix
+print(data)
+```
+
+# Transform risk variable into T-score (mean = 50, sd = 10)
+```{r}
+data$T_score_risktaking = 10*scale(data$risktaking, center=TRUE,scale=TRUE)+50
+
+data
+
+#Transform risk variable into Z score 
+# Assuming T-scores have a mean of 50 and a standard deviation of 10
+#WVS_data$Z_score_risktaking = (WVS_data$T_score_risktaking - 50) / 10
+
+# Print the resulting data frame
+print(data)
+
+data <- data %>%
+  group_by(country.x) %>%
+  mutate(z_score_age = scale(age))
+data
+```
+
+
+##########
+Check Laura on Items
+#########
+
+```{r}
+length(unique(data$country.x))
+nrow(data)
+range(data$age, na.rm = TRUE)
+table(data$gender)
+
+table(data$children)
+table(data$married)
+table(data$employed)
+table(data$education)
 ```
 ####################
 PREP THE DATASET FOR ANALYSIS MIXED-MODELS
@@ -417,16 +438,8 @@ PREP THE DATASET FOR ANALYSIS MIXED-MODELS
 ```{r}
 head(WVS_data)
 ```
-# Combine WVS_data with the hardship
-```{r}
-WVS_mixed_model <- left_join(WVS_data, hardship, by = "country")
-WVS_mixed_model
-```
-# Add Hardship to gps_data
-```{r}
-gps_mixed_model <- left_join(gps_data, hardship, by = "country")
-gps_mixed_model
-```
+
+
 ####################
 ####################
 ####################
@@ -442,24 +455,21 @@ MIXED-MODELS WVS-DATA
 # Mixed-model WVS - Replication of Mata et al., 2016
 # intercept only model
 ```{r}
-model0 = lmer(risktaking ~ 1 + (1|country),data = WVS_mixed_model)
+model0 = lmer(risktaking ~ 1 + (1|country.x),data = data)
 summary_model0=summary(model0)
 ```
 
 # age, sex 
 ```{r}
-model1 <- lmer(risktaking ~ 1 + scale(z_score_age) + factor(gender) + (1 + scale(z_score_age) + factor(gender) | country), 
-               data = WVS_mixed_model, 
+model1 <- lmer(risktaking ~ 1 + scale(z_score_age) + factor(gender) + (1 + scale(z_score_age) + factor(gender) | country.x), 
+               data = data, 
                       control = lmerControl(optimizer = "bobyqa"))
+summary_model1=summary(model1)
+print(summary_model1) # Koeffizientenübersicht des Modells anzeigen
 ```
 
-# Koeffizientenübersicht des Modells anzeigen
+# Summary model1
 ```{r}
-print(summary_model1)
-```
-
-```{r}
-# Zusammenfassung des Modells anzeigen
 summary_model1 <- summary(model1)
 
 # Gewünschte Werte extrahieren und formatieren
@@ -479,24 +489,21 @@ results_model1 <- data.frame(
               summary_model1$coefficients["factor(gender)1", "Pr(>|t|)"])
 )
 
-# Formatierung der p-Werte
+# p-Values
 results_model1$p_value <- ifelse(results_model1$p_value < 0.001, "< .001", sprintf("%.3f", results_model1$p_value))
 
-# Ergebnisse anzeigen
 print(results_model1)
 ```
 # age, sex, and covariates (children, marital status, employement status, education)
 ```{r}
-model2 = lmer(risktaking ~ 1+scale(z_score_age)+factor(gender) + factor(children) + factor(married) + factor(employed) + factor(education)+ (1+scale(z_score_age)+factor(gender)+ factor(children) + factor(married) + factor(employed) + factor(education)|country),data = WVS_mixed_model,control=lmerControl(optCtrl=list(maxfun=30000),optimizer="bobyqa"))
+model2 = lmer(risktaking ~ 1+scale(z_score_age)+factor(gender) + factor(children) + factor(married) + factor(employed) + factor(education)+ (1+scale(z_score_age)+factor(gender)+ factor(children) + factor(married) + factor(employed) + factor(education)|country.x),data = data,control=lmerControl(optCtrl=list(maxfun=30000),optimizer="bobyqa"))
 summary_model2=summary(model2)
+
+print(summary_model2) # Koeffizientenübersicht des Modells anzeigen
 ```
 
-# Koeffizientenübersicht des Modells anzeigen
+# Summary model2
 ```{r}
-print(summary_model2)
-```
-```{r}
-# Zusammenfassung des Modells anzeigen
 summary_model2 <- summary(model2)
 
 # Gewünschte Werte extrahieren und formatieren
@@ -532,23 +539,20 @@ results_model2 <- data.frame(
               summary_model2$coefficients["factor(education)1", "Pr(>|t|)"])
 )
 
-# Formatierung der p-Werte
+# p-Values
 results_model2$p_value <- ifelse(results_model2$p_value < 0.001, "< .001", sprintf("%.3f", results_model2$p_value))
 
-# Ergebnisse anzeigen
 print(results_model2)
 ```
 
 ```{r}
-model3 <- lmer(risktaking ~ 1+scale(z_score_age)*hardship+factor(gender)*hardship + factor(children) + factor(married) + factor(employed) + factor(education)+ (1+scale(z_score_age)+factor(gender)+ factor(children) + factor(married) + factor(employed) + factor(education)|country),data = WVS_mixed_model,control=lmerControl(optCtrl=list(maxfun=30000),optimizer="bobyqa"),REML = FALSE)
+model3 <- lmer(risktaking ~ 1+scale(z_score_age)*hardship+factor(gender)*hardship + factor(children) + factor(married) + factor(employed) + factor(education)+ (1+scale(z_score_age)+factor(gender)+ factor(children) + factor(married) + factor(employed) + factor(education)|country.x),data = data,control=lmerControl(optCtrl=list(maxfun=30000),optimizer="bobyqa"),REML = FALSE)
 summary_model3=summary(model3)
+
+print(summary_model3) # Koeffizientenübersicht des Modells anzeigen
 ```
 
-# Koeffizientenübersicht des Modells anzeigen
-```{r}
-print(summary_model3)
-```
-# Zusammenfassung des Modells anzeigen
+# Summary model3
 ```{r}
 # Zusammenfassung des Modells anzeigen
 summary_model3 <- summary(model3)
