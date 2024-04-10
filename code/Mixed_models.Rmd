@@ -4,6 +4,12 @@ output: html_notebook
 ---
 
 ```{r}
+rm(list = ls())
+```
+
+
+# Libraries
+```{r}
 library(data.table)
 library(tidyr)
 library(maps)
@@ -15,15 +21,10 @@ library(ggrepel)
 library(wordcloud)
 library(lme4)
 library(lmerTest)
+library(reshape2)
+library(patchwork)
+library(psych)
 ```
-
-####################
-####################
-####################
-PREPARATION DATASETS FOR ANALYSIS
-####################
-####################
-####################
 
 ####################
 PREP THE DATASET FOR ANALYSIS WVS 5 & 6
@@ -70,13 +71,20 @@ table(WV5_data$country)
 print(WV5_data)
 ```
 
+#control wave 5
+```{r}
+length(unique(WV5_data$country)) 
+nrow(WV5_data) # number of individuals 
+range(WV5_data$age) 
+table(WV5_data$gender) # sex table(data$sex)/nrow(data) 
+```
 #Read Dataset (Wave 6)
 ```{r}
-WV6_data <- load("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/WV6_dataset_wave_5_6/WV6_Data_R_v20201117.rdata") 
+load("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/WV6_dataset_wave_5_6/WV6_Data_R_v20201117.rdata") 
 WV6_data <- WV6_Data_R_v20201117 
+
 print(WV6_data)
 ```
-
 #rename variables
 ```{r}
 WV6_data <- WV6_data %>%
@@ -87,7 +95,6 @@ WV6_data <- WV6_data %>%
   dplyr::select(gender, age, country_code, wave, risktaking, children, employed, education, married)
 WV6_data
 ```
-
 #decode daraset (Wave 6)
 ```{r}
 countrynames = read.csv("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/WV6_dataset_wave_5_6/countrynames.txt", header=FALSE,as.is=TRUE)
@@ -96,50 +103,59 @@ WV6_data$country = countrynames$name [match(WV6_data$country_code, countrynames$
 table(WV6_data$country)
 WV6_data
 ```
+#control wave 6
+```{r}
+length(unique(WV6_data$country)) 
+nrow(WV6_data) # number of individuals  
+range(WV6_data$age, na.rm = TRUE)
+table(WV6_data$gender) # sex table(data$sex)/nrow(data) 
+```
+
 
 #combine the 2 dataset (Wave 6 + Wave 5)
 ```{r}
-WV5_data
-WV6_data
 WVS_data = rbind(WV5_data, WV6_data)
 WVS_data
 ```
 
+```{r}
+length(unique(WVS_data$country)) 
+nrow(WVS_data) # number of individuals 
+range(WVS_data$age, na.rm=TRUE) 
+table(WVS_data$gender) # sex table(data$sex)/nrow(data) 
+```
+
+
+
 #exclusion of participants and omission of missing data (na)
 ```{r}
 WVS_data = subset(WVS_data, risktaking > 0 & gender > 0 & age >0 & education > 0 & employed > 0 & married > 0 & children >= 0)
-data_Wave5 = subset(WV5_data, risktaking > 0 & gender > 0 & age >0 & education > 0 & employed > 0 & married > 0 & children >= 0)
-data_Wave6 = subset(WV6_data, risktaking > 0 & gender > 0 & age >0 & education > 0 & employed > 0 & married > 0 & children >= 0)
-WVS_data <- na.omit(WVS_data)
-data_Wave5 <- na.omit(data_Wave5)
-data_Wave6 <- na.omit(data_Wave6)
+### WVS_data <- na.omit(WVS_data) ### excluded because it is not in code from Mata et al., 2016
 
 # Use the mutate function to change the country name
 WVS_data <- WVS_data %>%
   mutate(country = ifelse(country == "Great Britain", "United Kingdom", country))
 ```
 
-#Transformation of item risktaking
 ```{r}
-# Transfrom risk item such that high values represent more risk taking
-WVS_data$risktaking = 6 - WVS_data$risktaking + 1
+length(unique(WVS_data$country)) 
+nrow(WVS_data) # number of individuals 
+range(WVS_data$age, na.rm=TRUE) 
+table(WVS_data$gender) # sex table(data$sex)/nrow(data) 
+```
 
-# Transform risk variable into T-score (mean = 50, sd = 10)
-WVS_data$T_score_risktaking = 10*scale(WVS_data$risktaking, center=TRUE,scale=TRUE)+50
+# create a categorical education variable (with fewer categories than the original)
+```{r}
+# Neue Spalte 'education_cat' erstellen und initialisieren
+WVS_data$education_cat <- NA
 
-WVS_data
+# Kategorien zuweisen basierend auf den Bildungsstufen
+WVS_data$education_cat <- ifelse(WVS_data$education %in% c(1, 2), "incomplete or no primary education", 
+                          ifelse(WVS_data$education %in% c(3, 4, 5, 6), "No Uni",
+                          ifelse(WVS_data$education %in% c(7, 8, 9), "Uni", NA)))
 
-#Transform risk variable into Z score 
-# Assuming T-scores have a mean of 50 and a standard deviation of 10
-WVS_data$Z_score_risktaking = (WVS_data$T_score_risktaking - 50) / 10
-
-# Print the resulting data frame
-print(WVS_data)
-
-WVS_data <- WVS_data %>%
-  group_by(country) %>%
-  mutate(z_score_age = scale(age))
-WVS_data
+# Tabelle der neuen Kategorien anzeigen
+table(WVS_data$education_cat)
 ```
 
 # Dichotomizing Variables: This helps estimating and interpreting the models later on...
@@ -151,139 +167,269 @@ WVS_data$employed = ifelse(WVS_data$employed < 4, 1, 0) # employed: yes vs. no
 WVS_data$education = ifelse(WVS_data$education < 4, 0, 1) # education: no primary vs. primary+ 
 head(WVS_data)
 ```
-
-
-
-####################
-PREP THE DATASET FOR ANALYSIS GPS
-####################
-
-#Add data GPS
+# Control the data
 ```{r}
-gps_data <- haven::read_dta("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/GPS_dataset_individual_level/individual_new.dta")
+length(unique(WVS_data$country))
+nrow(WVS_data)
+range(WVS_data$age)
+table(WVS_data$gender)
 
-head(gps_data)
+table(WVS_data$children)
+table(WVS_data$married)
+table(WVS_data$employed)
+table(WVS_data$education)
 ```
 
-# Clean the data by removing records with missing values
-```{r}
-gps_data <- gps_data %>%
-  drop_na(country, isocode, risktaking, gender, age)
-
-# Display the cleaned data
-gps_data
-```
-
-#select only the variables of interest
-```{r}
-gps_data <- gps_data %>%
-  dplyr::select(country, isocode, ison, risktaking, gender, age)
-gps_data
-```
-# Transform age (z-score)
-```{r}
-gps_data <- gps_data %>%
-  group_by(country) %>%
-  mutate(z_score_age = scale(age))
-
-# Display the new column with Z-Scores per Country
-gps_data
-```
 
 ####################
 PREP THE DATASET FOR ANALYSIS HARDSHIP
 ####################
 
+```{r}
+head(WVS_data)
+```
+
 # read in file that contains hardship indicators manually collected from CIA factbook, WHO, and World Bank 
 ```{r}
-excel_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Hardship/Hardship_complete_2024.xlsx"
-hardship <- read_excel(excel_path)
+csv_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/Data_Mata_et_al._2016/countryfacts_selection_new.csv"
+countryfacts <- read.csv(csv_path, as.is = TRUE, header = TRUE) 
 
-# Create a vector of labels with the same length as the number of columns in 'countryfacts'
-labels <- c("country","mean_homicide","gdp","gini_income","Infant_mortality","life_expect","primary_female_enrollment_rate")
 
-# Print the result
-print(hardship)
+labels=c("code","country","codeWVS","Homicide","GDP","InfMort","LifeExp","GINI","GenderPEdu")
+names(countryfacts)=labels
+
+missings=colSums(is.na(countryfacts[,4:9]))/77 # proportion of missing values for each of the hardship indicators
+
+unique(WVS_data$country_code) %in% countryfacts$codeWVS # check that all countries in the subset of the WVS data are included in the countryfacts file
+
+countryfacts
 ```
 
-
-# Create the 'hardship' column in the 'hardship' data frame
+# Controll Countryfacts
 ```{r}
-# Create the 'hardship' column in the 'hardship' data frame
-hardship <- hardship %>%
-  mutate(hardship = (mean_homicide + gdp + gini_income + Infant_mortality + life_expect + primary_female_enrollment_rate) / 6)
-hardship
+# Zeige eindeutige Werte für jede Spalte in countryfacts an
+for (col in names(countryfacts)) {
+  unique_values <- unique(countryfacts[[col]])
+  cat("Unique values for column", col, ":", "\n")
+  for (val in unique_values) {
+    cat(val, "\n")
+  }
+  cat("\n")
+}
 ```
+
+
+# Plot histogram of all hardship indicators
+```{r}
+# Plot histogram of all hardship indicators
+combined_plot <- NULL # Leeres Plot-Objekt erstellen
+
+# Define the vector of labels for the items
+items <- c("Homicide","GDP","InfMort","LifeExp","GINI","GenderPEdu")
+
+# Loop durch jedes Item und füge das Histogramm zum kombinierten Plot hinzu
+for (item in items) {
+  # Erstelle ein Histogramm für das aktuelle Item
+  plot <- ggplot(countryfacts, aes_string(x = item)) +
+    geom_histogram(binwidth = 1, fill = "skyblue", color = "black") +
+    labs(title = paste(item),
+         x = item,
+         y = "Frequency") +
+    theme_minimal()
+  
+  # Füge das Histogramm zum kombinierten Plot hinzu
+  if (is.null(combined_plot)) {
+    combined_plot <- plot
+  } else {
+    combined_plot <- combined_plot + plot
+  }
+}
+
+# Zeige den kombinierten Plot an
+combined_plot
+```
+
+
 # log transform
 ```{r}
-hardship$mean_homicide=log(hardship$mean_homicide)
-hardship$gdp=log(hardship$gdp)
-hardship$Infant_mortality=log(hardship$Infant_mortality)
-hardship$life_expect=log(hardship$life_expect)
-hardship$gini_income=log(hardship$gini_income)
-hardship$primary_female_enrollment_rate=log(hardship$primary_female_enrollment_rate)
+countryfacts$Homicide=log(countryfacts$Homicide)
+countryfacts$GDP=log(countryfacts$GDP)
+countryfacts$InfMort=log(countryfacts$InfMort)
+countryfacts$LifeExp=log(countryfacts$LifeExp)
+#countryfacts$GINI=log(countryfacts$GINI) # not transformed
+countryfacts$GenderPEdu=log(countryfacts$GenderPEdu)
+
+countryfacts
+```
 
 # changing variables into the same direction
-
-# Reverse Codierung
-hardship$mean_homicide=scale(hardship$mean_homicide)
-hardship$gdp=scale(-hardship$gdp)
-hardship$Infant_mortality=scale(hardship$Infant_mortality)
-hardship$life_expect=scale(-hardship$life_expect)
-hardship$gini_income=scale(hardship$gini_income)
-hardship$primary_female_enrollment_rate=scale(hardship$primary_female_enrollment_rate)
-
-hardship
-```
-
-# create a hardship index
 ```{r}
-hardship$hardship=(hardship$mean_homicide+hardship$gdp+hardship$gini_income+hardship$life_expect+hardship$Infant_mortality+hardship$primary_female_enrollment_rate)/6
+# Reverse Codierung
+countryfacts$Homicide=scale(countryfacts$Homicide)
+countryfacts$GDP=scale(-countryfacts$GDP)
+countryfacts$InfMort=scale(countryfacts$InfMort)
+countryfacts$LifeExp=scale(-countryfacts$LifeExp)
+countryfacts$GINI=scale(countryfacts$GINI)
+countryfacts$GenderPEdu=scale(-countryfacts$GenderPEdu)
 
-hardship
+countryfacts
 ```
+
+
+
+# Create the 'hardship' column in the 'hardship' data frame
+```{r}
+countryfacts$hardship <- rowMeans(countryfacts[, c("Homicide", "GDP", "GINI", "LifeExp", "InfMort", "GenderPEdu")], na.rm = TRUE)
+
+countryfacts
+```
+
+# Plot histogram of all hardship indicators after log transform
+```{r}
+# Plot histogram of all hardship indicators after log transform
+# Leeres Plot-Objekt erstellen
+combined_plot <- NULL
+
+# Define the vector of labels for the items
+items <- c("Homicide", "GDP", "GINI", "LifeExp", "InfMort", "GenderPEdu", "hardship")
+
+# Loop durch jedes Item und füge das Histogramm zum kombinierten Plot hinzu
+for (item in items) {
+  # Erstelle ein Histogramm für das aktuelle Item
+  plot <- ggplot(countryfacts, aes_string(x = item)) +
+    geom_histogram(binwidth = 1, fill = "skyblue", color = "black") +
+    labs(title = paste(item),
+         x = item,
+         y = "Frequency") +
+    theme_minimal()
+  
+  # Füge das Histogramm zum kombinierten Plot hinzu
+  if (is.null(combined_plot)) {
+    combined_plot <- plot
+  } else {
+    combined_plot <- combined_plot + plot
+  }
+}
+
+# Zeige den kombinierten Plot an
+combined_plot
+```
+
 
 #################################################
-x# SUP MATERIALS:Correlation between hardship indicators 
+# SUP MATERIALS:Correlation between hardship indicators 
 ```{r}
-# Berechnung der Korrelationsmatrix für den Datensatz "hardship"
-correlation_hardship <- cor(hardship[, c("mean_homicide", "gdp", "gini_income", "Infant_mortality", "life_expect", "primary_female_enrollment_rate")])
-
-# Visualisierung der Korrelationsmatrix als Heatmap
-library(ggplot2)
-library(reshape2)
-
-correlation_hardship_melted <- melt(correlation_hardship)
-
-ggplot(correlation_hardship_melted, aes(Var1, Var2, fill = value)) +
-  geom_tile(color = "white") +
-  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
-                       midpoint = 0, limit = c(-1,1), space = "Lab", 
-                       name="Correlation") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, vjust = 1, 
-                                   size = 10, hjust = 1)) +
-  coord_fixed()
-```
-# Berechnung der Korrelationsmatrix für den Datensatz "hardship"
-```{r}
-correlation_hardship <- cor(hardship[, c("mean_homicide", "gdp", "gini_income", "Infant_mortality", "life_expect", "primary_female_enrollment_rate")])
-
-# Erstellen einer Tabelle für die Korrelationsmatrix
-correlation_table <- as.data.frame(correlation_hardship)
-
-# Anzeigen der Tabelle
-print(correlation_table)
+panel.cor = function(x, y, digits = 2, cex.cor, ...)
+{
+  usr = par("usr"); on.exit(par(usr))
+  par(usr = c(0, 1, 0, 1))
+  # correlation coefficient
+  r = cor(x, y,use="complete.obs")
+  txt = format(c(r, 0.123456789), digits = digits)[1]
+  txt = paste("r= ", txt, sep = "")
+  text(0.5, 0.6, txt)
+  
+  # p-value calculation
+  p = cor.test(x, y,use="complete.obs")$p.value
+  txt2 = format(c(p, 0.123456789), digits = digits)[1]
+  txt2 = paste("p= ", txt2, sep = "")
+  if(p<0.01) txt2 = paste("p ", "<0.01", sep = "")
+  text(0.5, 0.4, txt2)
+}
+pairs(countryfacts[,4:10], upper.panel = panel.cor,las=1,cex.labels=.9) 
+dev.print(postscript,"scatter_indicators.eps",width=8, height=8,horizontal=FALSE,onefile=FALSE)
 ```
 
-
-#select only the variables of interest
+# Cronbach's Alpha for Hardship Indicators
 ```{r}
-hardship <- hardship %>%
-  dplyr::select(country, isocode, hardship)
-hardship
+library(psych)
+
+# Subset der Hardship-Indikatoren aus dem countryfacts-Datensatz auswählen
+hardship_subset <- countryfacts[, c("Homicide", "GDP", "InfMort", "LifeExp", "GINI", "GenderPEdu")]
+
+# Cronbach's Alpha berechnen
+alpha_result <- alpha(hardship_subset)
+alpha_result
 ```
 
+```{r}
+# Ersetzen Sie "USA" durch "United States" im countryfacts-Datensatz
+countryfacts$country[countryfacts$country == "USA"] <- "United States"
+```
+
+# Merge the data matrix with the countryfacts dataset based on the country code
+```{r}
+# Merge data from WVS_data and countryfacts
+data <- merge(WVS_data, countryfacts[, c("codeWVS", "country", "Homicide", "GDP", "InfMort", "LifeExp", "GINI", "GenderPEdu", "hardship")], 
+              by.x = "country_code", by.y = "codeWVS", all.x = TRUE)
+
+# Remove the redundant column 'country_code'
+data <- data[, -which(names(data) == "country_code")]
+
+# Set USA as the reference country
+if ("United States" %in% data$country) {
+  data$country <- factor(data$country, levels = c("United States", unique(data$country)[!data$country %in% "United States"]))
+} else {
+  # If "United States" is not found, keep the country variable as is
+  print("Warning: 'United States' not found in the country variable.")
+}
+
+# Display the updated data matrix
+print(data)
+```
+
+#Transformation of item risktaking
+```{r}
+data$risktaking = 6 - data$risktaking + 1
+```
+
+# Risktaking as ordinal variable
+```{r}
+# Define intervals for risktaking
+interval <- cut(data$risktaking, breaks = c(-Inf, 1, 3, 5, Inf), labels = c("Very Low", "Low", "Medium", "High"), include.lowest = TRUE)
+
+# Add the ordinal variable "Risktaking_ordinal" to the data frame
+data$Risktaking_ordinal <- as.factor(interval)
+
+# Display the updated data matrix
+print(data)
+```
+
+# Transform risk variable into T-score (mean = 50, sd = 10)
+```{r}
+data$T_score_risktaking = 10*scale(data$risktaking, center=TRUE,scale=TRUE)+50
+
+data
+
+#Transform risk variable into Z score 
+# Assuming T-scores have a mean of 50 and a standard deviation of 10
+#WVS_data$Z_score_risktaking = (WVS_data$T_score_risktaking - 50) / 10
+
+# Print the resulting data frame
+print(data)
+
+data <- data %>%
+  group_by(country.x) %>%
+  mutate(z_score_age = scale(age))
+data
+```
+
+
+##########
+Check Laura on Items
+#########
+
+```{r}
+length(unique(data$country.x))
+nrow(data)
+range(data$age, na.rm = TRUE)
+table(data$gender)
+
+table(data$children)
+table(data$married)
+table(data$employed)
+table(data$education)
+```
 ####################
 PREP THE DATASET FOR ANALYSIS MIXED-MODELS
 ####################
@@ -291,20 +437,6 @@ PREP THE DATASET FOR ANALYSIS MIXED-MODELS
 #Add Hardship to WVS_data
 ```{r}
 head(WVS_data)
-```
-
-
-```{r}
-WVS_mixed_model <- left_join(WVS_data, hardship, by = "country")
-WVS_mixed_model
-head(WVS_mixed_model)
-```
-
-#Add Hardship to gps_data
-```{r}
-gps_mixed_model <- left_join(gps_data, hardship, by = "country")
-gps_mixed_model
-head(gps_mixed_model)
 ```
 
 
@@ -316,7 +448,6 @@ MIXED-MODELS
 ####################
 ####################
 
-
 ####################
 MIXED-MODELS WVS-DATA
 ####################
@@ -324,19 +455,21 @@ MIXED-MODELS WVS-DATA
 # Mixed-model WVS - Replication of Mata et al., 2016
 # intercept only model
 ```{r}
-model0 = lmer(risktaking ~ 1 + (1|country),data = WVS_mixed_model)
+model0 = lmer(risktaking ~ 1 + (1|country.x),data = data)
 summary_model0=summary(model0)
 ```
 
 # age, sex 
 ```{r}
-model1 <- lmer(risktaking ~ 1 + scale(z_score_age) + factor(gender) + (1 + scale(z_score_age) + factor(gender) | country), 
-               data = WVS_mixed_model, 
+model1 <- lmer(risktaking ~ 1 + scale(z_score_age) + factor(gender) + (1 + scale(z_score_age) + factor(gender) | country.x), 
+               data = data, 
                       control = lmerControl(optimizer = "bobyqa"))
+summary_model1=summary(model1)
+print(summary_model1) # Koeffizientenübersicht des Modells anzeigen
 ```
 
+# Summary model1
 ```{r}
-# Zusammenfassung des Modells anzeigen
 summary_model1 <- summary(model1)
 
 
@@ -357,21 +490,21 @@ results_model1 <- data.frame(
               summary_model1$coefficients["factor(gender)1", "Pr(>|t|)"])
 )
 
-# Formatierung der p-Werte
+# p-Values
 results_model1$p_value <- ifelse(results_model1$p_value < 0.001, "< .001", sprintf("%.3f", results_model1$p_value))
 
-# Ergebnisse anzeigen
 print(results_model1)
 ```
-
 # age, sex, and covariates (children, marital status, employement status, education)
 ```{r}
-model2 = lmer(risktaking ~ 1+scale(z_score_age)+factor(gender) + factor(children) + factor(married) + factor(employed) + factor(education)+ (1+scale(z_score_age)+factor(gender)+ factor(children) + factor(married) + factor(employed) + factor(education)|country),data = WVS_mixed_model,control=lmerControl(optCtrl=list(maxfun=30000),optimizer="bobyqa"))
+model2 = lmer(risktaking ~ 1+scale(z_score_age)+factor(gender) + factor(children) + factor(married) + factor(employed) + factor(education)+ (1+scale(z_score_age)+factor(gender)+ factor(children) + factor(married) + factor(employed) + factor(education)|country.x),data = data,control=lmerControl(optCtrl=list(maxfun=30000),optimizer="bobyqa"))
 summary_model2=summary(model2)
+
+print(summary_model2) # Koeffizientenübersicht des Modells anzeigen
 ```
 
+# Summary model2
 ```{r}
-# Zusammenfassung des Modells anzeigen
 summary_model2 <- summary(model2)
 
 # Gewünschte Werte extrahieren und formatieren
@@ -407,16 +540,70 @@ results_model2 <- data.frame(
               summary_model2$coefficients["factor(education)1", "Pr(>|t|)"])
 )
 
-# Formatierung der p-Werte
+# p-Values
 results_model2$p_value <- ifelse(results_model2$p_value < 0.001, "< .001", sprintf("%.3f", results_model2$p_value))
 
-# Ergebnisse anzeigen
 print(results_model2)
 ```
 
 ```{r}
-model3 <- lmer(risktaking ~ 1+scale(z_score_age)*hardship+factor(gender)*hardship + factor(children) + factor(married) + factor(employed) + factor(education)+ (1+scale(z_score_age)+factor(gender)+ factor(children) + factor(married) + factor(employed) + factor(education)|country),data = WVS_mixed_model,control=lmerControl(optCtrl=list(maxfun=30000),optimizer="bobyqa"),REML = FALSE)
+model3 <- lmer(risktaking ~ 1+scale(z_score_age)*hardship+factor(gender)*hardship + factor(children) + factor(married) + factor(employed) + factor(education)+ (1+scale(z_score_age)+factor(gender)+ factor(children) + factor(married) + factor(employed) + factor(education)|country.x),data = data,control=lmerControl(optCtrl=list(maxfun=30000),optimizer="bobyqa"),REML = FALSE)
 summary_model3=summary(model3)
+
+print(summary_model3) # Koeffizientenübersicht des Modells anzeigen
+```
+
+# Summary model3
+```{r}
+# Zusammenfassung des Modells anzeigen
+summary_model3 <- summary(model3)
+
+# Gewünschte Werte extrahieren und formatieren
+results_model3 <- data.frame(
+  Predictor = c("Intercept", "Age", "Gender", "Parental status", "Marital status", "Occupational status", "Education", "Hardship", "Interaction: Gender * Hardship"),
+  Estimate = c(summary_model3$coefficients["(Intercept)", "Estimate"],
+               summary_model3$coefficients["scale(z_score_age)", "Estimate"],
+               summary_model3$coefficients["factor(gender)1", "Estimate"],
+               summary_model3$coefficients["factor(children)1", "Estimate"],
+               summary_model3$coefficients["factor(married)1", "Estimate"],
+               summary_model3$coefficients["factor(employed)1", "Estimate"],
+               summary_model3$coefficients["factor(education)1", "Estimate"],
+               summary_model3$coefficients["hardship", "Estimate"],
+               summary_model3$coefficients["hardship:factor(gender)1", "Estimate"]),
+  SE = c(summary_model3$coefficients["(Intercept)", "Std. Error"],
+          summary_model3$coefficients["scale(z_score_age)", "Std. Error"],
+          summary_model3$coefficients["factor(gender)1", "Std. Error"],
+          summary_model3$coefficients["factor(children)1", "Std. Error"],
+          summary_model3$coefficients["factor(married)1", "Std. Error"],
+          summary_model3$coefficients["factor(employed)1", "Std. Error"],
+          summary_model3$coefficients["factor(education)1", "Std. Error"],
+          summary_model3$coefficients["hardship", "Std. Error"],
+          summary_model3$coefficients["hardship:factor(gender)1", "Std. Error"]),
+  T_score = c(summary_model3$coefficients["(Intercept)", "t value"],
+              summary_model3$coefficients["scale(z_score_age)", "t value"],
+              summary_model3$coefficients["factor(gender)1", "t value"],
+              summary_model3$coefficients["factor(children)1", "t value"],
+              summary_model3$coefficients["factor(married)1", "t value"],
+              summary_model3$coefficients["factor(employed)1", "t value"],
+              summary_model3$coefficients["factor(education)1", "t value"],
+              summary_model3$coefficients["hardship", "t value"],
+              summary_model3$coefficients["hardship:factor(gender)1", "t value"]),
+  p_value = c(summary_model3$coefficients["(Intercept)", "Pr(>|t|)"],
+              summary_model3$coefficients["scale(z_score_age)", "Pr(>|t|)"],
+              summary_model3$coefficients["factor(gender)1", "Pr(>|t|)"],
+              summary_model3$coefficients["factor(children)1", "Pr(>|t|)"],
+              summary_model3$coefficients["factor(married)1", "Pr(>|t|)"],
+              summary_model3$coefficients["factor(employed)1", "Pr(>|t|)"],
+              summary_model3$coefficients["factor(education)1", "Pr(>|t|)"],
+              summary_model3$coefficients["hardship", "Pr(>|t|)"],
+              summary_model3$coefficients["hardship:factor(gender)1", "Pr(>|t|)"])
+)
+
+# Formatierung der p-Werte
+results_model3$p_value <- ifelse(results_model3$p_value < 0.001, "< .001", sprintf("%.3f", results_model3$p_value))
+
+# Ergebnisse anzeigen
+print(results_model3)
 ```
 
 ```{r}
@@ -465,9 +652,8 @@ results_table <- data.frame(
 )
 
 # Drucken der Ergebnistabelle
-print(results_table)
+results_table
 ```
-
 
 
 
