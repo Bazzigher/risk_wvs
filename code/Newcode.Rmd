@@ -54,7 +54,7 @@ hardship_complete
 
 ```
 ```{r}
-```{r}
+
 # Data of Wave 5
 
 
@@ -71,7 +71,7 @@ WV5_data_df
 ```{r}
 #rename the variables
 WV5_data <- WV5_data_df %>%
-  rename(gender = V235, age = V237, country_code = V2, wave = V1, risktaking = V86)
+  rename(gender = V235, age = V237, country_code = V2, wave = V1, risktaking = V86, children = V56, married = V55, employed = V241, education = V238)
 WV5_data
 
 colnames(WV5_data)
@@ -80,7 +80,7 @@ colnames(WV5_data)
 
 #select only the variables of interest
 WV5_data <- WV5_data %>%
-  dplyr::select(gender, age, country_code, wave, risktaking)
+  dplyr::select(gender, age, country_code, wave, risktaking, children, married, employed, education)
 WV5_data
 ```
 ```{r}
@@ -107,13 +107,13 @@ print(WV6_data)
 
 ```{r}
 WV6_data <- WV6_data %>%
-  rename(wave = V1, gender = V240, age = V242,country_code = V2, risktaking = V76 )
+  rename(wave = V1, gender = V240, age = V242,country_code = V2, risktaking = V76, children = V58, married = V57, employed = V229, education = V248)
 
 
 #select only the variables of interest
 
 WV6_data <- WV6_data %>%
-  dplyr::select(wave, gender, age, country_code,risktaking)
+  dplyr::select(wave, gender, age, country_code,risktaking, children, married, employed, education)
 WV6_data
 ```
 ```{r}
@@ -128,11 +128,14 @@ WV5_data
 WV6_data
 WVS_data = rbind(WV5_data, WV6_data)
 WVS_data
+
+unique(WVS_data$age)
+range(WVS_data$age)
 ```
 ```{r}
-WVS_data = subset(WVS_data, risktaking > 0 & gender > 0 & age >0 )
-data_Wave5 = subset(WV5_data, risktaking > 0 & gender > 0 & age >0 )
-data_Wave6 = subset(WV6_data, risktaking > 0 & gender > 0 & age >0)
+WVS_data = subset(WVS_data, risktaking > 0 & gender > 0 & age >0 & education > 0 & employed > 0 & married > 0 & children >= 0)
+data_Wave5 = subset(WV5_data, risktaking > 0 & gender > 0 & age >0 & education > 0 & employed > 0 & married > 0 & children >= 0)
+data_Wave6 = subset(WV6_data, risktaking > 0 & gender > 0 & age >0 & education > 0 & employed > 0 & married > 0 & children >= 0)
 WVS_data <- na.omit(WVS_data)
 data_Wave5 <- na.omit(data_Wave5)
 data_Wave6 <- na.omit(data_Wave6)
@@ -165,5 +168,172 @@ WVS_data <- WVS_data %>%
   mutate(z_score_age = scale(age))
 WVS_data
 ```
+
+```{r}
+
+WVS_data$gender = ifelse(WVS_data$gender == 1, 0, 1) # sex: male vs. female
+WVS_data$children = ifelse(WVS_data$children == 0, 0, 1) # children: no vs. yes
+WVS_data$married = ifelse(WVS_data$married == 1, 1, 0) # married: yes vs. no
+WVS_data$employed = ifelse(WVS_data$employed < 4, 1, 0) # employed: yes vs. no
+WVS_data$education = ifelse(WVS_data$education < 4, 0, 1) # education: no primary vs. primary+ 
+
+
+hardship <- hardship_complete %>%
+  dplyr::select(country, isocode, hardship_index)
+hardship
+```
+```{r}
+WVS_mixed_model <- left_join(WVS_data, hardship, by = "country")
+WVS_mixed_model
+head(WVS_mixed_model)
+```
+```{r}
+library(lmerTest)
+
+# intercept only model
+model0 = lmer(Z_score_risktaking ~ 1 + (1|country),data = WVS_mixed_model)
+summary_model0=summary(model0)
+summary_model0
+```
+```{r}
+# age, sex 
+model1 = lmer(T_score_risktaking ~ 1 +scale(z_score_age)+factor(gender) + (1+scale(z_score_age)+factor(gender)|country),data = WVS_mixed_model)
+summary_model1=summary(model1)
+summary_model1
+```
+
+```{r}
+#model 2
+library(lme4)
+
+library(lme4)
+
+# Define the lmer model and assign it to 'model_2'
+model_2 <- lmer(T_score_risktaking ~ 1 + scale(z_score_age) + factor(gender) + factor(children) + 
+                 factor(married) + factor(employed) + factor(education) + 
+                 (1 + scale(z_score_age) + factor(gender) + factor(children) + 
+                  factor(married) + factor(employed) + factor(education) | country),
+                data = WVS_data)
+
+# Display the summary of the model
+summary(model_2)
+```
+
+
+```{r}
+model_3 <- lmer(T_score_risktaking ~ 1 + scale(z_score_age) * hardship_index + 
+                    factor(gender) * hardship_index + factor(married) + factor(children) + 
+                    factor(education) + factor(employed) + 
+                    (1 + scale(z_score_age) + factor(married) + factor(children) + 
+                     factor(education) + factor(employed) | country),
+                data = WVS_mixed_model)
+
+summary(model_3)
+
+
+
+
+```
+
+```{r}
+anova(model0,model1)
+anova(model1,model_2)
+anova(model_2,model_3) 
+```
+
+```{r}
+coefsallmodels=rbind(summary_model1$coefficients,
+summary_model_2$coefficients,
+summary_model_3$coefficients[c(1:2,4:8,3,9:10),])
+
+write.csv(coefsallmodels,"coefsallmodels.csv")
+```
+
+
+```{r}
+# Read the CSV file into a data frame
+gbd_mentalhealth <- read_excel("/Users/cristinacandido/Documents/Github/risk_wvs/GBD_mentalhealth.xlsx")
+
+gbd_mentalhealth
+
+gbd_mentalhealth <- gbd_mentalhealth %>%
+  rename(gender = sex, country = location)
+gbd_mentalhealth
+
+
+#select only the variables of interest
+gbd_mentalhealth <- gbd_mentalhealth %>%
+  dplyr::select(country, gender, age, cause, val)
+gbd_mentalhealth
+
+
+library(dplyr)
+
+# Group data by country and age group, and calculate summary statistics
+summary_by_country_age <- gbd_mentalhealth %>%
+  group_by(country, age) %>%
+  summarise(
+    mean_DALYs = mean(val))  # Calculate mean of DALYs
+
+library(dplyr)
+
+# Assuming 'summary_by_country_age' contains your summarized dataset
+mean_by_country <- summary_by_country_age %>%
+  group_by(country) %>%
+  summarise(mean_DALYs = mean(mean_DALYs))
+
+# View the resulting mean by country
+print(mean_by_country)
+
+#log transform
+mean_by_country$mean_DALYs=log(mean_by_country$mean_DALYs)
+ 
+mean_by_country 
+
+#Reverse codierung 
+mean_by_country$mean_DALYs=scale(mean_by_country$mean_DALYs)
+
+mean_by_country
+
+#rename mean_DALYS
+mental_health_index <- mean_by_country %>%
+  rename('mental health' = mean_DALYs)
+mental_health_index
+
+```
+```{r}
+library(dplyr)
+
+# Assuming your dataset is named 'data' and contains columns: location, age, cause, val
+
+# Step 1: Filter data for a specific mental disorder (e.g., Anxiety Disorders)
+filtered_data <- gbd_mentalhealth %>%
+  filter(cause == "Anxiety disorders")  # Change "Anxiety Disorders" to the desired disorder
+
+# Step 2: Calculate the mean of 'val' (Disability-Adjusted Life Years) across locations and ages
+mean_DALYs <- mean(filtered_data$val)
+
+# Optionally, if you want to calculate mean by country:
+mean_by_country <- filtered_data %>%
+  group_by(country) %>%
+  summarise(mean_Anxiety_disorders = mean(val))
+
+# View the mean DALYs for the filtered disorder
+print(mean_DALYs)
+
+# View the mean DALYs by country for the filtered disorder
+print(mean_by_country)
+
+
+```
+
+
+
+
+
+
+
+```
+
 
 

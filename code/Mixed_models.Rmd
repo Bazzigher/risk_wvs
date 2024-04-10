@@ -339,6 +339,7 @@ model1 <- lmer(risktaking ~ 1 + scale(z_score_age) + factor(gender) + (1 + scale
 # Zusammenfassung des Modells anzeigen
 summary_model1 <- summary(model1)
 
+
 # Gewünschte Werte extrahieren und formatieren
 results_model1 <- data.frame(
   Predictor = c("Intercept", "Age", "Gender"),
