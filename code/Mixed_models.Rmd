@@ -454,6 +454,7 @@ print(summary_model1) # Koeffizientenübersicht des Modells anzeigen
 ```{r}
 summary_model1 <- summary(model1)
 
+
 # Gewünschte Werte extrahieren und formatieren
 results_model1 <- data.frame(
   Predictor = c("Intercept", "Age", "Gender"),

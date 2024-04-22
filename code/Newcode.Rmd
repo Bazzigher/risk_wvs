@@ -54,7 +54,7 @@ hardship_complete
 
 ```
 ```{r}
-```{r}
+
 # Data of Wave 5
 
 
@@ -71,7 +71,7 @@ WV5_data_df
 ```{r}
 #rename the variables
 WV5_data <- WV5_data_df %>%
-  rename(gender = V235, age = V237, country_code = V2, wave = V1, risktaking = V86)
+  rename(gender = V235, age = V237, country_code = V2, wave = V1, risktaking = V86, children = V56, married = V55, employed = V241, education = V238)
 WV5_data
 
 colnames(WV5_data)
@@ -80,7 +80,7 @@ colnames(WV5_data)
 
 #select only the variables of interest
 WV5_data <- WV5_data %>%
-  dplyr::select(gender, age, country_code, wave, risktaking)
+  dplyr::select(gender, age, country_code, wave, risktaking, children, married, employed, education)
 WV5_data
 ```
 ```{r}
@@ -107,13 +107,13 @@ print(WV6_data)
 
 ```{r}
 WV6_data <- WV6_data %>%
-  rename(wave = V1, gender = V240, age = V242,country_code = V2, risktaking = V76 )
+  rename(wave = V1, gender = V240, age = V242,country_code = V2, risktaking = V76, children = V58, married = V57, employed = V229, education = V248)
 
 
 #select only the variables of interest
 
 WV6_data <- WV6_data %>%
-  dplyr::select(wave, gender, age, country_code,risktaking)
+  dplyr::select(wave, gender, age, country_code,risktaking, children, married, employed, education)
 WV6_data
 ```
 ```{r}
@@ -128,11 +128,14 @@ WV5_data
 WV6_data
 WVS_data = rbind(WV5_data, WV6_data)
 WVS_data
+
+unique(WVS_data$age)
+range(WVS_data$age)
 ```
 ```{r}
-WVS_data = subset(WVS_data, risktaking > 0 & gender > 0 & age >0 )
-data_Wave5 = subset(WV5_data, risktaking > 0 & gender > 0 & age >0 )
-data_Wave6 = subset(WV6_data, risktaking > 0 & gender > 0 & age >0)
+WVS_data = subset(WVS_data, risktaking > 0 & gender > 0 & age >0 & education > 0 & employed > 0 & married > 0 & children >= 0)
+data_Wave5 = subset(WV5_data, risktaking > 0 & gender > 0 & age >0 & education > 0 & employed > 0 & married > 0 & children >= 0)
+data_Wave6 = subset(WV6_data, risktaking > 0 & gender > 0 & age >0 & education > 0 & employed > 0 & married > 0 & children >= 0)
 WVS_data <- na.omit(WVS_data)
 data_Wave5 <- na.omit(data_Wave5)
 data_Wave6 <- na.omit(data_Wave6)
@@ -165,5 +168,635 @@ WVS_data <- WVS_data %>%
   mutate(z_score_age = scale(age))
 WVS_data
 ```
+
+```{r}
+
+WVS_data$gender = ifelse(WVS_data$gender == 1, 0, 1) # sex: male vs. female
+WVS_data$children = ifelse(WVS_data$children == 0, 0, 1) # children: no vs. yes
+WVS_data$married = ifelse(WVS_data$married == 1, 1, 0) # married: yes vs. no
+WVS_data$employed = ifelse(WVS_data$employed < 4, 1, 0) # employed: yes vs. no
+WVS_data$education = ifelse(WVS_data$education < 4, 0, 1) # education: no primary vs. primary+ 
+
+
+hardship <- hardship_complete %>%
+  dplyr::select(country, isocode, hardship_index)
+hardship
+```
+```{r}
+WVS_mixed_model <- left_join(WVS_data, hardship, by = "country")
+WVS_mixed_model
+head(WVS_mixed_model)
+```
+```{r}
+library(lmerTest)
+
+# intercept only model
+model0 = lmer(Z_score_risktaking ~ 1 + (1|country),data = WVS_mixed_model)
+summary_model0=summary(model0)
+summary_model0
+```
+```{r}
+# age, sex 
+model1 = lmer(T_score_risktaking ~ 1 +scale(z_score_age)+factor(gender) + (1+scale(z_score_age)+factor(gender)|country),data = WVS_mixed_model)
+summary_model1=summary(model1)
+summary_model1
+```
+
+```{r}
+#model 2
+library(lme4)
+
+library(lme4)
+
+# Define the lmer model and assign it to 'model_2'
+model_2 <- lmer(T_score_risktaking ~ 1 + scale(z_score_age) + factor(gender) + factor(children) + 
+                 factor(married) + factor(employed) + factor(education) + 
+                 (1 + scale(z_score_age) + factor(gender) + factor(children) + 
+                  factor(married) + factor(employed) + factor(education) | country),
+                data = WVS_data)
+
+# Display the summary of the model
+summary(model_2)
+```
+
+
+```{r}
+model_3 <- lmer(T_score_risktaking ~ 1 + scale(z_score_age) * hardship_index + 
+                    factor(gender) * hardship_index + factor(married) + factor(children) + 
+                    factor(education) + factor(employed) + 
+                    (1 + scale(z_score_age) + factor(married) + factor(children) + 
+                     factor(education) + factor(employed) | country),
+                data = WVS_mixed_model)
+
+summary(model_3)
+
+
+
+
+```
+
+```{r}
+anova(model0,model1)
+anova(model1,model_2)
+anova(model_2,model_3) 
+```
+
+```{r}
+coefsallmodels=rbind(summary_model1$coefficients,
+summary_model_2$coefficients,
+summary_model_3$coefficients[c(1:2,4:8,3,9:10),])
+
+write.csv(coefsallmodels,"coefsallmodels.csv")
+```
+
+
+```{r}
+# Read the CSV file into a data frame
+gbd_mentalhealth <- read_excel("/Users/cristinacandido/Documents/Github/risk_wvs/GBD_mentalhealth.xlsx")
+
+gbd_mentalhealth
+
+#select only the variables of interest
+gbd_mentalhealth <- gbd_mentalhealth %>%
+  dplyr::select(country, gender, age, cause, val, Measure)
+gbd_mentalhealth
+
+
+library(dplyr)
+
+# Group data by country and age group, and calculate summary statistics
+summary_by_country_age <- gbd_mentalhealth %>%
+  group_by(country, age) %>%
+  summarise(
+    mean_DALYs = mean(val))  # Calculate mean of DALYs
+
+library(dplyr)
+
+# Assuming 'summary_by_country_age' contains your summarized dataset
+mean_by_country <- summary_by_country_age %>%
+  group_by(country) %>%
+  summarise(mean_DALYs = mean(mean_DALYs))
+
+# View the resulting mean by country
+print(mean_by_country)
+
+#log transform
+mean_by_country$mean_DALYs=log(mean_by_country$mean_DALYs)
+ 
+mean_by_country 
+
+#Reverse codierung 
+mean_by_country$mean_DALYs=scale(mean_by_country$mean_DALYs)
+
+mean_by_country
+
+#rename mean_DALYS
+mental_health_index <- mean_by_country %>%
+  rename('mental_health' = mean_DALYs)
+mental_health_index
+
+```
+```{r}
+library(dplyr)
+
+#######Anxiety disorders#########
+#Filter data for a specific mental disorder (e.g., Anxiety Disorders)
+anxiety_disorders <- gbd_mentalhealth %>%
+  filter(cause == "Anxiety disorders")  # Change "Anxiety Disorders" to the desired disorder
+
+# Calculate the mean of 'val' (Disability-Adjusted Life Years) across locations and ages
+mean_DALYs <- mean(anxiety_disorders$val)
+
+# Optionally, if you want to calculate mean by country:
+anxiety_disorders <- anxiety_disorders %>%
+  group_by(country) %>%
+  summarise(mean_Anxiety_disorders = mean(val))
+
+anxiety_disorders
+
+#log transform
+anxiety_disorders$mean_Anxiety_disorders=log(anxiety_disorders$mean_Anxiety_disorders)
+ 
+anxiety_disorders
+
+#Reverse codierung 
+anxiety_disorders$mean_Anxiety_disorders=scale(anxiety_disorders$mean_Anxiety_disorders)
+anxiety_disorders
+mental_health_index
+
+```
+```{r}
+gbd_mentalhealth
+
+# Assuming gbd_mentalhealth is your data frame containing the 'cause' column
+
+# Get unique values of 'cause' column
+unique_causes <- unique(gbd_mentalhealth$cause)
+
+# Create a data frame with unique causes
+cause_table <- data.frame(Cause = unique_causes)
+
+# Print the cause table
+print(cause_table)
+
+
+```
+```{r}
+#######Bulimia nervosa########
+library(dplyr)
+
+# Filter the data for 'Bulimia Nervosa'
+bulimia_nervosa <- gbd_mentalhealth %>%
+  filter(cause == "Bulimia nervosa")
+
+# Calculate the mean of 'val' (DALYs) across all locations
+mean_DALYs <- mean(bulimia_nervosa$val)
+
+# Optionally, calculate mean by country
+bulimia_nervosa <- bulimia_nervosa %>%
+  group_by(country) %>%
+  summarise(mean_bulimia_nervosa = mean(val))
+
+# Log transform the mean_bulimia_nervosa column
+bulimia_nervosa$mean_bulimia_nervosa <- log(bulimia_nervosa$mean_bulimia_nervosa)
+
+# Scale the mean_bulimia_nervosa column (if needed)
+bulimia_nervosa$mean_bulimia_nervosa <- scale(bulimia_nervosa$mean_bulimia_nervosa)
+
+# Print the resulting data frame
+print(bulimia_nervosa)
+print(anxiety_disorders)
+
+gbd_mentalhealth
+
+```
+```{r}
+#####Attention-deficit/hyperactivity disorder
+library(dplyr)
+
+
+ADHD <- gbd_mentalhealth %>%
+  filter(cause == "Attention-deficit/hyperactivity disorder")
+
+# Calculate the mean of 'val' (DALYs) across all locations
+mean_DALYs <- mean(ADHD$val)
+
+# Optionally, calculate mean by country
+ADHD <- ADHD %>%
+  group_by(country) %>%
+  summarise(mean_ADHD = mean(val))
+
+# Log transform the mean_bulimia_nervosa column
+ADHD$mean_ADHD <- log(ADHD$mean_ADHD)
+
+# Scale the mean_bulimia_nervosa column (if needed)
+ADHD$mean_ADHD <- scale(ADHD$mean_ADHD)
+
+# Print the resulting data frame
+print(ADHD)
+
+```
+```{r}
+#########Idiopathic development intellectual ability 
+library(dplyr)
+
+
+Idiopathic_developmental_intellectual_disability <- gbd_mentalhealth %>%
+  filter(cause == "Idiopathic developmental intellectual disability")
+
+# Calculate the mean of 'val' (DALYs) across all locations
+mean_DALYs <- mean(Idiopathic_developmental_intellectual_disability$val)
+
+# Optionally, calculate mean by country
+Idiopathic_developmental_intellectual_disability <- Idiopathic_developmental_intellectual_disability %>%
+  group_by(country) %>%
+  summarise(mean_Idiopathic_developmental_intellectual_disability = mean(val))
+
+# Log transform the mean_bulimia_nervosa column
+Idiopathic_developmental_intellectual_disability$mean_Idiopathic_developmental_intellectual_disability <- log(Idiopathic_developmental_intellectual_disability$mean_Idiopathic_developmental_intellectual_disability)
+
+# Scale the mean_bulimia_nervosa column (if needed)
+Idiopathic_developmental_intellectual_disability$mean_Idiopathic_developmental_intellectual_disability <- scale(Idiopathic_developmental_intellectual_disability$mean_Idiopathic_developmental_intellectual_disability)
+
+# Print the resulting data frame
+print(Idiopathic_developmental_intellectual_disability)
+```
+```{r}
+######Anorexia Nervosa
+
+anorexia_nervosa <- gbd_mentalhealth %>%
+  filter(cause == "Anorexia nervosa")
+
+# Calculate the mean of 'val' (DALYs) across all locations
+mean_DALYs <- mean(anorexia_nervosa$val)
+
+# Optionally, calculate mean by country
+anorexia_nervosa <- anorexia_nervosa %>%
+  group_by(country) %>%
+  summarise(mean_anorexia_nervosa = mean(val))
+
+# Log transform the mean_bulimia_nervosa column
+anorexia_nervosa$mean_anorexia_nervosa <- log(anorexia_nervosa$mean_anorexia_nervosa)
+
+# Scale the mean_bulimia_nervosa column (if needed)
+anorexia_nervosa$mean_anorexia_nervosa <- scale(anorexia_nervosa$mean_anorexia_nervosa)
+
+# Print the resulting data frame
+print(anorexia_nervosa)
+```
+```{r}
+#####Depressive disorders#######
+
+depressive_disorders <- gbd_mentalhealth %>%
+  filter(cause == "Depressive disorders")
+
+# Calculate the mean of 'val' (DALYs) across all locations
+mean_DALYs <- mean(depressive_disorders$val)
+
+# Optionally, calculate mean by country
+depressive_disorders <- depressive_disorders %>%
+  group_by(country) %>%
+  summarise(mean_depressive_disorders = mean(val))
+
+# Log transform the mean_bulimia_nervosa column
+depressive_disorders$mean_depressive_disorders <- log(depressive_disorders$mean_depressive_disorders)
+
+# Scale the mean_bulimia_nervosa column (if needed)
+depressive_disorders$mean_depressive_disorders <- scale(depressive_disorders$mean_depressive_disorders)
+
+# Print the resulting data frame
+print(depressive_disorders)
+```
+
+```{r}
+#######Autismus spectrum disorders######
+
+autismus_spectrum_disorders <- gbd_mentalhealth %>%
+  filter(cause == "Autism spectrum disorders")
+
+# Calculate the mean of 'val' (DALYs) across all locations
+mean_DALYs <- mean(autismus_spectrum_disorders$val)
+
+# Optionally, calculate mean by country
+autismus_spectrum_disorders <- autismus_spectrum_disorders %>%
+  group_by(country) %>%
+  summarise(mean_autismus_spectrum_disorders = mean(val))
+
+# Log transform the mean_bulimia_nervosa column
+autismus_spectrum_disorders$mean_autismus_spectrum_disorders <- log(autismus_spectrum_disorders$mean_autismus_spectrum_disorders)
+
+# Scale the mean_bulimia_nervosa column (if needed)
+autismus_spectrum_disorders$mean_autismus_spectrum_disorders <- scale(autismus_spectrum_disorders$mean_autismus_spectrum_disorders)
+
+# Print the resulting data frame
+print(autismus_spectrum_disorders)
+```
+
+```{r}
+######Schizophrenia#######
+schizophrenia <- gbd_mentalhealth %>%
+  filter(cause == "Schizophrenia")
+
+# Calculate the mean of 'val' (DALYs) across all locations
+mean_DALYs <- mean(schizophrenia$val)
+
+# Optionally, calculate mean by country
+schizophrenia <- schizophrenia %>%
+  group_by(country) %>%
+  summarise(mean_schizophrenia = mean(val))
+
+# Log transform the mean_bulimia_nervosa column
+schizophrenia$mean_schizophrenia <- log(schizophrenia$mean_schizophrenia)
+
+# Scale the mean_bulimia_nervosa column (if needed)
+schizophrenia$mean_schizophrenia <- scale(schizophrenia$mean_schizophrenia)
+
+# Print the resulting data frame
+print(schizophrenia)
+
+```
+
+```{r}
+#######Conduct disorders#########
+conduct_disorders <- gbd_mentalhealth %>%
+  filter(cause == "Conduct disorder")
+
+# Calculate the mean of 'val' (DALYs) across all locations
+mean_DALYs <- mean(conduct_disorders$val)
+
+# Optionally, calculate mean by country
+conduct_disorders <- conduct_disorders %>%
+  group_by(country) %>%
+  summarise(mean_conduct_disorders = mean(val))
+
+# Log transform the mean_bulimia_nervosa column
+conduct_disorders$mean_conduct_disorders <- log(conduct_disorders$mean_conduct_disorders)
+
+# Scale the mean_bulimia_nervosa column (if needed)
+conduct_disorders$mean_conduct_disorders <- scale(conduct_disorders$mean_conduct_disorders)
+
+# Print the resulting data frame
+print(conduct_disorders)
+
+
+```
+
+```{r}
+########Eating disorders#########
+eating_disorders <- gbd_mentalhealth %>%
+  filter(cause == "Eating disorders")
+
+# Calculate the mean of 'val' (DALYs) across all locations
+mean_DALYs <- mean(eating_disorders$val)
+
+# Optionally, calculate mean by country
+eating_disorders <- eating_disorders %>%
+  group_by(country) %>%
+  summarise(mean_eating_disorders = mean(val))
+
+# Log transform the mean_bulimia_nervosa column
+eating_disorders$mean_eating_disorders <- log(eating_disorders$mean_eating_disorders)
+
+# Scale the mean_bulimia_nervosa column (if needed)
+eating_disorders$mean_eating_disorders <- scale(eating_disorders$mean_eating_disorders)
+
+# Print the resulting data frame
+print(eating_disorders)
+
+```
+```{r}
+########Bipolar disorder#########
+bipolar_disorder <- gbd_mentalhealth %>%
+  filter(cause == "Bipolar disorder")
+
+# Calculate the mean of 'val' (DALYs) across all locations
+mean_DALYs <- mean(bipolar_disorder$val)
+
+# Optionally, calculate mean by country
+bipolar_disorder <- bipolar_disorder %>%
+  group_by(country) %>%
+  summarise(mean_bipolar_disorder = mean(val))
+
+# Log transform the mean_bulimia_nervosa column
+bipolar_disorder$mean_bipolar_disorder <- log(bipolar_disorder$mean_bipolar_disorder)
+
+# Scale the mean_bulimia_nervosa column (if needed)
+bipolar_disorder$mean_bipolar_disorder <- scale(bipolar_disorder$mean_bipolar_disorder)
+
+# Print the resulting data frame
+print(bipolar_disorder)
+
+```
+```{r}
+print(cause_table)
+```
+```{r}
+########Substance use disorders########
+
+substance_use_disorders <- gbd_mentalhealth %>%
+  filter(cause == "Substance use disorders")
+
+# Calculate the mean of 'val' (DALYs) across all locations
+mean_DALYs <- mean(substance_use_disorders$val)
+
+# Optionally, calculate mean by country
+substance_use_disorders <- substance_use_disorders %>%
+  group_by(country) %>%
+  summarise(mean_substance_use_disorders = mean(val))
+
+# Log transform the mean_bulimia_nervosa column
+substance_use_disorders$mean_substance_use_disorders <- log(substance_use_disorders$mean_substance_use_disorders)
+
+# Scale the mean_bulimia_nervosa column (if needed)
+substance_use_disorders$mean_substance_use_disorders <- scale(substance_use_disorders$mean_substance_use_disorders)
+
+# Print the resulting data frame
+print(substance_use_disorders)
+
+```
+```{r}
+####Drug use disorders
+
+drug_use_disorders <- gbd_mentalhealth %>%
+  filter(cause == "Drug use disorders")
+
+# Calculate the mean of 'val' (DALYs) across all locations
+mean_DALYs <- mean(drug_use_disorders$val)
+
+# Optionally, calculate mean by country
+drug_use_disorders <- drug_use_disorders %>%
+  group_by(country) %>%
+  summarise(mean_drug_use_disorders = mean(val))
+
+# Log transform the mean_bulimia_nervosa column
+drug_use_disorders$mean_drug_use_disorders <- log(drug_use_disorders$mean_drug_use_disorders)
+
+# Scale the mean_bulimia_nervosa column (if needed)
+drug_use_disorders$mean_drug_use_disorders <- scale(drug_use_disorders$mean_drug_use_disorders)
+
+# Print the resulting data frame
+print(drug_use_disorders)
+
+
+```
+```{r}
+##########Alcohol use disorders
+alcohol_use_disorders <- gbd_mentalhealth %>%
+  filter(cause == "Alcohol use disorders")
+
+# Calculate the mean of 'val' (DALYs) across all locations
+mean_DALYs <- mean(alcohol_use_disorders$val)
+
+# Optionally, calculate mean by country
+alcohol_use_disorders <- alcohol_use_disorders %>%
+  group_by(country) %>%
+  summarise(mean_alcohol_use_disorders = mean(val))
+
+# Log transform the mean_bulimia_nervosa column
+alcohol_use_disorders$mean_alcohol_use_disorders <- log(alcohol_use_disorders$mean_alcohol_use_disorders)
+
+# Scale the mean_bulimia_nervosa column (if needed)
+alcohol_use_disorders$mean_alcohol_use_disorders <- scale(alcohol_use_disorders$mean_alcohol_use_disorders)
+
+# Print the resulting data frame
+print(alcohol_use_disorders)
+
+```
+```{r}
+#######Major depressive disorders
+major_depressive_disorder <- gbd_mentalhealth %>%
+  filter(cause == "Major depressive disorder")
+
+# Calculate the mean of 'val' (DALYs) across all locations
+mean_DALYs <- mean(major_depressive_disorder$val)
+
+# Optionally, calculate mean by country
+major_depressive_disorder <- major_depressive_disorder %>%
+  group_by(country) %>%
+  summarise(mean_major_depressive_disorder = mean(val))
+
+# Log transform the mean_bulimia_nervosa column
+major_depressive_disorder$mean_major_depressive_disorder <- log(major_depressive_disorder$mean_major_depressive_disorder)
+
+# Scale the mean_bulimia_nervosa column (if needed)
+major_depressive_disorder$mean_major_depressive_disorder <- scale(major_depressive_disorder$mean_major_depressive_disorder)
+
+# Print the resulting data frame
+print(major_depressive_disorder)
+
+```
+```{r}
+#######Dysthymia########
+
+dysthymia <- gbd_mentalhealth %>%
+  filter(cause == "Dysthymia")
+
+# Calculate the mean of 'val' (DALYs) across all locations
+mean_DALYs <- mean(dysthymia$val)
+
+# Optionally, calculate mean by country
+dysthymia <- dysthymia %>%
+  group_by(country) %>%
+  summarise(mean_dysthymia = mean(val))
+
+# Log transform the mean_bulimia_nervosa column
+dysthymia$mean_dysthymia <- log(dysthymia$mean_dysthymia)
+
+# Scale the mean_bulimia_nervosa column (if needed)
+dysthymia$mean_dysthymia <- scale(dysthymia$mean_dysthymia)
+
+# Print the resulting data frame
+print(dysthymia)
+
+
+```
+```{r}
+library(dplyr)
+
+# Perform left joins for each data frame on 'country'
+final_mental_health_index <- mental_health_index %>%
+  left_join(bulimia_nervosa, by = "country") %>%
+  left_join(ADHD, by = "country") %>%
+  left_join(Idiopathic_developmental_intellectual_disability, by = "country") %>%
+  left_join(anorexia_nervosa, by = "country") %>%
+  left_join(depressive_disorders, by = "country") %>%
+  left_join(autismus_spectrum_disorders, by = "country") %>%
+  left_join(conduct_disorders, by = "country") %>%
+  left_join(schizophrenia, by = "country") %>%
+  left_join(eating_disorders, by = "country") %>%
+  left_join(bipolar_disorder, by = "country") %>%
+  left_join(drug_use_disorders, by = "country") %>%
+  left_join(alcohol_use_disorders, by = "country") %>%
+  left_join(substance_use_disorders, by = "country") %>%
+  left_join(major_depressive_disorder, by = "country") %>%
+  left_join(dysthymia, by = "country")
+
+# Display the resulting data frame
+print(final_mental_health_index)
+
+# Show the first few rows of the resulting data frame
+head(final_mental_health_index)
+
+```
+```{r}
+indicators <- left_join(final_mental_health_index, hardship, by = "country")
+indicators
+head(indicators)
+
+new_data <- left_join (WVS_data, indicators, by = "country")
+new_data
+
+
+# Transfrom risk item such that high values represent more risk taking
+new_data$risktaking = 6 - new_data$risktaking + 1
+
+  
+# Transform risk variable into T-score (mean = 50, sd = 10)
+new_data$T_score_risktaking = 10*scale(new_data$risktaking, center=TRUE,scale=TRUE)+50
+
+new_data
+
+#Transform risk variable into Z score 
+
+# Assuming T-scores have a mean of 50 and a standard deviation of 10
+new_data$Z_score_risktaking = (new_data$T_score_risktaking - 50) / 10
+
+# Print the resulting data frame
+print(new_data)
+
+new_data <- new_data %>%
+  group_by(country) %>%
+  mutate(z_score_age = scale(age))
+new_data
+```
+```{r}
+library(lme4)
+
+library(lme4)
+
+model <- lmer(T_score_risktaking ~ scale(z_score_age) * mental_health +
+               gender * mental_health +
+               factor(married) + factor(children) +
+               factor(education) + factor(employed) +
+               (1 + scale(z_score_age) + factor(married) + factor(children) + 
+                factor(education) + factor(employed) | country),
+             data = new_data)
+
+
+summary(model)
+
+# Assuming 'model' is a linear mixed-effects model (lmer), and you want to save coefficients to a CSV file
+
+# Extract coefficients from the model summary
+coefficients_df <- data.frame(summary(model)$coefficients)
+
+# Write coefficients to a CSV file
+write.csv(coefficients_df, "model_coefficients.csv", row.names = TRUE)
+
+```
+
+
+```
+
 
 
