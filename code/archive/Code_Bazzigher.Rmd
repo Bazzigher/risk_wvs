@@ -378,9 +378,9 @@ WVS_data$T_score_risktaking = 10*scale(WVS_data$risktaking, center=TRUE,scale=TR
 # Print the resulting data frame
 #print(WVS_data)
 
-WVS_data <- WVS_data %>%
-  group_by(country) %>%
-  mutate(z_score_age = scale(age))
+#WVS_data <- WVS_data %>%
+#  group_by(country) %>%
+#  mutate(z_score_age = scale(age))
 WVS_data
 ```
 
@@ -402,13 +402,13 @@ mean(WVS_data$T_score_risktaking)
 # Mixed-model WVS - Replication of Mata et al., 2016
 # intercept only model
 ```{r}
-model0 = lmer(T_score_risktaking ~ 1 + (1|country),data = WVS_data)
+model0 = lmer(risktaking ~ 1 + (1|country),data = WVS_data)
 summary_model0=summary(model0)
 ```
 
 # age, sex 
 ```{r}
-model1 <- lmer(T_score_risktaking ~ 1 + scale(age) + factor(gender) + (1 + scale(age) + factor(gender) | country), 
+model1 <- lmer(risktaking ~ 1 + scale(age) + factor(gender) + (1 + scale(age) + factor(gender) | country), 
                data = WVS_data, 
                       control = lmerControl(optimizer = "bobyqa"))
 summary_model1=summary(model1)
@@ -442,10 +442,9 @@ results_model1$p_value <- ifelse(results_model1$p_value < 0.001, "< .001", sprin
 
 print(results_model1)
 ```
-
 # age, sex, and covariates (children, marital status, employement status, education)
 ```{r}
-model2 = lmer(T_score_risktaking ~ 1+scale(age)+factor(gender) + factor(children) + factor(married) + factor(employed) + factor(education)+ (1+scale(age)+factor(gender)+ factor(children) + factor(married) + factor(employed) + factor(education)|country),data = WVS_data,control=lmerControl(optCtrl=list(maxfun=30000),optimizer="bobyqa"))
+model2 = lmer(risktaking ~ 1+scale(age)+factor(gender) + factor(children) + factor(married) + factor(employed) + factor(education)+ (1+scale(age)+factor(gender)+ factor(children) + factor(married) + factor(employed) + factor(education)|country),data = WVS_data,control=lmerControl(optCtrl=list(maxfun=30000),optimizer="bobyqa"))
 summary_model2=summary(model2)
 
 print(summary_model2) 
@@ -495,7 +494,7 @@ print(results_model2)
 ```
 
 ```{r}
-model3 <- lmer(T_score_risktaking ~ 1+scale(age)*hardship+factor(gender)*hardship + factor(children) + factor(married) + factor(employed) + factor(education)+ (1+scale(age)+factor(gender)+ factor(children) + factor(married) + factor(employed) + factor(education)|country),data = WVS_data,control=lmerControl(optCtrl=list(maxfun=30000),optimizer="bobyqa"),REML = FALSE)
+model3 <- lmer(risktaking ~ 1+scale(age)*hardship+factor(gender)*hardship + factor(children) + factor(married) + factor(employed) + factor(education)+ (1+scale(age)+factor(gender)+ factor(children) + factor(married) + factor(employed) + factor(education)|country),data = WVS_data,control=lmerControl(optCtrl=list(maxfun=30000),optimizer="bobyqa"),REML = FALSE)
 summary_model3=summary(model3)
 
 print(summary_model3)
@@ -561,7 +560,6 @@ anova(model0,model1)
 anova(model1,model2)
 anova(model2,model3) 
 ```
-
 
 ```{r}
 WVS_data

@@ -19,7 +19,7 @@ library(lme4)
 
 # Load Hardship-list
 ```{r}
-hardship_complete <- read_excel("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Hardship/Hardship_complete_2024.xlsx")
+hardship_complete <- read_excel("/Users/cristinacandido/Documents/Github/risk_wvs/code/Hardship_complete_2024.xlsx")
 hardship_complete
 ```
 
@@ -55,7 +55,7 @@ hardship_complete
 
 # Data of Wave 5 
 ```{r}
-WV5_data <- readRDS("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/WV6_dataset_wave_5_6/F00007944-WV5_Data_R_v20180912.rds")
+WV5_data <- readRDS("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/F00007944-WV5_Data_R_v20180912.rds")
 
 # Convert WV5_data-object in data.frame 
 WV5_data_df <- as.data.frame(WV5_data)
@@ -80,7 +80,7 @@ WV5_data
 
 # Read countrynames data from the CSV file (to decode the dataset 5)
 ```{r}
-countrynames <- read.csv("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/WV6_dataset_wave_5_6/countrynames.txt", header = FALSE, as.is = TRUE)
+countrynames <- read.csv("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/countrynames.txt", header = FALSE, as.is = TRUE)
 colnames(countrynames) <- c("code", "name")
 
 # Assuming WV5_data has a column named country_code
@@ -95,7 +95,7 @@ print(WV5_data)
 
 #Read Dataset (Wave 6)
 ```{r}
-WV6_data <- load("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/WV6_dataset_wave_5_6/WV6_Data_R_v20201117.rdata") 
+WV6_data <- load("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/WV6_Data_R_v20201117.rdata") 
 WV6_data <- WV6_Data_R_v20201117 
 print(WV6_data)
 ```
@@ -114,7 +114,7 @@ WV6_data
 
 # Add the countrynames
 ```{r}
-countrynames = read.csv("/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/WV6_dataset_wave_5_6/countrynames.txt", header=FALSE,as.is=TRUE)
+countrynames = read.csv("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/countrynames.txt", header=FALSE,as.is=TRUE)
 colnames(countrynames) = c("code", "name")
 WV6_data$country = countrynames$name [match(WV6_data$country_code, countrynames$code)]
 table(WV6_data$country)
@@ -186,7 +186,7 @@ colnames(hardship)
 
 # Add hardship to WVS_mixed_model
 ```{r}
-WVS_mixed_model <- left_join(WVS_data, hardship, by = c("country" = "code"))
+WVS_mixed_model <- left_join(WVS_data, hardship, by = "country")
 WVS_mixed_model
 head(WVS_mixed_model)
 ```
@@ -205,7 +205,7 @@ head(WVS_mixed_model)
 
 # age, sex 
 ```{r}
-model1 <- lmer(risktaking ~ 1 + scale(age) + factor(gender) + (1 + scale(age) + factor(gender) | country), 
+model1 <- lmer(T_score_risktaking ~ 1 + scale(age) + factor(gender) + (1 + scale(age) + factor(gender) | country), 
                data = WVS_data, 
                       control = lmerControl(optimizer = "bobyqa"))
 summary_model1=summary(model1)
@@ -214,7 +214,7 @@ print(summary_model1) # Koeffizientenübersicht des Modells anzeigen
 
 #model 2
 ```{r}
-model2 = lmer(risktaking ~ 1+scale(age)+factor(gender) + factor(children) + factor(married) + factor(employed) + factor(education)+ (1+scale(age)+factor(gender)+ factor(children) + factor(married) + factor(employed) + factor(education)|country),data = WVS_data,control=lmerControl(optCtrl=list(maxfun=30000),optimizer="bobyqa"))
+model2 = lmer(T_score_risktaking ~ 1+scale(age)+factor(gender) + factor(children) + factor(married) + factor(employed) + factor(education)+ (1+scale(age)+factor(gender)+ factor(children) + factor(married) + factor(employed) + factor(education)|country),data = WVS_mixed_model, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
 summary_model2=summary(model2)
 
 print(summary_model2) 
@@ -222,10 +222,12 @@ print(summary_model2)
 
 # Model3
 ```{r}
-model3 <- lmer(risktaking ~ 1+scale(age)*hardship+factor(gender)*hardship + factor(children) + factor(married) + factor(employed) + factor(education)+ (1+scale(age)+factor(gender)+ factor(children) + factor(married) + factor(employed) + factor(education)|country),data = WVS_data,control=lmerControl(optCtrl=list(maxfun=30000),optimizer="bobyqa"),REML = FALSE)
+model3 <- lmer(T_score_risktaking ~ 1+scale(age)*hardship+factor(gender)*hardship + factor(children) + factor(married) + factor(employed) + factor(education)+ (1+scale(age)+factor(gender)+ factor(children) + factor(married) + factor(employed) + factor(education)|country),data = WVS_mixed_model, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
 summary_model3=summary(model3)
 
 print(summary_model3)
+
+WVS_mixed_model
 ```
 
 # ANOVA
