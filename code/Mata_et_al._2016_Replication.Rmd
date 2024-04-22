@@ -218,10 +218,26 @@ countryfacts$GenderPEdu <- as.numeric(countryfacts$GenderPEdu)
 
 # This code does not work. I do not understand why, all the variables are numeric but it always says, that they are not. Since out counrtyfacts-document has no missing values, I do not run it.```{r}
 # IMPUTE hardship indicators w/ median
-#for (counter in 4:9)
+#```{r}
+#for (counter in 5:9)
 #{
 #  countryfacts[is.na(countryfacts[,counter]),counter]=median(countryfacts[,counter],na.rm=TRUE)
 #}
+#```
+
+```{r}
+# IMPUTE hardship indicators w/ median
+for (counter in 4:9) {
+  # Convert the column to numeric (in case it's not already numeric)
+  countryfacts[[counter]] <- as.numeric(as.character(countryfacts[[counter]]))
+  
+  # Replace non-numeric values with NA
+  countryfacts[[counter]][!is.na(countryfacts[[counter]]) & !is.numeric(countryfacts[[counter]])] <- NA
+  
+  # Impute missing values with the median
+  countryfacts[[counter]][is.na(countryfacts[[counter]])] <- median(countryfacts[[counter]], na.rm = TRUE)
+}
+```
 
 
 # Create a Hardship Index 
@@ -389,13 +405,4 @@ plot.fit(regiondata$hardship,regiondata[,4],"Hardship","Sex Effect",regiondata$c
 
 #```{r}
 data$education_cat[education < 3] = "incomplete or no primary education"
-
-```
-
-```{r}
-
-```
-
-```{r}
-
 ```
