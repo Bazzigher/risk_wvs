@@ -8,6 +8,8 @@ This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute
 Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
 
 ```{r}
+rm(list = ls())
+
 library(data.table)
 library(tidyr)
 library(maps)
@@ -24,37 +26,50 @@ The preview shows you a rendered HTML copy of the contents of the editor. Conseq
 
 ```{r}
 library(readxl)
-hardship_complete <- read_excel("/Users/cristinacandido/Documents/Github/risk_wvs/data/Hardship_complete.xlsx")
+hardship_complete <- read_excel("/Users/cristinacandido/Documents/Github/risk_wvs/code/Hardship_complete_2024.xlsx")
 hardship_complete
 
 
 ```
 ```{r}
-hardship_complete$mean_homicide=log(hardship_complete$mean_homicide)
+hardship_complete$homiciderate=log(hardship_complete$homiciderate)
 hardship_complete$gdp=log(hardship_complete$gdp)
-hardship_complete$Infant_mortality=log(hardship_complete$Infant_mortality)
-hardship_complete$life_expect=log(hardship_complete$life_expect)
-hardship_complete$gini_income=log(hardship_complete$gini_income)
-hardship_complete$`primary_ female_ enrollment_ rate`=log(hardship_complete$`primary_ female_ enrollment_ rate`)
+hardship_complete$infantmortality=log(hardship_complete$infantmortality)
+hardship_complete$lifeexpectancy=log(hardship_complete$lifeexpectancy)
+
 hardship_complete
 
 # Reverse Codierung
-hardship_complete$mean_homicide=scale(hardship_complete$mean_homicide)
+hardship_complete$homiciderate=scale(hardship_complete$homiciderate)
 hardship_complete$gdp=scale(-hardship_complete$gdp)
-hardship_complete$Infant_mortality=scale(hardship_complete$Infant_mortality)
-hardship_complete$life_expect=scale(-hardship_complete$life_expect)
-hardship_complete$gini_income=scale(hardship_complete$gini_income)
-hardship_complete$gini_income=scale(-hardship_complete$`primary_ female_ enrollment_ rate`)
+hardship_complete$infantmortality=scale(hardship_complete$infantmortality)
+hardship_complete$lifeexpectancy=scale(-hardship_complete$lifeexpectancy)
+hardship_complete$gini=scale(hardship_complete$gini)
+hardship_complete$femalemale_primedu=scale(-hardship_complete$femalemale_primedu)
 hardship_complete
 
-hardship_complete$hardship_index=(hardship_complete$mean_homicide+hardship_complete$gdp+hardship_complete$gini_income+hardship_complete$life_expect+hardship_complete$Infant_mortality+hardship_complete$`primary_ female_ enrollment_ rate`)/6
+hardship_complete$hardship_index=(hardship_complete$homiciderate+hardship_complete$gdp+hardship_complete$gini+hardship_complete$lifeexpectancy+hardship_complete$infantmortality+hardship_complete$femalemale_primedu)/6
 
 hardship_complete
 
+# Laura added this code
+library(dplyr)
 
+# Impute missing values in the hardship indicators using the median
+hardship_complete <- hardship_complete %>%
+  mutate(across(c("homiciderate", "gdp", "infantmortality", "lifeexpectancy", "gini", "femalemale_primedu"),
+                ~ifelse(is.na(.), median(., na.rm = TRUE), .)))
+
+hardship_complete
+
+# Use the mutate function to change the country name
+hardship_complete <- hardship_complete %>%
+  mutate(country = ifelse(label == "Serbia and Montenegro", "Serbia", label))
+hardship_complete
 ```
-```{r}
 
+
+```{r}
 # Data of Wave 5
 
 
@@ -67,6 +82,8 @@ WV5_data_df <- as.data.frame(WV5_data)
 # show first five columns
 WV5_data_df
 ```
+
+
 
 ```{r}
 #rename the variables
@@ -82,11 +99,12 @@ colnames(WV5_data)
 WV5_data <- WV5_data %>%
   dplyr::select(gender, age, country_code, wave, risktaking, children, married, employed, education)
 WV5_data
-```
-```{r}
+
+
 # Read countrynames data from the CSV file (to decode the dataset 5)
 countrynames <- read.csv("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/countrynames.txt", header = FALSE, as.is = TRUE)
 colnames(countrynames) <- c("code", "name")
+
 
 # Assuming WV5_data has a column named country_code
 WV5_data$country <- countrynames$name[match(WV5_data$country_code, countrynames$code)]
@@ -96,6 +114,18 @@ table(WV5_data$country)
 
 # Display the updated WV5_data
 print(WV5_data)
+unique(WV5_data$country)
+
+print(countrynames)
+
+country_counts <- WV5_data %>%
+  count(country)
+
+# Print the result
+print(country_counts)
+
+
+
 ```
 ```{r}
 #Read Dataset (Wave 6)
@@ -124,21 +154,46 @@ table(WV6_data$country)
 WV6_data
 ```
 ```{r}
-WV5_data
-WV6_data
+
+
+
 WVS_data = rbind(WV5_data, WV6_data)
 WVS_data
 
-unique(WVS_data$age)
-range(WVS_data$age)
+country_counts <- WVS_data %>%
+  count(country)
+
+# Print the result
+print(country_counts)
+
+
+
+
+
+
+
+
+
+
 ```
 ```{r}
+
+
+
+
 WVS_data = subset(WVS_data, risktaking > 0 & gender > 0 & age >0 & education > 0 & employed > 0 & married > 0 & children >= 0)
 data_Wave5 = subset(WV5_data, risktaking > 0 & gender > 0 & age >0 & education > 0 & employed > 0 & married > 0 & children >= 0)
 data_Wave6 = subset(WV6_data, risktaking > 0 & gender > 0 & age >0 & education > 0 & employed > 0 & married > 0 & children >= 0)
 WVS_data <- na.omit(WVS_data)
 data_Wave5 <- na.omit(data_Wave5)
 data_Wave6 <- na.omit(data_Wave6)
+
+
+
+
+
+
+
 
 
 # Use the mutate function to change the country name
@@ -167,6 +222,16 @@ WVS_data <- WVS_data %>%
   group_by(country) %>%
   mutate(z_score_age = scale(age))
 WVS_data
+
+country_counts <- WVS_data %>%
+  count(country)
+
+# Print the result
+print(country_counts)
+
+
+
+
 ```
 
 ```{r}
@@ -179,25 +244,41 @@ WVS_data$education = ifelse(WVS_data$education < 4, 0, 1) # education: no primar
 
 
 hardship <- hardship_complete %>%
-  dplyr::select(country, isocode, hardship_index)
+  dplyr::select(label, code, hardship_index)
 hardship
+
+
+
+
 ```
 ```{r}
+library(dplyr)
+hardship <- rename(hardship, country = label)
+
 WVS_mixed_model <- left_join(WVS_data, hardship, by = "country")
 WVS_mixed_model
 head(WVS_mixed_model)
+
+colnames(WVS_data)
+colnames(hardship)
+
+unique(WVS_data$country)
+
+WVS_mixed_model
+
+unique(WVS_mixed_model$country)
 ```
 ```{r}
 library(lmerTest)
 
 # intercept only model
-model0 = lmer(Z_score_risktaking ~ 1 + (1|country),data = WVS_mixed_model)
+model0 = lmer(T_score_risktaking ~ 1 + (1|country),data = WVS_data)
 summary_model0=summary(model0)
 summary_model0
 ```
 ```{r}
 # age, sex 
-model1 = lmer(T_score_risktaking ~ 1 +scale(z_score_age)+factor(gender) + (1+scale(z_score_age)+factor(gender)|country),data = WVS_mixed_model)
+model1 = lmer(T_score_risktaking ~ 1 +scale(age)+factor(gender) + (1+scale(age)+factor(gender)|country),data = WVS_mixed_model, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
 summary_model1=summary(model1)
 summary_model1
 ```
@@ -207,38 +288,109 @@ summary_model1
 library(lme4)
 
 library(lme4)
+library(lmerTest)
 
 # Define the lmer model and assign it to 'model_2'
-model_2 <- lmer(T_score_risktaking ~ 1 + scale(z_score_age) + factor(gender) + factor(children) + 
-                 factor(married) + factor(employed) + factor(education) + 
-                 (1 + scale(z_score_age) + factor(gender) + factor(children) + 
-                  factor(married) + factor(employed) + factor(education) | country),
-                data = WVS_data)
+model_2 <- lmer(T_score_risktaking ~ 1 + scale(age) + factor(gender) + factor(children) + 
+                 factor(married) + factor(education) + factor(employed) +
+                 (1 + scale(age) + factor(gender) + factor(children) + factor(employed) +
+                  factor(married) | country),
+                data = WVS_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
+
 
 # Display the summary of the model
-summary(model_2)
+summary_model_2 = summary(model_2)
+summary_model_2
+
+WVS_mixed_model
+
+
 ```
 
 
 ```{r}
-model_3 <- lmer(T_score_risktaking ~ 1 + scale(z_score_age) * hardship_index + 
+model_3 <- lmer(T_score_risktaking ~ 1 + scale(age) * hardship_index + 
                     factor(gender) * hardship_index + factor(married) + factor(children) + 
                     factor(education) + factor(employed) + 
-                    (1 + scale(z_score_age) + factor(married) + factor(children) + 
+                    (1 + scale(age) + factor(married) + factor(children) + 
                      factor(education) + factor(employed) | country),
-                data = WVS_mixed_model)
+                data = WVS_mixed_model,control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
 
-summary(model_3)
+summary_model_3 = summary(model_3) 
 
-
+summary_model_3
 
 
 ```
 
 ```{r}
-anova(model0,model1)
-anova(model1,model_2)
-anova(model_2,model_3) 
+# Define anova_results list with multiple anova() calls
+anova_results <- list(
+  anova(model0, model1),
+  anova(model1, model_2),
+  anova(model_2, model_3)
+)
+
+anova_results
+
+library(broom)
+library(tibble)
+
+
+
+library(dplyr)
+# Format ANOVA results into a tidy data frame
+anova_summary <- bind_rows(lapply(anova_results, tidy), .id = "Comparison")
+
+# Print the summary table
+print(anova_summary)
+
+```
+```{r}
+# Extract random effects for 'country'
+# Assuming 'model' is your fitted lmer model
+random_effects <- ranef(model_2)
+random_effects
+
+
+
+
+
+
+```
+```{r}
+regression_results_WVS <- WVS_data %>%
+  group_by(country) %>%
+  do(model = lm(Z_score_risktaking ~ scale(age) + gender, data = .)) %>%
+  summarize(
+    country = first(country),
+    intercept_regression = coef(summary(model))[1, 1],
+    slope_age_regression = coef(summary(model))[2, 1],
+    slope_gender_regression = coef(summary(model))[3, 1]
+  )
+
+regression_results_WVS
+
+random_effects <- ranef(model_2)
+random_effects
+
+colnames(random_effects)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ```
 
 ```{r}
@@ -780,7 +932,7 @@ model <- lmer(T_score_risktaking ~ scale(z_score_age) * mental_health +
                factor(education) + factor(employed) +
                (1 + scale(z_score_age) + factor(married) + factor(children) + 
                 factor(education) + factor(employed) | country),
-             data = new_data)
+             data = new_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
 
 
 summary(model)
@@ -792,6 +944,9 @@ coefficients_df <- data.frame(summary(model)$coefficients)
 
 # Write coefficients to a CSV file
 write.csv(coefficients_df, "model_coefficients.csv", row.names = TRUE)
+
+```
+```{r}
 
 ```
 
