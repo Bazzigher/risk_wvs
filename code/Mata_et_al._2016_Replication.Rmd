@@ -153,7 +153,7 @@ data$education = ifelse(data$education < 4, 0, 1) # education: no primary vs. pr
 ```{r}
 library(readxl)
 
-excel_path <- "\\\\kt.ktzh.ch\\Personal\\Home01\\B117T23\\Documents\\Laura Bazzigher\\Privat\\Studium\\Riskktaking\\Data\\Hardship_complete.xlsx"
+excel_path <- "\\\\kt.ktzh.ch\\Personal\\Home01\\B117T23\\Documents\\Laura Bazzigher\\Privat\\Studium\\Riskktaking\\Data\\Hardship_complete_2024.xlsx"
 countryfacts <- read_excel(excel_path)
 
 labels <- c("code", "country", "codeWVS", "Homicide", "GDP", "InfMort", "LifeExp", "GINI", "GenderPEdu")
@@ -161,9 +161,8 @@ names(countryfacts) <- labels
 
 unique(data$country) %in% countryfacts$codeWVS # check that all countries in the subset of the WVS data are included in the countryfacts file
 
-##### Haiti is not in the countryfacts list ##### countryfacts data 
+countryfacts
 ```
-
 
 # Plot histogram of hardship indicators and transform skewed indicators
 ```{r}
@@ -190,6 +189,7 @@ countryfacts$Homicide=log(countryfacts$Homicide)
 countryfacts$GDP=log(countryfacts$GDP)
 countryfacts$InfMort=log(countryfacts$InfMort)
 countryfacts$LifeExp=log(countryfacts$LifeExp)
+countryfacts
 ```
 
 # scale and reverse
@@ -200,6 +200,7 @@ countryfacts$InfMort=scale(countryfacts$InfMort)
 countryfacts$LifeExp=scale(-countryfacts$LifeExp)
 countryfacts$GINI=scale(countryfacts$GINI)
 countryfacts$GenderPEdu=scale(-countryfacts$GenderPEdu)
+countryfacts
 
 panel.hist(countryfacts[,4:9]) # plot histogram of country indicators
 dev.print(postscript,"histindicatorstrans.eps",width=6, height=6,horizontal=FALSE,onefile=FALSE)
@@ -214,6 +215,7 @@ countryfacts$InfMort <- as.numeric(countryfacts$InfMort)
 countryfacts$LifeExp <- as.numeric(countryfacts$LifeExp)
 countryfacts$GINI <- as.numeric(countryfacts$GINI)
 countryfacts$GenderPEdu <- as.numeric(countryfacts$GenderPEdu)
+countryfacts
 ```
 
 # This code does not work. I do not understand why, all the variables are numeric but it always says, that they are not. Since out counrtyfacts-document has no missing values, I do not run it.```{r}
@@ -223,7 +225,7 @@ countryfacts$GenderPEdu <- as.numeric(countryfacts$GenderPEdu)
 #{
 #  countryfacts[is.na(countryfacts[,counter]),counter]=median(countryfacts[,counter],na.rm=TRUE)
 #}
-#```
+``
 
 ```{r}
 # IMPUTE hardship indicators w/ median
@@ -237,12 +239,13 @@ for (counter in 4:9) {
   # Impute missing values with the median
   countryfacts[[counter]][is.na(countryfacts[[counter]])] <- median(countryfacts[[counter]], na.rm = TRUE)
 }
+countryfacts
 ```
-
 
 # Create a Hardship Index 
 ```{r}
-countryfacts$hardship=(countryfacts$Homicide+countryfacts$GDP+countryfacts$InfMort+countryfacts$LifeExp+countryfacts$GINI+countryfacts$GenderPEdu)/6
+countryfacts$hardship = (countryfacts$Homicide + countryfacts$GDP + countryfacts$InfMort + countryfacts$LifeExp + countryfacts$GINI + countryfacts$GenderPEdu) / 6
+countryfacts
 ```
 
 # SUP MATERIALS:Correlation between hardship indicators 
@@ -290,7 +293,6 @@ for(row in 1:length(countries))
     data[data$country==countries[row],"hardship"]=rep(countryfacts[countryfacts$codeWVS==countries[row],"hardship"],length(sum(data$country==countries[row])))
   }
 }
-data$country_lab=relevel(factor(data$country_lab),ref="USA") # make USA the reference level in case we want to make direct comparisons between countries
 ```
 
 # Transfrom risk item such that high values represent more risk taking
@@ -306,6 +308,31 @@ data$risk_ord=data$risk
 # Transform risk variable into T-score (mean = 50, sd = 10)
 ```{r}
 data$risk = 10*scale(data$risk, center=TRUE,scale=TRUE)+50
+head(data)
+```
+
+
+# New code Laura (to compare with new code): Checking Log Transformation and Scaling/Reversing
+```{r}
+library(ggplot2)
+
+summary(countryfacts[, c("Homicide", "GDP", "InfMort", "LifeExp")])
+# Visualize distributions before and after transformation
+ggplot(countryfacts, aes(x = GDP)) + 
+  geom_histogram(bins = 20, fill = "lightblue", color = "black") +
+  ggtitle("Distribution of GDP Before Transformation") +
+  xlab("GDP") + ylab("Frequency")
+
+ggplot(countryfacts, aes(x = scale(-GDP))) + 
+  geom_histogram(bins = 20, fill = "lightblue", color = "black") +
+  ggtitle("Distribution of GDP After Scaling/Reversing") +
+  xlab("Scaled/Reversed GDP") + ylab("Frequency")
+```
+
+
+# New code Laura (to compare with new code): Checking Effectiveness of Imputation Method
+```{r}
+summary(countryfacts[, c("Homicide", "GDP", "InfMort", "LifeExp", "GINI", "GenderPEdu")])
 ```
 
 # MIXED-EFFECTS LINEAR MODELING 
