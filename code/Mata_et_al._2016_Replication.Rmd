@@ -173,24 +173,10 @@ unique(data$country) %in% countryfacts$codeWVS # check that all countries in the
 countryfacts
 ```
 
-
-##### Plot histogram of hardship indicators and transform skewed indicators
+# CHECK New code Laura
+##### Checking Effectiveness BEFORE Imputation Method (to compare with new code)
 ```{r}
-panel.hist = function(x)
-{
-  layout(matrix(c(1:6), 2, 3, byrow = TRUE))
-  par(mar=c(5,5,2,1))
-  labels=names(x)
-  for (counter in 1:ncol(x))
-  {
-    if(is.numeric(x[, counter])) {
-      hist(x[,counter],las=1,main=labels[counter],xlab="")
-    }
-  }
-}
-
-panel.hist(countryfacts[,4:9]) # plot histogram of country indicators
-dev.print(postscript,"histindicators.eps",width=6, height=6,horizontal=FALSE,onefile=FALSE)
+summary(countryfacts[, c("Homicide", "GDP", "InfMort", "LifeExp", "GINI", "GenderPEdu")])
 ```
 
 # log transform
@@ -202,6 +188,13 @@ countryfacts$LifeExp=log(countryfacts$LifeExp)
 countryfacts
 ```
 
+# CHECK New code Laura
+##### Checking Effectiveness AFTER Imputation Method (to compare with new code)
+```{r}
+summary(countryfacts[, c("Homicide", "GDP", "InfMort", "LifeExp", "GINI", "GenderPEdu")])
+```
+
+
 # scale and reverse
 ```{r}
 countryfacts$Homicide=scale(countryfacts$Homicide)
@@ -212,8 +205,8 @@ countryfacts$GINI=scale(countryfacts$GINI)
 countryfacts$GenderPEdu=scale(-countryfacts$GenderPEdu)
 countryfacts
 
-panel.hist(countryfacts[,4:9]) # plot histogram of country indicators
-dev.print(postscript,"histindicatorstrans.eps",width=6, height=6,horizontal=FALSE,onefile=FALSE)
+#panel.hist(countryfacts[,4:9]) # plot histogram of country indicators
+#dev.print(postscript,"histindicatorstrans.eps",width=6, height=6,horizontal=FALSE,onefile=FALSE)
 ```
 
 # Convert into numerical variables
@@ -365,7 +358,6 @@ model0 = lmer(risk ~ 1 + (1|country),data = data)
 summary_model0=summary(model0)
 summary_model0
 ```
-
 # model1
 #### age, sex 
 ```{r}
@@ -450,4 +442,5 @@ plot.fit(regiondata$hardship,regiondata[,4],"Hardship","Sex Effect",regiondata$c
 
 #```{r}
 data$education_cat[education < 3] = "incomplete or no primary education"
+
 ```
