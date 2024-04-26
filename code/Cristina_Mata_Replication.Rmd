@@ -1,0 +1,591 @@
+---
+title: "Mata_Replication_Cristina"
+output: html_document
+date: "2024-04-26"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+rm(list = ls())
+
+library(data.table)
+library(tidyr)
+library(maps)
+library(haven)
+library(ggplot2)
+library(dplyr)
+```
+
+```{r}
+##### We first prepare World Values Survey (WVS) data 
+##### We (e.g., exclude cases that have missing information on key variables, such as age, sex, 
+##### education, etc.; dichotomize variables; transform risk taking item)
+dateipfad <- "/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS"
+
+data_wv5 <- readRDS(file.path(dateipfad, "F00007944-WV5_Data_R_v20180912.rds"))
+
+load(file.path(dateipfad, "WV6_Data_R_v20201117.rdata"))
+head(data_wv5)
+head(WV6_Data_R_v20201117)
+```
+
+```{r}
+countrynames <- read.csv(file.path(dateipfad, "countrynames.txt"), header = FALSE, as.is = TRUE)
+```
+
+```{r}
+# select a subset (Wave 5) of the WVS data, including wave, country, 10 Schwartz items (including the risk item), and demographics
+data5 <- data_wv5[, c("V1", "V2", "V80","V81","V82","V83","V84","V85","V86","V87","V88","V89", "V235", "V237", "V238", "V241", "V55", "V56", "V260")]
+names(data5) <- c("wave", "country","creativity","money","security","goodtime","help","success","risk","proper","environment","tradition", "sex", "age", "education", "employed", "married", "children", "year")
+head(data5)
+
+```
+
+```{r}
+# DATA CHECK: comparing the N from data5 against the counts from counts provided in www.worldvaluessurvey.org
+data5[,"country_lab"]=NA
+countries=unique(data5$country)
+for(row in 1:length(countries))
+{
+  data5[data5$country==countries[row],"country_lab"]=countrynames[countrynames[,1]==countries[row],2]
+}
+table(data5$country_lab)
+```
+```{r}
+# select a subset of the WVS data (Wave 6), including wave, country, 10 Schwartz items (including the risk item), and demographics 
+
+data6 = WV6_Data_R_v20201117[, c("V1", "V2","V70","V71","V72","V73","V74B","V75","V76","V77","V78","V79", "V240", "V242", "V248", "V229", "V57", "V58", "V262")]
+names(data6) = c("wave", "country","creativity","money","security","goodtime","help","success","risk","proper","environment","tradition", "sex", "age", "education", "employed", "married", "children", "year")
+
+head(data6)
+```
+```{r}
+data6[,"country_lab"]=NA
+countries=unique(data6$country)
+for(row in 1:length(countries))
+{
+  data6[data6$country==countries[row],"country_lab"]=countrynames[countrynames[,1]==countries[row],2] 
+}
+table(data6$country_lab)
+```
+```{r}
+# Data looks ok so we bind the two waves...
+data = rbind(data5, data6)
+data
+
+# Eindeutige Kombinationen von country_lab und country aus data
+unique_countries <- unique(data[, c("country_lab", "country")])
+unique_countries
+
+```
+```{r}
+# PARTICIPANT EXCLUSION: We exclude individuals for which we do not know sex, age, education, employment status, marital status, or number of children
+data = subset(data, risk > 0 & sex > 0 & age >0 & education > 0 & employed > 0 & married > 0 & children >= 0)
+data
+```
+```{r}
+length(unique(data$country)) # number of countries
+nrow(data) # number of individuals
+range(data$age) # age
+table(data$sex) # sex table(data$sex)/nrow(data)
+```
+
+```{r}
+# create a categorical age variable (for example, to plot response frequencies by category)
+data$agecat[data$age<20]="15-19"
+data$agecat[data$age>=20 & data$age <30] = "20-29"
+data$agecat[data$age>=30 & data$age <40] = "30-39"
+data$agecat[data$age>=40 & data$age <50] = "40-49"
+data$agecat[data$age>=50 & data$age <60] = "50-59"
+data$agecat[data$age>=60 & data$age <70] = "60-69"
+data$agecat[data$age>=70 & data$age <80] = "70-79"
+data$agecat[data$age>=80] = "80+"
+
+table(data$age)
+table(data$agecat)
+```
+```{r}
+#EDUCATION
+#1 No formal education
+#2 Incomplete primary school
+#3 Complete primary school
+#4 Incomplete secondary school: technical/vocational type
+#5 Complete secondary school: technical/vocational type
+#6 Incomplete secondary: university-preparatory type
+#7 Complete secondary: university-preparatory type
+#8 Some university-level education, without degree
+#9 University-level education, with degree
+
+# create a categorical education variable (with fewer categories than the original)
+attach(data)
+data$education_cat[education < 3] = "incomplete or no primary education"
+data$education_cat[education > 2 & education <= 6] <- "no uni"
+data$education_cat[education >= 7] <- "uni"
+detach(data)
+table(data$education)
+```
+
+```{r}
+#EMPLOYED
+#Yes, has paid employment:
+#Full time employee (30 hours a week or more) 1 
+#Part time employee (less than 30 hours a week) 2 
+#Self employed 3
+#No, no paid employment:
+#Retired/pensioned 4 
+#Housewife not otherwise employed 5
+#Student 6 
+#Unemployed 7
+#Other (write in): 8
+
+# Dichotomizing Variables: This helps estimating and interpreting the models later on...
+data$sex = ifelse(data$sex == 1, 0, 1) # sex: male vs. female
+data$children = ifelse(data$children == 0, 0, 1) # children: no vs. yes
+data$married = ifelse(data$married == 1, 1, 0) # married: yes vs. no
+data$employed = ifelse(data$employed < 4, 1, 0) # employed: yes vs. no
+data$education = ifelse(data$education < 4, 0, 1) # education: no primary vs. primary+
+```
+
+```{r}
+# Read in country names, assign country labels to WVS data, and add the hardship indicators + hardship index 
+# (see below for more analyses on the hardship index)
+
+# read in file that contains hardship indicators manually collected from CIA factbook, WHO, and World Bank 
+# (see Supplemental Materials for URL sources)
+library(readxl)
+countryfacts <- read_excel("/Users/cristinacandido/Documents/Github/risk_wvs/code/Hardship_complete_2024.xlsx")
+labels=c("code","country","codeWVS","Homicide","GDP","InfMort","LifeExp","GINI","GenderPEdu","code2")
+names(countryfacts)=labels
+
+missings=colSums(is.na(countryfacts[,4:9]))/77 # proportion of missing values for each of the hardship indicators
+
+unique(data$country) %in% countryfacts$codeWVS # check that all countries in the subset of the WVS data are included in the countryfacts file
+countryfacts
+```
+```{r}
+# Plot histogram of hardship indicators and transform skewed indicators
+panel.hist = function(x)
+{
+  layout(matrix(c(1:6), 2, 3, byrow = TRUE))
+  par(mar=c(5,5,2,1))
+  labels=names(x)
+  for (counter in 1:ncol(x))
+  {
+    if(is.numeric(x[, counter])) {
+      hist(x[,counter],las=1,main=labels[counter],xlab="")
+    }
+  }
+}
+
+panel.hist(countryfacts[,4:9]) # plot histogram of country indicators
+dev.print(postscript,"histindicators.eps",width=6, height=6,horizontal=FALSE,onefile=FALSE)
+
+```
+
+```{r}
+# log transform
+countryfacts$Homicide=log(countryfacts$Homicide)
+countryfacts$GDP=log(countryfacts$GDP)
+countryfacts$InfMort=log(countryfacts$InfMort)
+countryfacts$LifeExp=log(countryfacts$LifeExp)
+
+# scale and reverse
+countryfacts$Homicide=scale(countryfacts$Homicide)
+countryfacts$GDP=scale(-countryfacts$GDP)
+countryfacts$InfMort=scale(countryfacts$InfMort)
+countryfacts$LifeExp=scale(-countryfacts$LifeExp)
+countryfacts$GINI=scale(countryfacts$GINI)
+countryfacts$GenderPEdu=scale(-countryfacts$GenderPEdu)
+
+countryfacts
+```
+
+```{r}
+panel.hist(countryfacts[,4:9]) # plot histogram of country indicators
+dev.print(postscript,"histindicatorstrans.eps",width=6, height=6,horizontal=FALSE,onefile=FALSE)
+```
+
+```{r}
+# Convert into numerical variables
+#### not in the original code 
+
+countryfacts$Homicide <- as.numeric(countryfacts$Homicide)
+countryfacts$GDP <- as.numeric(countryfacts$GDP)
+countryfacts$InfMort <- as.numeric(countryfacts$InfMort)
+countryfacts$LifeExp <- as.numeric(countryfacts$LifeExp)
+countryfacts$GINI <- as.numeric(countryfacts$GINI)
+countryfacts$GenderPEdu <- as.numeric(countryfacts$GenderPEdu)
+countryfacts
+```
+
+```{r}
+for (counter in 4:9) {
+  # Convert the column to numeric (in case it's not already numeric)
+  countryfacts[[counter]] <- as.numeric(as.character(countryfacts[[counter]]))
+  
+  # Replace non-numeric values with NA
+  countryfacts[[counter]][!is.na(countryfacts[[counter]]) & !is.numeric(countryfacts[[counter]])] <- NA
+  
+  # Impute missing values with the median
+  countryfacts[[counter]][is.na(countryfacts[[counter]])] <- median(countryfacts[[counter]], na.rm = TRUE)
+}
+countryfacts
+```
+```{r}
+# Create a Hardship Index 
+countryfacts$hardship=(countryfacts$Homicide+countryfacts$GDP+countryfacts$InfMort+countryfacts$LifeExp+countryfacts$GINI+countryfacts$GenderPEdu)/6
+countryfacts
+```
+```{r}
+# SUP MATERIALS:Correlation between hardship indicators 
+# Plot scatter plot matrix
+panel.cor = function(x, y, digits = 2, cex.cor, ...)
+{
+  usr = par("usr"); on.exit(par(usr))
+  par(usr = c(0, 1, 0, 1))
+  # correlation coefficient
+  r = cor(x, y,use="complete.obs")
+  txt = format(c(r, 0.123456789), digits = digits)[1]
+  txt = paste("r= ", txt, sep = "")
+  text(0.5, 0.6, txt)
+  
+  # p-value calculation
+  p = cor.test(x, y,use="complete.obs")$p.value
+  txt2 = format(c(p, 0.123456789), digits = digits)[1]
+  txt2 = paste("p= ", txt2, sep = "")
+  if(p<0.01) txt2 = paste("p ", "<0.01", sep = "")
+  text(0.5, 0.4, txt2)
+}
+pairs(countryfacts[,4:10], upper.panel = panel.cor,las=1,cex.labels=.9) 
+dev.print(postscript,"scatter_indicators.eps",width=8, height=8,horizontal=FALSE,onefile=FALSE)
+```
+```{r}
+# Cronbach's alpha for Hardship Indicators
+library(psych)
+alpha(countryfacts[,4:9]) # calculate consistency (Cronbach's alpha) for the hardship indicators
+```
+```{r}
+data[,"country_lab"]=NA
+data[,"hardship"]=NA
+countries=unique(data$country)
+for(row in 1:length(countries))
+{
+  data[data$country==countries[row],"country_lab"]=countryfacts[countryfacts$codeWVS==countries[row],"code"]
+  
+  if(!is.na(countryfacts[countryfacts$codeWVS==countries[row],"hardship"]))
+  {
+    data[data$country==countries[row],"hardship"]=rep(countryfacts[countryfacts$codeWVS==countries[row],"hardship"],length(sum(data$country==countries[row])))
+  }
+}
+
+
+countryfacts
+length(unique(data$country)) 
+```
+
+```{r}
+# Transfrom risk item such that high values represent more risk taking
+data$risk = 6 - data$risk + 1
+
+# Risk item as ordinal variable 
+data$risk_ord=data$risk 
+  
+# Transform risk variable into T-score (mean = 50, sd = 10)
+data$risk = 10*scale(data$risk, center=TRUE,scale=TRUE)+50
+
+data
+```
+
+```{r}
+model0 = lmer(risk ~ 1 + (1|country),data = data)
+summary_model0=summary(model0)
+
+summary_model0
+```
+
+```{r}
+# age, sex 
+model1 = lmer(risk ~ 1+scale(age)+factor(sex) + (1+scale(age)+factor(sex)|country),data = data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
+summary_model1=summary(model1)
+
+summary_model1
+
+
+```
+
+```{r}
+model2 = lmer(risk ~ 1+scale(age)+factor(sex) + factor(children) + factor(married) + factor(employed) + factor(education)+ (1+scale(age)+factor(sex)+ factor(children) + factor(married) + factor(employed) + factor(education)|country),data = data, control=lmerControl(optCtrl=list(maxfun=100000),optimizer="bobyqa"))
+summary_model2=summary(model2)
+
+summary_model2
+```
+
+```{r}
+model3 <- lmer(risk ~ 1+scale(age)*hardship+factor(sex)*hardship + factor(children) + factor(married) + factor(employed) + factor(education)+ (1+scale(age)+factor(sex)+ factor(children) + factor(married) + factor(employed) + factor(education)|country),data = data,control=lmerControl(optCtrl=list(maxfun=100000),optimizer="bobyqa"),REML = FALSE)
+summary_model3=summary(model3)
+summary_model3
+
+data
+
+
+
+```
+
+```{r}
+anova(model0,model1)
+anova(model1,model2)
+anova(model2,model3)
+```
+```{r}
+coefsallmodels=rbind(summary_model1$coefficients,
+summary_model2$coefficients,
+summary_model3$coefficients[c(1:2,4:8,3,9:10),])
+
+write.csv(coefsallmodels,"coefsallmodels.csv")
+```
+
+```{r}
+# use scatterplots to plot correlations between hardship index and random effect estimates from Model 2 (without hardship as predictor)
+modelcoefs=ranef(model2)$country
+modelcoefs$codeWVS=row.names(modelcoefs)
+regiondata=merge(modelcoefs,countryfacts,by="codeWVS") # merge matrices to include the hardship composite
+
+
+```
+
+```{r}
+library(wordcloud) # this helps with the display of the text labels cf. textplot() function below
+plot.fit=function(x,y,xlab,ylab,labels,coef,ylims)
+{
+  y=y+coef # put random effects on the same scale as the fixed effects
+  plot(x,y,xlab=xlab,ylab=ylab,las=1,pch=21,bg="grey",col="grey",cex=.5,cex.axis=.7,xlim=c(-2,2),ylim=ylims,bty="n")
+
+  model=lm(y~x)
+  abline(model,lwd=2,col="grey")
+  r2=summary(model)$r.squared
+  fstatistic=summary(model)$fstatistic
+  p=pf(fstatistic[1], fstatistic[2], fstatistic[3],lower.tail=F)
+  n=sum(!is.na(x))
+  mylabel1 = bquote(italic(R)^2 == .(format(r2, digits = 1)))
+  mylabel2 = bquote(italic(p) == .(format(p, digits = 1)))
+  mylabel3 = bquote(italic(N) == .(format(n, digits = 1)))
+  legend("topleft", bty="n", legend= mylabel1,text.col="black",cex=1.2)
+  #legend("bottom", bty="n", legend= mylabel2,text.col="black",cex=.8,xjust=0)
+  #legend("bottomleft", bty="n", legend= mylabel3,text.col="black",cex=.8)
+  #text(x,y,labels=labels,cex=.8)
+  textplot(x,y,labels,new=FALSE,col="black",show.lines=FALSE,ylim=ylims,cex=.6)
+}
+layout(matrix(c(1:3), 1, 3, byrow = TRUE))
+par(mar=c(5,5,1,1))
+coefs=fixef(model2)
+plot.fit(regiondata$hardship,regiondata[,2],"Hardship","Intercept",regiondata$code2,coefs[1],c(46,58))
+plot.fit(regiondata$hardship,regiondata[,3],"Hardship","Age Effect",regiondata$code2,coefs[2],c(-3,.5))
+plot.fit(regiondata$hardship,regiondata[,4],"Hardship","Sex Effect",regiondata$code2,coefs[3],c(-5,0))
+```
+```{r}
+# compute zero-order correlations between Model 2 coefficients and hardship 
+cor.test(regiondata$hardship,regiondata[,2])
+cor.test(regiondata$hardship,regiondata[,3])
+cor.test(regiondata$hardship,regiondata[,4])
+```
+
+```{r}
+# SUP MATERIALS: use scatterplots to plot correlations between each hardship indicator and random effect estimates from Model 2 (without hardship as predictor)
+plot.fit=function(x,y,xlab,ylab,labels,coef,ylims)
+{
+  y=y+coef # put random effects on the same scale as the fixed effects
+  plot(x,y,xlab=xlab,ylab=ylab,las=1,pch=21,bg="grey",col="grey",cex.axis=.8,cex.lab=.8)
+  model=lm(y~x)
+  abline(model,lwd=2,col="grey")
+  r2=summary(model)$r.squared
+  fstatistic=summary(model)$fstatistic
+  p=pf(fstatistic[1], fstatistic[2], fstatistic[3],lower.tail=F)
+  n=sum(!is.na(x))
+  mylabel1 = bquote(italic(R)^2 == .(format(r2, digits = 1)))
+  mylabel2 = bquote(italic(p) == .(format(p, digits = 1)))
+  mylabel3 = bquote(italic(N) == .(format(n, digits = 1)))
+  legend("topleft", bty="n", legend= mylabel1,text.col="black",cex=.8)
+  legend("bottom", bty="n", legend= mylabel2,text.col="black",cex=.8,xjust=0)
+  legend("bottomleft", bty="n", legend= mylabel3,text.col="black",cex=.8)
+  #text(x,y,labels=labels)
+}
+layout(matrix(c(1:18), 6, 3, byrow = TRUE))
+par(mar=c(4,4,1,1))
+for(counter in 1:6)
+{
+  plot.fit(regiondata[,counter+10],regiondata[,2],labels[counter+3],"Intercept",regiondata$code,coefs[1],c(46,58))
+  plot.fit(regiondata[,counter+10],regiondata[,3],labels[counter+3],"Age Effect",regiondata$code,coefs[2],c(-3,.5))
+  plot.fit(regiondata[,counter+10],regiondata[,4],labels[counter+3],"Sex Effect",regiondata$code,coefs[3],c(-5,0))
+}
+```
+```{r}
+# PLOTTING:
+# Plot fixed and random (country specific) effects from Model 2 
+# (the model without hardship) in two figures with a total of 78 subplots (average of ALL countries + 77 individual countries)
+countrycodes = sort(as.numeric(modelcoefs$codeWVS))
+countrycodes=countrycodes[order(countryfacts[, "country"])]
+
+par(oma=c(1,1,1,1))
+mat=matrix(c(1,1,2,3,1,1,4:41),11, 4, byrow = TRUE)
+layout(mat)
+par(mar=c(1,2,0,1))
+layout.show(41)
+
+results = data.frame(matrix(data = NA, nrow = length(countrycodes), ncol = 15))
+names(results) = c("country", "code", "n", "females","meannage","minage","maxage","hardship","intercept","age", "sex","children","married","employ","education")
+
+countrycodes
+
+```
+```{r}
+# Plot fixed (average) effects from Model 2 (the model without hardship) in the first subplot
+#smoothScatter(data$age,data$risk,las=1,xaxt="n",yaxt="n",xlab="Age",ylab="Risk-Taking Propensity",bty="n",main="ALL",cex.main=.8,nrpoints=0,xlim=c(15,85),ylim=c(35,69),cex.lab=.6)
+smoothScatter(data$age,data$risk,las=1,xaxt="n",yaxt="n",xlab="Age",ylab="Risk-Taking Propensity",bty="n",main="",cex.main=.8,nrpoints=0,xlim=c(15,85),ylim=c(35,69),cex.lab=.6)
+
+axis(1, at = c(15, 85), labels=c("15","85"),cex.axis = 0.7,tck = -.01,line=0,mgp=c(3, .02, 0))
+axis(2, at = c(35, 65),labels=c(35,65), las = 1, cex.axis = 0.7,tck = -.01,line=0,mgp=c(3, .3, 0))
+mtext("Age", 1, line=0, cex = 0.5)
+#mtext("Risk Taking (T-score)", 2, line=1, cex = 0.6)
+mtext(expression(Risk~Taking~(italic(T)-score)), 2, line=1, cex = 0.5)
+text(73,68,"All Countries")
+
+coefs=fixef(model2)
+
+regline=function(x)
+{
+  coefs[1]+coefs[2]*x+coefs[4]*.5+coefs[5]*.5+coefs[6]*.5+coefs[7]*.5
+}
+lines(mean(data$age)+seq(-3,3,.1)*sd(data$age),regline(seq(-3,3,.1)),lty=1,lwd=3,col="red")
+regline=function(x)
+{
+  coefs[1]+coefs[2]*x+coefs[3]+coefs[4]*.5+coefs[5]*.5+coefs[6]*.5+coefs[7]*.5
+}
+lines(mean(data$age)+seq(-3,3,.1)*sd(data$age),regline(seq(-3,3,.1)),lty=2,lwd=3,col="red")
+
+# Plot all other random (country) effects in 40 subplots
+for (counter in 1:40) { #40
+  subdata = subset(data, country == countrycodes[counter])
+  
+  label = countryfacts[countrycodes[counter] == countryfacts$codeWVS, "country"]
+  code = countryfacts[countrycodes[counter] == countryfacts$codeWVS, "code"]
+  code2 = countryfacts[countrycodes[counter] == countryfacts$codeWVS, "code2"]
+  hardship = countryfacts[countrycodes[counter] == countryfacts$codeWVS, "hardship"]
+  
+  #par(mar=c(1,1,1,1))
+```
+```{r}
+  # plot raw data in using a density plot (smoothScatter)
+  smoothScatter(subdata$age,subdata$risk,las=1,xaxt="n",yaxt="n",xlab="Age",ylab= "Risk-Taking Propensity",bty="n",main=label,cex.main=.8,nrpoints=0,xlim=c(15,85),ylim=c(35,69))
+  smoothScatter(subdata$age,subdata$risk,las=1,xaxt="n",yaxt="n",xlab="Age",ylab= "Risk-Taking Propensity",bty="n",main="",cex.main=.8,nrpoints=0,xlim=c(15,85),ylim=c(35,69))
+  
+  text(80,65,code2,cex=.9)
+  #axis(1, at = c(15, 85), labels=c("15","85"),cex.axis = 0.5,tck = -.05,line=0,mgp=c(3, .02, 0))
+  #axis(2, at = c(35, 65),labels=c(35,65), las = 1, cex.axis = 0.5,tck = -.05,line=0,mgp=c(3, .3, 0))
+  axis(1, at = c(15, 85), labels=c("15","85"),cex.axis = 0.7,tck = -.01,line=0,mgp=c(3, .02, 0))
+  axis(2, at = c(35, 65),labels=c(35,65), las = 1, cex.axis = 0.7,tck = -.01,line=0,mgp=c(3, .3, 0))
+  
+  coefsmain=as.numeric(fixef(model2))
+  coefs=as.numeric(modelcoefs[modelcoefs[,"codeWVS"]== countrycodes[counter],1:7])+coefsmain
+  
+  results[counter,]=c(label,code,nrow(subdata),sum(subdata$sex==1)/length(subdata$sex),mean(subdata$age),min(subdata$age),max(subdata$age),round(hardship,2),coefs)
+  
+```
+```{r}
+# plot the regression lines based on coefficients from Model 2
+  regline=function(x)
+  {
+    coefs[1]+coefs[2]*x+coefs[4]*.5+coefs[5]*.5+coefs[6]*.5+coefs[7]*.5
+  }
+  lines(mean(data$age)+seq(-3,3,.1)*sd(data$age),regline(seq(-3,3,.1)),lty=1,lwd=2,col="red")
+  regline=function(x)
+  {
+    coefs[1]+coefs[2]*x+coefs[3]+coefs[4]*.5+coefs[4]*.5+coefs[6]*.5+coefs[7]*.5
+  }
+  lines(mean(data$age)+seq(-3,3,.1)*sd(data$age),regline(seq(-3,3,.1)),lty=2,lwd=2,col="red")
+  
+}
+
+dev.print(postscript,"fig2_part1_v3.eps",width=6, height=8,horizontal=FALSE,onefile=FALSE)
+
+
+mat=matrix(c(1:40),10, 4, byrow = TRUE)
+layout(mat)
+layout.show(40)
+
+#par(oma=c(1,1,1,1))
+#par(mar=c(1,2,1,1))
+for (counter in 41:77) {
+  show(counter)
+  subdata = subset(data, country == countrycodes[counter])
+  
+  label = countryfacts[countrycodes[counter] == countryfacts$codeWVS, "country"]
+  code = countryfacts[countrycodes[counter] == countryfacts$codeWVS, "code"]
+  code2 = countryfacts[countrycodes[counter] == countryfacts$codeWVS, "code2"]
+  hardship = countryfacts[countrycodes[counter] == countryfacts$codeWVS, "hardship"]
+  
+  #par(mar=c(1,1,1,1))
+
+
+
+```
+```{r}
+
+#PLOT FREQUENCIES
+sizeaxis=.8
+layout(matrix(c(1,2), 2, 1, byrow = TRUE))
+par(mar=c(5,5,2,1))
+colors=colorRampPalette(c("white", "steelblue"))(6) 
+datasub=subset(data,sex==0)
+counts=table(datasub$risk_ord, datasub$agecat)
+show(colSums(counts))
+counts=sweep(counts,2,colSums(counts),`/`)
+
+barplot(counts,las=1,col=colors,ylab="Proportion",cex.names=sizeaxis,cex.axis=sizeaxis)
+mtext("A", side = 3, line = -1, outer = FALSE,at=-2,cex=1.3)
+
+colors=colorRampPalette(c("white", "pink"))(6) 
+datasub=subset(data,sex==1)
+counts=table(datasub$risk_ord, datasub$agecat)
+show(colSums(counts))
+counts=sweep(counts,2,colSums(counts),`/`)
+barplot(counts,las=1,col=colors,ylab="Proportion",cex.names=sizeaxis,cex.axis=sizeaxis)
+mtext("B", side = 3, line = -1, outer = FALSE,at=-2,cex=1.3)
+
+dev.print(postscript,"frequencies_risk.eps",width=7, height=6,horizontal=FALSE,onefile=FALSE)
+
+
+```
+```{r}
+# SINGLE PLOT WITH LINES FOR EACH COUNTRY... 
+countrycodes = sort(as.numeric(modelcoefs$codeWVS))
+countrycodes=countrycodes[order(countryfacts[, "country"])]
+
+#layout(matrix(c(1:9),3, 3, byrow = TRUE))
+par(mar=c(5,5,1,1))
+
+results = data.frame(matrix(data = NA, nrow = length(countrycodes), ncol = 15))
+names(results) = c("country", "code", "n", "females","meannage","minage","maxage","hardship","intercept","age", "sex","children","married","employ","education")
+
+# Plot fixed (average) effects from Model 2 (the model without hardship) in the first subplot
+#smoothScatter(data$age,data$risk,las=1,xaxt="n",yaxt="n",xlab="Age",ylab="Risk-Taking Propensity",bty="n",main="ALL",cex.main=.8,nrpoints=0,xlim=c(15,85),ylim=c(35,69))
+
+plot(c(15,85),c(41,61),xaxt="n",yaxt="n",las=1,xlab="Age",ylab="Risk-Taking Propensity (T-score)",bty="n",type="n")
+
+axis(1, at = seq(15,85,10))
+axis(2, at = seq(40, 60,5),las = 1)
+
+countrycodes
+```
+
+
+
+
