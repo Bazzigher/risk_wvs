@@ -9,6 +9,7 @@ output:
 rm(list = ls())
 ```
 
+# Load data
 ##### We first prepare World Values Survey (WVS) data 
 ##### We (e.g., exclude cases that have missing information on key variables, such as age, sex, 
 ##### education, etc.; dichotomize variables; transform risk taking item)
@@ -21,12 +22,14 @@ load(file.path(dateipfad, "WV6_Data_R_v20201117.rdata"))
 head(data_wv5)
 head(WV6_Data_R_v20201117)
 ```
-# read in a file with the country names and respective numeric codes used in WVS
+# Load Country names
+#####  read in a file with the country names and respective numeric codes used in WVS
 ```{r}
 countrynames <- read.csv(file.path(dateipfad, "countrynames.txt"), header = FALSE, as.is = TRUE) 
 ```
 
-# select a subset of the WVS data (Wave 5), including wave, country, 10 Schwartz items (including the risk item), and demographics
+# Rename WVS5 
+##### select a subset of the WVS data (Wave 5), including wave, country, 10 Schwartz items (including the risk item), and demographics
 ```{r} 
 data5 <- data_wv5[, c("V1", "V2", "V80","V81","V82","V83","V84","V85","V86","V87","V88","V89", "V235", "V237", "V238", "V241", "V55", "V56", "V260")]
 names(data5) <- c("wave", "country","creativity","money","security","goodtime","help","success","risk","proper","environment","tradition", "sex", "age", "education", "employed", "married", "children", "year")
@@ -34,7 +37,8 @@ head(data5)
 ```
 
 
-# DATA CHECK: comparing the N from data5 against the counts from counts provided in www.worldvaluessurvey.org
+# DATA CHECK
+##### comparing the N from data5 against the counts from counts provided in www.worldvaluessurvey.org
 ```{r}
 data5[,"country_lab"]=NA
 countries=unique(data5$country)
@@ -45,14 +49,15 @@ for(row in 1:length(countries))
 table(data5$country_lab)
 ```
 
-# select a subset of the WVS data (Wave 6), including wave, country, 10 Schwartz items (including the risk item), and demographics 
+# Rename WVS6 
+##### select a subset of the WVS data (Wave 6), including wave, country, 10 Schwartz items (including the risk item), and demographics 
 ```{r}
 data6 = WV6_Data_R_v20201117[, c("V1", "V2","V70","V71","V72","V73","V74B","V75","V76","V77","V78","V79", "V240", "V242", "V248", "V229", "V57", "V58", "V262")]
 names(data6) = c("wave", "country","creativity","money","security","goodtime","help","success","risk","proper","environment","tradition", "sex", "age", "education", "employed", "married", "children", "year")
 
 head(data6)
 ```
-
+# DATA CHECK
 ```{r}
 data6[,"country_lab"]=NA
 countries=unique(data6$country)
@@ -64,14 +69,14 @@ table(data6$country_lab)
 ```
 
 
-# Data looks ok so we bind the two waves...
+# Bind data 
+##### Data looks ok so we bind the two waves...
 ```{r}
 data = rbind(data5, data6)
 head(data)
 ```
 # Laura: Check Country and Country-nr
 ```{r}
-# Eindeutige Kombinationen von country_lab und country aus data
 unique_countries <- unique(data[, c("country_lab", "country")])
 unique_countries
 ```
@@ -88,7 +93,8 @@ range(data$age) # age
 table(data$sex) # sex table(data$sex)/nrow(data)
 ```
 
-# create a categorical age variable (for example, to plot response frequencies by category)
+# Age category 
+##### create a categorical age variable (for example, to plot response frequencies by category)
 ```{r}
 data$agecat[data$age<20]="15-19"
 data$agecat[data$age>=20 & data$age <30] = "20-29"
@@ -114,7 +120,8 @@ table(data$agecat)
 #9 University-level education, with degree
 
 
-# create a categorical education variable (with fewer categories than the original)
+# education category
+##### create a categorical education variable (with fewer categories than the original)
 ```{r}
 attach(data)
 data$education_cat[education < 3] = "incomplete or no primary education"
@@ -136,7 +143,8 @@ table(data$education)
 #Other (write in): 8
 
 
-# Dichotomizing Variables: This helps estimating and interpreting the models later on...
+# Dichotomizing Variables
+##### This helps estimating and interpreting the models later on...
 ```{r}
 data$sex = ifelse(data$sex == 1, 0, 1) # sex: male vs. female
 data$children = ifelse(data$children == 0, 0, 1) # children: no vs. yes
@@ -145,10 +153,11 @@ data$employed = ifelse(data$employed < 4, 1, 0) # employed: yes vs. no
 data$education = ifelse(data$education < 4, 0, 1) # education: no primary vs. primary+ 
 ```
 
-# Read in country names, assign country labels to WVS data, and add the hardship indicators + hardship index 
+# Hardship (Countryfacts) 
+##### Read in country names, assign country labels to WVS data, and add the hardship indicators + hardship index 
 #### (see below for more analyses on the hardship index)
 
-# read in file that contains hardship indicators manually collected from CIA factbook, WHO, and World Bank 
+#####  read in file that contains hardship indicators manually collected from CIA factbook, WHO, and World Bank 
 #### (see Supplemental Materials for URL sources)
 ```{r}
 library(readxl)
@@ -164,23 +173,10 @@ unique(data$country) %in% countryfacts$codeWVS # check that all countries in the
 countryfacts
 ```
 
-# Plot histogram of hardship indicators and transform skewed indicators
+# CHECK New code Laura
+##### Checking Effectiveness BEFORE Imputation Method (to compare with new code)
 ```{r}
-panel.hist = function(x)
-{
-  layout(matrix(c(1:6), 2, 3, byrow = TRUE))
-  par(mar=c(5,5,2,1))
-  labels=names(x)
-  for (counter in 1:ncol(x))
-  {
-    if(is.numeric(x[, counter])) {
-      hist(x[,counter],las=1,main=labels[counter],xlab="")
-    }
-  }
-}
-
-panel.hist(countryfacts[,4:9]) # plot histogram of country indicators
-dev.print(postscript,"histindicators.eps",width=6, height=6,horizontal=FALSE,onefile=FALSE)
+summary(countryfacts[, c("Homicide", "GDP", "InfMort", "LifeExp", "GINI", "GenderPEdu")])
 ```
 
 # log transform
@@ -192,6 +188,13 @@ countryfacts$LifeExp=log(countryfacts$LifeExp)
 countryfacts
 ```
 
+# CHECK New code Laura
+##### Checking Effectiveness AFTER Imputation Method (to compare with new code)
+```{r}
+summary(countryfacts[, c("Homicide", "GDP", "InfMort", "LifeExp", "GINI", "GenderPEdu")])
+```
+
+
 # scale and reverse
 ```{r}
 countryfacts$Homicide=scale(countryfacts$Homicide)
@@ -202,8 +205,8 @@ countryfacts$GINI=scale(countryfacts$GINI)
 countryfacts$GenderPEdu=scale(-countryfacts$GenderPEdu)
 countryfacts
 
-panel.hist(countryfacts[,4:9]) # plot histogram of country indicators
-dev.print(postscript,"histindicatorstrans.eps",width=6, height=6,horizontal=FALSE,onefile=FALSE)
+#panel.hist(countryfacts[,4:9]) # plot histogram of country indicators
+#dev.print(postscript,"histindicatorstrans.eps",width=6, height=6,horizontal=FALSE,onefile=FALSE)
 ```
 
 # Convert into numerical variables
@@ -225,8 +228,9 @@ countryfacts
 #{
 #  countryfacts[is.na(countryfacts[,counter]),counter]=median(countryfacts[,counter],na.rm=TRUE)
 #}
-``
+#```
 
+# Impute hardship indicators w/ median
 ```{r}
 # IMPUTE hardship indicators w/ median
 for (counter in 4:9) {
@@ -241,6 +245,7 @@ for (counter in 4:9) {
 }
 countryfacts
 ```
+
 
 # Create a Hardship Index 
 ```{r}
@@ -279,7 +284,8 @@ library(psych)
 alpha(countryfacts[,4:9]) # calculate consistency (Cronbach's alpha) for the hardship indicators
 ```
 
-# add the country label and hardship variables to the data matrix (i.e., data)
+# Add country label and hardship 
+##### add the country label and hardship variables to the data matrix (i.e., data)
 ```{r}
 data[,"country_lab"]=NA
 data[,"hardship"]=NA
@@ -295,7 +301,8 @@ for(row in 1:length(countries))
 }
 ```
 
-# Transfrom risk item such that high values represent more risk taking
+# Transformation Risk item 
+##### Transfrom risk item such that high values represent more risk taking
 ```{r}
 data$risk = 6 - data$risk + 1
 ```
@@ -305,14 +312,16 @@ data$risk = 6 - data$risk + 1
 data$risk_ord=data$risk 
 ```
 
-# Transform risk variable into T-score (mean = 50, sd = 10)
+# Transform risk variable into T-score 
+##### (mean = 50, sd = 10)
 ```{r}
 data$risk = 10*scale(data$risk, center=TRUE,scale=TRUE)+50
 head(data)
 ```
 
 
-# New code Laura (to compare with new code): Checking Log Transformation and Scaling/Reversing
+# CHECK New code Laura 
+##### Checking Log Transformation and Scaling/Reversing (to compare with new code)
 ```{r}
 library(ggplot2)
 
@@ -330,7 +339,8 @@ ggplot(countryfacts, aes(x = scale(-GDP))) +
 ```
 
 
-# New code Laura (to compare with new code): Checking Effectiveness of Imputation Method
+# CHECK New code Laura
+##### Checking Effectiveness of Imputation Method (to compare with new code)
 ```{r}
 summary(countryfacts[, c("Homicide", "GDP", "InfMort", "LifeExp", "GINI", "GenderPEdu")])
 ```
@@ -348,7 +358,6 @@ model0 = lmer(risk ~ 1 + (1|country),data = data)
 summary_model0=summary(model0)
 summary_model0
 ```
-
 # model1
 #### age, sex 
 ```{r}
@@ -368,6 +377,7 @@ summary_model2
 ```
 
 # model3
+#### age, sex, and covariates (children, marital status, employement status, education) and HARDSHIP
 ```{r}
 model3 <- lmer(risk ~ 1+scale(age)*hardship+factor(sex)*hardship + factor(children) + factor(married) + factor(employed) + factor(education)+ (1+scale(age)+factor(sex)+ factor(children) + factor(married) + factor(employed) + factor(education)|country),data = data,control=lmerControl(optCtrl=list(maxfun=100000),optimizer="bobyqa"),REML = FALSE)
 summary_model3=summary(model3)
@@ -390,7 +400,7 @@ write.csv(coefsallmodels,"coefsallmodels.csv")
 ```
 
 
-#```{r}
+```{r}
 library("wordcloud")
 library(lme4)
 
@@ -432,4 +442,5 @@ plot.fit(regiondata$hardship,regiondata[,4],"Hardship","Sex Effect",regiondata$c
 
 #```{r}
 data$education_cat[education < 3] = "incomplete or no primary education"
+
 ```
