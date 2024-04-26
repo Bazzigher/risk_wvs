@@ -44,15 +44,19 @@ WV5_data <- WV5_data_df %>%
   rename(gender = V235, age = V237, country_code = V2, wave = V1, risktaking = V86)
 WV5_data
 
+colnames(WV5_data)
+
+
 
 #select only the variables of interest
 WV5_data <- WV5_data %>%
-  select(gender, age, country_code, wave, risktaking)
+  dplyr::select(gender, age, country_code, wave, risktaking)
 WV5_data
+
 ```
 
 ```{r}
-# Read countrynames data from the CSV file
+# Read countrynames data from the CSV file (to decode the dataset 5)
 countrynames <- read.csv("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/countrynames.txt", header = FALSE, as.is = TRUE)
 colnames(countrynames) <- c("code", "name")
 
@@ -82,8 +86,9 @@ WV6_data <- WV6_data %>%
 
 
 #select only the variables of interest
+
 WV6_data <- WV6_data %>%
-  select(wave, gender, age, country_code,risktaking)
+  dplyr::select(wave, gender, age, country_code,risktaking)
 WV6_data
 
 ```
@@ -315,7 +320,7 @@ gps_data
 ```{r}
 #select only the variables of interest
 gps_data <- gps_data %>%
-  select(country, isocode, ison, risktaking, gender, age)
+  dplyr::select(country, isocode, ison, risktaking, gender, age)
 gps_data
 ```
 ```{r}
@@ -422,7 +427,7 @@ new_data <- left_join(merged_results, new_data, by = "country")
 
 # Select specific columns
 new_data <- new_data %>%
-  select(country, intercept_gps, slope_age_gps, slope_gender_gps, intercept_WVS, slope_age_WVS, slope_gender_WVS, isocode)
+  dplyr::select(country, intercept_gps, slope_age_gps, slope_gender_gps, intercept_WVS, slope_age_WVS, slope_gender_WVS, isocode)
 
 # Print the final data
 print(new_data)
@@ -597,36 +602,6 @@ correlation <- cor(new_data$slope_gender_gps, new_data$slope_gender_WVS)
 # Print the correlation coefficient
 print(correlation)
 ```
-#Hardship for gps data
-```{r}
-library(readxl)
-hardship_values <- read_excel("/Users/cristinacandido/Documents/Github/risk_wvs/data/Hardship.xlsx") # Read data from the Excel file
-
-print(colnames(gps_data)) # Display column names in cleaned_data
-
-print(colnames(hardship_values)) # Display column names in hardship_data
-
-hardshipgps <- left_join(gps_data, hardship_values, by = "country") # Perform the left_join operation
-
-hardshipgps
-
-```
-```{r}
-completegps <- hardshipgps %>%
-  group_by(country) %>%
-  summarise(
-    n = n(),
-    female_percentage = mean(gender == 1) * 100,
-    mean_age = mean(z_score_age, na.rm = TRUE),
-    mean_risktaking = mean(risktaking, na.rm = TRUE),
-    mean_hardshipindex = mean(hardship, na.rm = TRUE)
-  )
-
-  completeWVS
-  
-
-```
-
 ```{r}
 #hardship for WVS
 library(readxl)
@@ -655,10 +630,23 @@ hardship_data_complete <- left_join(regression_results_WVS, hardship_values, by 
 hardship_data_complete
 
 ```
+
+
+```
+```{r}
+
+  
+
+```
+
+```{r}
+
+```
+```{r}
 ```{r}
 library(ggrepel)
 library(ggplot2)
-
+#For WVS
 ggplot(hardship_data_complete, aes(x = hardship, y = intercept, label = isocode)) +
   geom_point(size = 3) +
   geom_text_repel(
@@ -674,15 +662,6 @@ ggplot(hardship_data_complete, aes(x = hardship, y = intercept, label = isocode)
   xlim(-2, 2) +
   ylim(-0.6, 1) +
   coord_fixed(ratio = 2.5)
-
-
-```
-
-
-
-
-
-
 ```
 
 
@@ -693,7 +672,7 @@ library(ggrepel)
 
 
 library(ggrepel)
-
+#For WVS
 ggplot(hardship_data_complete, aes(x = hardship, y = slope_age, label = isocode)) +
   geom_point(size = 3) +
   geom_text_repel(
