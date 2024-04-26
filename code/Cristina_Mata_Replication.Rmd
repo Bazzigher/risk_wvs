@@ -359,7 +359,7 @@ modelcoefs=ranef(model2)$country
 modelcoefs$codeWVS=row.names(modelcoefs)
 regiondata=merge(modelcoefs,countryfacts,by="codeWVS") # merge matrices to include the hardship composite
 
-
+regiondata
 ```
 
 ```{r}
@@ -379,17 +379,19 @@ plot.fit=function(x,y,xlab,ylab,labels,coef,ylims)
   mylabel2 = bquote(italic(p) == .(format(p, digits = 1)))
   mylabel3 = bquote(italic(N) == .(format(n, digits = 1)))
   legend("topleft", bty="n", legend= mylabel1,text.col="black",cex=1.2)
-  #legend("bottom", bty="n", legend= mylabel2,text.col="black",cex=.8,xjust=0)
-  #legend("bottomleft", bty="n", legend= mylabel3,text.col="black",cex=.8)
-  #text(x,y,labels=labels,cex=.8)
+  legend("bottom", bty="n", legend= mylabel2,text.col="black",cex=.8,xjust=0)
+  legend("bottomleft", bty="n", legend= mylabel3,text.col="black",cex=.8)
+  text(x,y,labels=labels,cex=.8)
   textplot(x,y,labels,new=FALSE,col="black",show.lines=FALSE,ylim=ylims,cex=.6)
 }
 layout(matrix(c(1:3), 1, 3, byrow = TRUE))
 par(mar=c(5,5,1,1))
 coefs=fixef(model2)
-plot.fit(regiondata$hardship,regiondata[,2],"Hardship","Intercept",regiondata$code2,coefs[1],c(46,58))
-plot.fit(regiondata$hardship,regiondata[,3],"Hardship","Age Effect",regiondata$code2,coefs[2],c(-3,.5))
-plot.fit(regiondata$hardship,regiondata[,4],"Hardship","Sex Effect",regiondata$code2,coefs[3],c(-5,0))
+plot.fit(regiondata$hardship,regiondata[,2],"hardship","(Intercept)",regiondata$code2,coefs[1],c(46,58))
+plot.fit(regiondata$hardship,regiondata[,3],"hardship","scale(age)",regiondata$code2,coefs[2],c(-3,.5))
+plot.fit(regiondata$hardship,regiondata[,4],"hardship","factor(sex)1",regiondata$code2,coefs[3],c(-5,0))
+
+regiondata
 ```
 ```{r}
 # compute zero-order correlations between Model 2 coefficients and hardship 
@@ -481,6 +483,8 @@ for (counter in 1:40) { #40
   hardship = countryfacts[countrycodes[counter] == countryfacts$codeWVS, "hardship"]
   
   #par(mar=c(1,1,1,1))
+  
+  
 ```
 ```{r}
   # plot raw data in using a density plot (smoothScatter)
