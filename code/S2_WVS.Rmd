@@ -482,6 +482,9 @@ gps_data$risktaking = 10*scale(gps_data$risktaking, center=TRUE,scale=TRUE)+50
 gps_data
 ```
 ```{r}
+library(lme4)
+library(lmerTest)
+
 #factor gender 
 gps_data$gender <- factor(gps_data$gender)
 
@@ -514,12 +517,93 @@ summary_model2_gps
 ```{r}
 mixed_model_gps_data
 mixed_model_data
-# Assuming mixed_model_gps_data and mixed_model_data are your two datasets
 
-# Merge the datasets based on a common identifier, assuming it's 'id'
+mixed_model_gps_data$source <- "gps"
+mixed_model_data$source <- "data"
+
+#select gender, age, risktaking, country, hardship_index for GPS dataset
+mixed_model_gps_data_new<- mixed_model_gps_data %>%
+  dplyr::select(country, gender, age, hardship_index, risktaking, source)
+mixed_model_gps_data_new
+mixed_model_data
+
+#select the same variables as GPS dataset
+
+mixed_model_data_new<- mixed_model_data %>%
+  dplyr::select(country, gender, age, hardship_index, risktaking, source)
+
+mixed_model_data_new
+mixed_model_gps_data_new
 
 
-# Now you have a merged dataset with columns from both datasets, differentiated by suffixes _gps and _data
+
+mixed_model_gps_data
+
+mixed_model_data_new
+mixed_model_gps_data_new
+
+#Combine the two datasets 
+
+merged_data <- rbind(mixed_model_gps_data_new, mixed_model_data_new)
+merged_data
+
+
 
 ```
+```{r}
+# Now run the mixed-effects model with source as a fixed effect
+model1_combined = lmer(risktaking ~ 1 + age + gender + (1 + age + gender|country),data = gps_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
+summary_model1_combined=summary(model1_combined)
+summary_model1_combined
+
+```
+
+```{r}
+model2_combined <- lmer(risktaking ~ 1 + age * hardship_index + 
+                    gender * hardship_index + 
+                    (1 + age | country),
+                data = merged_data,control=lmerControl(optCtrl=list(maxfun=100000),optimizer="bobyqa"),REML = FALSE)
+
+summary_model2_combined = summary(model2_combined) 
+
+summary_model2_combined
+```
+```{r}
+# Load required packages
+library(lme4)
+
+# Define the filename for the PDF
+pdf("plot.pdf", width = 10, height = 8)  # Adjust width and height as needed
+
+# Create a scatter plot of standardized age against risk-taking propensity with blue points
+plot(merged_data$age, merged_data$risktaking, las = 1, xaxt = "n", yaxt = "n", 
+     xlab = "", ylab = "Risk-Taking Propensity", bty = "n", 
+     main = "ALL", cex.main = 0.8, nrpoints = 0, col = "blue",  # Set points color to blue
+     xlim = c(-3, 3), ylim = c(35, 69), cex.lab = 0.6)  # Adjust xlim as needed
+
+# Add axes and labels
+axis(1, at = c(-3, 0, 3), labels = c(min(merged_data$age), 0, max(merged_data$age)), cex.axis = 0.7)
+axis(2, at = c(35, 65), labels = c(35, 65), las = 1, cex.axis = 0.7, tck = -0.01, line = 0, mgp = c(3, 0.3, 0))
+mtext("Age", 1, line = 0, cex = 0.5)
+mtext(expression(Risk ~ Taking ~ (italic(T) - score)), 2, line = 1, cex = 0.5)
+text(2.5, 68, "All Countries")
+
+# Retrieve coefficients
+coefs <- fixef(model1_combined)
+
+# Add regression lines
+abline(a = coefs[1], b = coefs[2], lty = 1, lwd = 3, col = "red")
+abline(a = coefs[1] + coefs[3], b = coefs[2], lty = 2, lwd = 3, col = "red")
+
+# Close the PDF device
+dev.off()
+
+
+
+
+
+
+head(merged_data)
+```
+
 
