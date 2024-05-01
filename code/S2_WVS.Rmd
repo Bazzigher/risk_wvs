@@ -293,8 +293,10 @@ summary_model2_wvs
 ```
 
 
+## This code did not work for Laura, but I kept it in the code in case i made a mistake
+
 # Model3 (age, gender, children, marital status, education, employment status, hardship)
-```{r}
+#```{r}
 options(scipen = 100)
 model3_wvs <- lmer(risktaking ~ 1 + age * hardship_index + 
                     gender * hardship_index + married + children + 
@@ -306,15 +308,30 @@ model3_wvs <- lmer(risktaking ~ 1 + age * hardship_index +
 summary_model3_wvs = summary(model3_wvs) 
 
 summary_model3_wvs
+#```
+
+
+```{r}
+model3_wvs <- lmer(risktaking ~ 1 + age * hardship_index + gender * hardship_index + married + children + 
+                   education + employed + 
+                   (1 + age + married + children + education + employed | country),
+                   data = mixed_model_data,
+                   REML = FALSE,  # Dies ist der korrekte Ort für den REML-Parameter
+                   control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
+
+summary_model3_wvs = summary(model3_wvs) 
+
+summary_model3_wvs
 ```
+
 
 # ANOVA
 ```{r}
 # Define anova_results list with multiple anova() calls
 anova_results <- list(
-  anova(model0, model1),
-  anova(model1, model_2),
-  anova(model_2, model_3)
+  anova(model0_wvs, model1_wvs),
+  anova(model1_wvs, model2_wvs),
+  anova(model2_wvs, model3_wvs)
 )
 
 anova_results
@@ -325,6 +342,40 @@ anova_summary <- bind_rows(lapply(anova_results, tidy), .id = "Comparison")
 # Print the summary table
 print(anova_summary)
 ```
+
+
+```{r}
+# Bereinigen des Datensatzes vor der Modellanpassung
+mixed_model_data <- na.omit(mixed_model_data)  # Entfernen aller NA-Werte
+mixed_model_data <- mixed_model_data[complete.cases(mixed_model_data), ]
+
+# Modelle anpassen
+model0_wvs <- lmer(risktaking ~ 1 + (1|country), data = mixed_model_data)
+model1_wvs <- lmer(risktaking ~ 1 + age + gender + (1 + age + gender | country), 
+                   data = mixed_model_data, 
+                   control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
+model2_wvs <- lmer(risktaking ~ 1 + age + gender + children + married + education + employed +
+                   (1 + age + gender + children + employed + married | country),
+                   data = mixed_model_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
+model3_wvs <- lmer(risktaking ~ 1 + age * hardship_index + gender * hardship_index + married + children + 
+                   education + employed + 
+                   (1 + age + married + children + education + employed | country),
+                   data = mixed_model_data,
+                   REML = FALSE,  # Dies ist der korrekte Ort für den REML-Parameter
+                   control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
+
+# ANOVA durchführen
+anova_results <- list(
+  anova(model0_wvs, model1_wvs),
+  anova(model1_wvs, model2_wvs),
+  anova(model2_wvs, model3_wvs)
+)
+
+# Ergebnisse der ANOVA ausgeben
+print(anova_results)
+```
+
+
 
 # Coefs
 ```{r}
