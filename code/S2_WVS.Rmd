@@ -343,10 +343,10 @@ anova_summary <- bind_rows(lapply(anova_results, tidy), .id = "Comparison")
 print(anova_summary)
 ```
 
-
+# New Code Laura: mixed_models 0, 1, 2 & 3
 ```{r}
-# Bereinigen des Datensatzes vor der Modellanpassung
-mixed_model_data <- na.omit(mixed_model_data)  # Entfernen aller NA-Werte
+# Clean data 
+mixed_model_data <- na.omit(mixed_model_data)  # remove all NA's 
 mixed_model_data <- mixed_model_data[complete.cases(mixed_model_data), ]
 
 # Modelle anpassen
@@ -354,15 +354,29 @@ model0_wvs <- lmer(risktaking ~ 1 + (1|country), data = mixed_model_data)
 model1_wvs <- lmer(risktaking ~ 1 + age + gender + (1 + age + gender | country), 
                    data = mixed_model_data, 
                    control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
+
+summary_model1_wvs = summary(model1_wvs) 
+
+summary_model1_wvs
+
 model2_wvs <- lmer(risktaking ~ 1 + age + gender + children + married + education + employed +
                    (1 + age + gender + children + employed + married | country),
                    data = mixed_model_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
+
+summary_model2_wvs = summary(model2_wvs) 
+
+summary_model2_wvs
+
 model3_wvs <- lmer(risktaking ~ 1 + age * hardship_index + gender * hardship_index + married + children + 
                    education + employed + 
                    (1 + age + married + children + education + employed | country),
                    data = mixed_model_data,
                    REML = FALSE,  # Dies ist der korrekte Ort für den REML-Parameter
                    control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
+
+summary_model3_wvs = summary(model3_wvs) 
+
+summary_model3_wvs
 
 # ANOVA durchführen
 anova_results <- list(
@@ -377,29 +391,79 @@ print(anova_results)
 
 
 
-# Coefs
-```{r}
-coefsallmodels=rbind(summary_model1$coefficients,
-summary_model_2$coefficients,
-summary_model_3$coefficients[c(1:2,4:8,3,9:10),])
+# Input Laur: This code gave me an error
+coefsallmodels=rbind(summary_model1_wvs$coefficients,
+summary_model2_wvs$coefficients,
+summary_model3_wvs$coefficients[c(1:2,4:8,3,9:10),])
 
 write.csv(coefsallmodels,"coefsallmodels.csv")
 
-modelcoefs=ranef(model_2)$country
+modelcoefs=ranef(model2_wvs)$country
 modelcoefs$codeWVS=row.names(modelcoefs)
 regiondata=merge(modelcoefs,countryfacts,by="codeWVS") # merge matrices to include the hardship composite
+
+
+```{r}
+# Zuweisung der 'code'-Spalte von countryfacts zur neuen Spalte 'codeWVS', falls noch nicht vorhanden
+countryfacts$codeWVS <- countryfacts$code
+
+# Erstellen der modelcoefs Daten
+modelcoefs <- ranef(model2_wvs)$country
+modelcoefs$codeWVS <- row.names(modelcoefs)
+
+# Zusammenführen der Daten
+regiondata <- merge(modelcoefs, countryfacts, by = "codeWVS")
 ```
+
+```{r}
+# Kombinieren der Koeffizienten aus den Modellzusammenfassungen
+coefsallmodels <- rbind(summary_model1_wvs$coefficients,
+                        summary_model2_wvs$coefficients,
+                        summary_model3_wvs$coefficients[c(1:2,4:8,3,9:10),])
+
+# Schreiben der kombinierten Koeffizienten in eine CSV-Datei
+write.csv(coefsallmodels, "coefsallmodels.csv")
+```
+
+
+# Debug Plot
+```{r}
+# Überprüfung auf NA-Werte in den betreffenden Spalten
+sum(is.na(mixed_model_data$age))
+sum(is.na(mixed_model_data$risktaking))
+
+# Entfernen von NA-Werten, falls vorhanden
+mixed_model_data <- na.omit(mixed_model_data)
+```
+
+
+```{r}
+summary(mixed_model_data$age)
+summary(mixed_model_data$risktaking)
+```
+
+
 
 # Plot fixed effects for all countries
 ```{r}
 # Define the filename for the PDF
 pdf("fixed_effects_plot_all_countries.pdf", width = 10, height = 8)  # Adjust width and height as needed
 
-# Plot fixed effects for all countries
+# Plot fixed effects for all countries --> this code did not work and gave me an error
+#smoothScatter(mixed_model_data$age, mixed_model_data$risktaking, las=1, xaxt="n", yaxt="n", 
+#               xlab="Age", ylab="Risk-Taking Propensity", bty="n", 
+#               main="ALL", cex.main=0.8, nrpoints=0, 
+#               xlim=c(15,85), ylim=c(35,69), cex.lab=0.6,
+#               bandwidth = 0.5)  # You can adjust the bandwidth value as needed
+
+
+# Plot fixed effects for all countries with specified range
 smoothScatter(mixed_model_data$age, mixed_model_data$risktaking, las=1, xaxt="n", yaxt="n", 
                xlab="Age", ylab="Risk-Taking Propensity", bty="n", 
                main="ALL", cex.main=0.8, nrpoints=0, 
-               xlim=c(15,85), ylim=c(35,69), cex.lab=0.6)
+               xlim=c(min(mixed_model_data$age, na.rm = TRUE), max(mixed_model_data$age, na.rm = TRUE)), 
+               ylim=c(min(mixed_model_data$risktaking, na.rm = TRUE), max(mixed_model_data$risktaking, na.rm = TRUE)), 
+               cex.lab=0.6)
 
 # Add axes and labels
 axis(1, at=c(15, 85), labels=c("15", "85"), cex.axis=0.7, tck=-0.01, line=0, mgp=c(3, 0.02, 0))
@@ -409,7 +473,7 @@ mtext(expression(Risk~Taking~(italic(T)-score)), 2, line=1, cex=0.5)
 text(73, 68, "All Countries")
 
 # Retrieve coefficients
-coefs <- fixef(model_2)
+coefs <- fixef(model2_wvs)
 
 # Define regression lines
 regline <- function(x) {
