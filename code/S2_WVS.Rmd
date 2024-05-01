@@ -5,34 +5,44 @@ output:
     df_print: paged
 ---
 
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
-
-Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
 
 ```{r}
 rm(list = ls())
+```
 
+# Set path Cristina: ONLY USE FOR CRISTINA
+```{r}
+base_path <- "/Users/cristinacandido/Documents/Github/risk_wvs/data/"
+```
+
+# Set path Laura: ONLY USE FOR LAURA 
+```{r}
+base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S2/"
+```
+
+# Library 
+```{r}
 library(data.table)
 library(tidyr)
 library(maps)
 library(haven)
 library(ggplot2)
 library(dplyr)
-```
-
-Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
-
-When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
-
-The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
-
-```{r}
 library(readxl)
-countryfacts <- read_excel("/Users/cristinacandido/Documents/Github/risk_wvs/code/Hardship_complete_2024.xlsx")
-countryfacts
-
-
+library(dplyr)
+library(lmerTest)
+library(lme4)
+library(broom)
+library(tibble)
 ```
+
+# Load Countryfacts
+```{r}
+countryfacts <- read_excel(paste0(base_path, "Hardship_complete_2024.xlsx"))
+countryfacts
+```
+
+# Log Countryfacts 
 ```{r}
 countryfacts$homiciderate=log(countryfacts$homiciderate)
 countryfacts$gdp=log(countryfacts$gdp)
@@ -53,11 +63,10 @@ countryfacts
 countryfacts$hardship_index=(countryfacts$homiciderate+countryfacts$gdp+countryfacts$gini+countryfacts$lifeexpectancy+countryfacts$infantmortality+countryfacts$femalemale_primedu)/6
 
 countryfacts
-
-# Laura added this code
-library(dplyr)
+```
 
 # Impute missing values in the hardship indicators using the median
+```{r}
 countryfacts <- countryfacts %>%
   mutate(across(c("homiciderate", "gdp", "infantmortality", "lifeexpectancy", "gini", "femalemale_primedu"),
                 ~ifelse(is.na(.), median(., na.rm = TRUE), .)))
@@ -70,44 +79,36 @@ countryfacts <- countryfacts %>%
 countryfacts
 ```
 
-
-
+# Data of Wave 5
 ```{r}
 # Data of Wave 5
-
-
-WV5_data <- readRDS("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/F00007944-WV5_Data_R_v20180912.rds")
-
+WV5_data <- readRDS(paste0(base_path, "F00007944-WV5_Data_R_v20180912.rds"))
 
 # Convert WV5_data-object in data.frame 
 WV5_data_df <- as.data.frame(WV5_data)
 
 # show first five columns
 WV5_data_df
+
 ```
 
 
-
+#rename and select variables of interest
 ```{r}
-#rename the variables
 data5 <- WV5_data_df %>%
   rename(gender = V235, age = V237, country_code = V2, wave = V1, risktaking = V86, children = V56, married = V55, employed = V241, education = V238)
 data5
 
 colnames(data5)
 
-
-
 #select only the variables of interest
 data5 <- data5 %>%
   dplyr::select(gender, age, country_code, wave, risktaking, children, married, employed, education)
 data5
 
-
 # Read countrynames data from the CSV file (to decode the dataset 5)
-countrynames <- read.csv("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/countrynames.txt", header = FALSE, as.is = TRUE)
+countrynames <- read.csv(paste0(base_path, "/countrynames.txt"), header = FALSE, as.is = TRUE)
 colnames(countrynames) <- c("code", "name")
-
 
 # Assuming WV5_data has a column named country_code
 data5$country <- countrynames$name[match(data5$country_code, countrynames$code)]
@@ -126,40 +127,40 @@ country_counts <- data5 %>%
 
 # Print the result
 print(country_counts)
-
-
-
 ```
-```{r}
-#Read Dataset (Wave 6)
 
-WV6_data <- load("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/WV6_Data_R_v20201117.rdata") 
+
+#Read Dataset (Wave 6)
+```{r}
+load(paste0(base_path, "WV6_Data_R_v20201117.rdata")) 
 WV6_data <- WV6_Data_R_v20201117 
 print(WV6_data)
 ```
 
+
+#rename and select variables of interest
 ```{r}
 data6 <- WV6_data %>%
   rename(wave = V1, gender = V240, age = V242,country_code = V2, risktaking = V76, children = V58, married = V57, employed = V229, education = V248)
 
 
 #select only the variables of interest
-
 data6 <- data6 %>%
   dplyr::select(wave, gender, age, country_code,risktaking, children, married, employed, education)
 data6
 ```
+
+# Load Countrynames 
 ```{r}
-countrynames = read.csv("/Users/cristinacandido/Documents/Github/risk_wvs/data/WVS/countrynames.txt", header=FALSE,as.is=TRUE)
+countrynames = read.csv(paste0(base_path, "countrynames.txt"), header=FALSE,as.is=TRUE)
 colnames(countrynames) = c("code", "name")
-data6$country = countrynames$name [match(data6$country_code, countrynames$code)]
+data6$country = countrynames$name[match(data6$country_code, countrynames$code)]
 table(data6$country)
 data6
 ```
+
+# Bind data5 and data6 
 ```{r}
-
-
-
 data = rbind(data5, data6)
 data
 
@@ -168,22 +169,11 @@ country_counts <- data %>%
 
 # Print the result
 print(country_counts)
-
-
-
-
-
-
-
-
-
-
 ```
+
+
+# Remove missing variables 
 ```{r}
-
-
-
-
 data = subset(data, risktaking > 0 & gender > 0 & age >0 & education > 0 & employed > 0 & married > 0 & children >= 0)
 data5 = subset(data5, risktaking > 0 & gender > 0 & age >0 & education > 0 & employed > 0 & married > 0 & children >= 0)
 data6 = subset(data6, risktaking > 0 & gender > 0 & age >0 & education > 0 & employed > 0 & married > 0 & children >= 0)
@@ -191,18 +181,15 @@ data <- na.omit(data)
 data5 <- na.omit(data5)
 data6 <- na.omit(data6)
 
-
 data
-
-
-
-
-
 
 # Use the mutate function to change the country name
 data <- data %>%
   mutate(country = ifelse(country == "Great Britain", "United Kingdom", country))
 ```
+
+
+# Transfrom risk item 
 ```{r}
 # Transfrom risk item such that high values represent more risk taking
 data$risktaking = 6 - data$risktaking + 1
@@ -221,10 +208,6 @@ data$gender <- factor(data$gender)
 #scale age 
 data$age <- scale(data$age)
 
-
-
-
-
 country_counts <- data %>%
   count(country)
 
@@ -232,12 +215,10 @@ country_counts <- data %>%
 print(country_counts)
 
 data
-
-
 ```
 
+# Dichotomizing variables 
 ```{r}
-
 data$gender = ifelse(data$gender == 1, 0, 1) # sex: male vs. female
 data$children = ifelse(data$children == 0, 0, 1) # children: no vs. yes
 data$married = ifelse(data$married == 1, 1, 0) # married: yes vs. no
@@ -252,11 +233,10 @@ countryfacts <- countryfacts %>%
 countryfacts
 
 data
-
-
 ```
+
+# Create dataset for mixed-models 
 ```{r}
-library(dplyr)
 countryfacts<- rename(countryfacts, country = label)
 
 countryfacts
@@ -264,24 +244,22 @@ countryfacts
 mixed_model_data <- left_join(data, countryfacts, by = "country")
 mixed_model_data
 
-
-
-
 unique(mixed_model_data$country)
-
 ```
+
+# Model0
 ```{r}
-library(lmerTest)
-
 # intercept only model
-model0_wvs = lmer(risktaking ~ 1 + (1|country),data = mixed_model_data)
-summary_model0=summary(model0)
-summary_model0
+model0_wvs = lmer(risktaking ~ 1 + (1|country), data = mixed_model_data)
+summary_model0_wvs = summary(model0_wvs)
+summary_model0_wvs
 ```
+
+# Model1 (age, gender)
 ```{r}
 mixed_model_data
 
-# age, sex 
+# age, gender 
 model1_wvs <- lmer(risktaking ~ 1 + age + gender + (1 + age + gender | country), 
                    data = mixed_model_data, 
                    control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
@@ -289,16 +267,13 @@ summary_model1_wvs=summary(model1_wvs)
 summary_model1_wvs
 
 summary
-
 ```
 
+# Model2 (age, gender, children, marital status, education, employment status)
 ```{r}
 #model 2
-library(lme4)
-library(lmerTest)
 
 # Define the lmer model and assign it to 'model_2'
-
 mixed_model_data$children <- factor(mixed_model_data$children)
 mixed_model_data$married <- factor(mixed_model_data$married)
 mixed_model_data$education <- factor(mixed_model_data$education)
@@ -315,13 +290,10 @@ model2_wvs <- lmer(risktaking ~ 1 + age + gender + children +
 # Display the summary of the model
 summary_model2_wvs = summary(model2_wvs)
 summary_model2_wvs
-
-
-
-
 ```
 
 
+# Model3 (age, gender, children, marital status, education, employment status, hardship)
 ```{r}
 options(scipen = 100)
 model3_wvs <- lmer(risktaking ~ 1 + age * hardship_index + 
@@ -334,11 +306,9 @@ model3_wvs <- lmer(risktaking ~ 1 + age * hardship_index +
 summary_model3_wvs = summary(model3_wvs) 
 
 summary_model3_wvs
-
-
-
 ```
 
+# ANOVA
 ```{r}
 # Define anova_results list with multiple anova() calls
 anova_results <- list(
@@ -349,19 +319,14 @@ anova_results <- list(
 
 anova_results
 
-library(broom)
-library(tibble)
-
-
-
-library(dplyr)
 # Format ANOVA results into a tidy data frame
 anova_summary <- bind_rows(lapply(anova_results, tidy), .id = "Comparison")
 
 # Print the summary table
 print(anova_summary)
-
 ```
+
+# Coefs
 ```{r}
 coefsallmodels=rbind(summary_model1$coefficients,
 summary_model_2$coefficients,
@@ -372,12 +337,9 @@ write.csv(coefsallmodels,"coefsallmodels.csv")
 modelcoefs=ranef(model_2)$country
 modelcoefs$codeWVS=row.names(modelcoefs)
 regiondata=merge(modelcoefs,countryfacts,by="codeWVS") # merge matrices to include the hardship composite
-
-
-
-
 ```
 
+# Plot fixed effects for all countries
 ```{r}
 # Define the filename for the PDF
 pdf("fixed_effects_plot_all_countries.pdf", width = 10, height = 8)  # Adjust width and height as needed
@@ -412,19 +374,10 @@ lines(mean(mixed_model_data$age) + seq(-3, 3, 0.1) * sd(mixed_model_data$age),
 
 # Close the PDF device
 dev.off()
-
-
-
-
-
 ```
 
+# Plot fixed effects for all countries
 ```{r}
-library(ggplot2)
-library(dplyr)
-
-library(ggplot2)
-
 data$gender <- factor(data$gender)
 
 # Create the ggplot object
@@ -446,13 +399,15 @@ ggsave("myplot_cristina.png", my_plot, width = 10, height = 30, units = "in", dp
 
 
 data
-
 ```
-```{r}
-gps_data <- haven::read_dta("/Users/cristinacandido/Documents/Github/risk_wvs/data/individual_new.dta")
 
+
+```{r}
+gps_data <- haven::read_dta(paste0(base_path, "individual_new.dta"))
 gps_data
 ```
+
+
 ```{r}
 # Clean the data by removing records with missing values
 gps_data <- gps_data %>%
@@ -463,6 +418,8 @@ gps_data
 # Display the cleaned data
 gps_data
 ```
+
+
 ```{r}
 #select only the variables of interest
 gps_data <- gps_data %>%
@@ -470,10 +427,6 @@ gps_data <- gps_data %>%
 gps_data
 ```
 
-```{r}
-
-data
-```
 
 ```{r}
 # Transform risk variable into T-score (mean = 50, sd = 10)
@@ -481,10 +434,9 @@ gps_data$risktaking = 10*scale(gps_data$risktaking, center=TRUE,scale=TRUE)+50
 
 gps_data
 ```
-```{r}
-library(lme4)
-library(lmerTest)
 
+
+```{r}
 #factor gender 
 gps_data$gender <- factor(gps_data$gender)
 
@@ -498,12 +450,16 @@ model1_gps = lmer(risktaking ~ 1 + age + gender + (1 + age + gender|country),dat
 summary_model1_gps=summary(model1_gps)
 summary_model1_gps
 ```
+
+
 ```{r}
 countryfacts
 mixed_model_gps_data <- left_join(gps_data, countryfacts, by = "country")
 mixed_model_gps_data
 head(mixed_model_gps_data)
 ```
+
+
 ```{r}
 model2_gps <- lmer(risktaking ~ 1 + age * hardship_index + 
                     gender * hardship_index + 
@@ -514,6 +470,8 @@ summary_model2_gps = summary(model2_gps)
 
 summary_model2_gps
 ```
+
+
 ```{r}
 mixed_model_gps_data
 mixed_model_data
@@ -546,10 +504,8 @@ mixed_model_gps_data_new
 
 merged_data <- rbind(mixed_model_gps_data_new, mixed_model_data_new)
 merged_data
-
-
-
 ```
+
 ```{r}
 # Now run the mixed-effects model with source as a fixed effect
 model1_combined = lmer(risktaking ~ 1 + age + gender + (1 + age + gender|country),data = gps_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
@@ -568,10 +524,9 @@ summary_model2_combined = summary(model2_combined)
 
 summary_model2_combined
 ```
-```{r}
-# Load required packages
-library(lme4)
 
+
+```{r}
 # Define the filename for the PDF
 pdf("plot.pdf", width = 10, height = 8)  # Adjust width and height as needed
 
@@ -597,11 +552,6 @@ abline(a = coefs[1] + coefs[3], b = coefs[2], lty = 2, lwd = 3, col = "red")
 
 # Close the PDF device
 dev.off()
-
-
-
-
-
 
 head(merged_data)
 ```
