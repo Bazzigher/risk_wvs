@@ -425,28 +425,10 @@ write.csv(coefsallmodels, "coefsallmodels.csv")
 ```
 
 
-# Debug Plot
-```{r}
-# Überprüfung auf NA-Werte in den betreffenden Spalten
-sum(is.na(mixed_model_data$age))
-sum(is.na(mixed_model_data$risktaking))
-
-# Entfernen von NA-Werten, falls vorhanden
-mixed_model_data <- na.omit(mixed_model_data)
-```
-
-
-```{r}
-summary(mixed_model_data$age)
-summary(mixed_model_data$risktaking)
-```
-
-
-
 # Plot fixed effects for all countries (model2)
 ```{r}
 # Define the filename for the PDF
-pdf("fixed_effects_plot_all_countries.pdf", width = 10, height = 8)  # Adjust width and height as needed
+pdf("WVS_fixed_effects_plot_all_countries.pdf", width = 10, height = 8)  # Adjust width and height as needed
 
 # Plot fixed effects for all countries --> this code did not work and gave me an error
 #smoothScatter(mixed_model_data$age, mixed_model_data$risktaking, las=1, xaxt="n", yaxt="n", 
@@ -511,7 +493,7 @@ print(my_plot)
 # Save the plot to a PNG file
 ggsave("myplot_cristina.png", my_plot, width = 10, height = 30, units = "in", dpi = 300)
 
-
+print(my_plot)
 data
 ```
 
@@ -564,81 +546,77 @@ dev.off()
 ```
 
 
-# Load GPS 
-```{r}
-gps_data <- haven::read_dta(paste0(base_path, "individual_new.dta"))
-gps_data
-```
 
 
 ```{r}
-# Clean the data by removing records with missing values
-gps_data <- gps_data %>%
-  drop_na(country, isocode, risktaking, gender, age)
+countryfacts$codeWVS <- countryfacts$code
 
-gps_data
+# Erstellen der modelcoefs Daten
+modelcoefs <- ranef(model2_gps)$country
+modelcoefs$codeWVS <- row.names(modelcoefs)
 
-# Display the cleaned data
-gps_data
+# Zusammenführen der Daten
+regiondata <- merge(modelcoefs, countryfacts, by = "codeWVS")
+
+# Kombinieren der Koeffizienten aus den Modellzusammenfassungen
+coefsallmodels <- rbind(summary_model1_gps$coefficients,
+                        summary_model2_gps$coefficients)
+
+# Schreiben der kombinierten Koeffizienten in eine CSV-Datei
+write.csv(coefsallmodels, "coefsallmodels.csv")
 ```
 
+## work in Progress
 
+# Plot fixed effects for all countries (model2)
 ```{r}
-#select only the variables of interest
-gps_data <- gps_data %>%
-  dplyr::select(country, isocode, ison, risktaking, gender, age)
-gps_data
+# Define the filename for the PDF
+pdf("GPS_fixed_effects_plot_all_countries.pdf", width = 10, height = 8)  # Adjust width and height as needed
+
+# Plot fixed effects for all countries with specified range
+smoothScatter(mixed_model_gps_data$age, mixed_model_gps_data$risktaking, las=1, xaxt="n", yaxt="n", 
+               xlab="Age", ylab="Risk-Taking Propensity", bty="n", 
+               main="ALL", cex.main=0.8, nrpoints=0, 
+               xlim=c(min(mixed_model_gps_data$age, na.rm = TRUE), max(mixed_model_gps_data$age, na.rm = TRUE)), 
+               ylim=c(min(mixed_model_gps_data$risktaking, na.rm = TRUE), max(mixed_model_gps_data$risktaking, na.rm = TRUE)), 
+               cex.lab=0.6)
+
+# Add axes and labels
+axis(1, at=c(15, 85), labels=c("15", "85"), cex.axis=0.7, tck=-0.01, line=0, mgp=c(3, 0.02, 0))
+axis(2, at=c(35, 65), labels=c(35, 65), las=1, cex.axis=0.7, tck=-0.01, line=0, mgp=c(3, 0.3, 0))
+mtext("Age", 1, line=0, cex=0.5)
+mtext(expression(Risk~Taking~(italic(T)-score)), 2, line=1, cex=0.5)
+text(73, 68, "All Countries")
+
+# Retrieve coefficients
+coefs <- fixef(model2_gps)
+
+# Define regression lines for male
+regline_male <- function(x) {
+  coefs[1] + coefs[2] * x + coefs[4] * 0.5 + coefs[5] * 0.5 + coefs[6] * 0.5 + coefs[7] * 0.5
+}
+lines(seq(min(mixed_model_gps_data$age), max(mixed_model_gps_data$age), length.out = 100), 
+      regline_male(seq(min(mixed_model_gps_data$age), max(mixed_model_gps_data$age), length.out = 100)), 
+      lty=1, lwd=3, col="red")
+
+# Define regression lines for female
+regline_female <- function(x) {
+  coefs[1] + coefs[2] * x + coefs[3] + coefs[4] * 0.5 + coefs[5] * 0.5 + coefs[6] * 0.5 + coefs[7] * 0.5
+}
+lines(seq(min(mixed_model_gps_data$age), max(mixed_model_gps_data$age), length.out = 100), 
+      regline_female(seq(min(mixed_model_gps_data$age), max(mixed_model_gps_data$age), length.out = 100)), 
+      lty=2, lwd=3, col="blue")
+
+# Close the PDF device
+dev.off()
 ```
 
-# Transform risk variable into T-score (mean = 50, sd = 10)
-```{r}
-gps_data$risktaking = 10*scale(gps_data$risktaking, center=TRUE,scale=TRUE)+50
 
-gps_data
-```
-
-
-```{r}
-#factor gender 
-gps_data$gender <- factor(gps_data$gender)
-
-#scale age 
-gps_data$age <- scale(gps_data$age)
-
-
-gps_data
-
-#model gps with age and gender as predictors
-model1_gps = lmer(risktaking ~ 1 + age + gender + (1 + age + gender|country),data = gps_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
-summary_model1_gps=summary(model1_gps)
-summary_model1_gps
-```
-
-
-```{r}
-countryfacts
-mixed_model_gps_data <- left_join(gps_data, countryfacts, by = "country")
-mixed_model_gps_data
-head(mixed_model_gps_data)
-```
-
-
-```{r}
-model2_gps <- lmer(risktaking ~ 1 + age * hardship_index + 
-                    gender * hardship_index + 
-                    (1 + age | country),
-                data = mixed_model_gps_data,control=lmerControl(optCtrl=list(maxfun=100000),optimizer="bobyqa"),REML = FALSE)
-
-summary_model2_gps = summary(model2_gps) 
-
-summary_model2_gps
-```
 
 
 ```{r}
 mixed_model_gps_data
 mixed_model_data
-
 mixed_model_gps_data$source <- "gps"
 mixed_model_data$source <- "data"
 
@@ -665,12 +643,13 @@ merged_data <- rbind(mixed_model_gps_data_new, mixed_model_data_new)
 merged_data
 ```
 
+
+# Model1 (Achtung: es war folgendes drin vorher "data = gps_data", ich habe das nun angepasst)
 ```{r}
 # Now run the mixed-effects model with source as a fixed effect
-model1_combined = lmer(risktaking ~ 1 + age + gender + (1 + age + gender|country),data = gps_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
+model1_combined = lmer(risktaking ~ 1 + age + gender + (1 + age + gender|country),data = merged_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
 summary_model1_combined=summary(model1_combined)
 summary_model1_combined
-
 ```
 
 
@@ -685,32 +664,28 @@ summary_model2_combined = summary(model2_combined)
 summary_model2_combined
 ```
 
+
+# Plot all countries combined with tidyverse
 ```{r}
-min_age <- min(merged_data$age, na.rm = TRUE)
-max_age <- max(merged_data$age, na.rm = TRUE)
+library(ggplot2)
+
+# Umwandeln der Geschlechtsvariable in einen Faktor, falls nicht bereits geschehen
+merged_data$gender <- factor(merged_data$gender, levels = c("male", "female"))
+
+# Erstellen des ggplot2-Objekts
+my_plot <- ggplot(merged_data, aes(x = age, y = risktaking, color = gender, group = gender)) + 
+  geom_point(alpha = 0.5) +  # Punkte halbtransparent darstellen
+  scale_color_manual(values = c("male" = "blue", "female" = "red")) +  # Farben für die Geschlechter definieren
+  geom_smooth(method = "lm", linetype = "dashed", se = FALSE) +  # Regressionslinien für jedes Geschlecht
+  theme_minimal() +
+  labs(x = "Age", y = "Risk-Taking Propensity (T score)", color = "Gender") +
+  theme(legend.position = "top") +
+  scale_y_continuous(limits = c(30, NA))  # Untergrenze für y-Achse setzen
+
+# Anzeige des Plots
+print(my_plot)
+
+# Speichern des Plots als PDF
+ggsave("plot_GPS_tidy.pdf", my_plot, width = 10, height = 8, units = "in", dpi = 300)
 ```
-
-
-```{r}
-# Define the filename for the PDF
-pdf("plot_GPS.pdf", width = 10, height = 8)  # Adjust width and height as needed
-
-plot(merged_data$age, merged_data$risktaking, las = 1, xaxt = "n", yaxt = "n", 
-     xlab = "", ylab = "Risk-Taking Propensity", bty = "n", 
-     main = "ALL", cex.main = 0.8, nrpoints = 0, col = "blue",
-     xlim = c(min_age, max_age), ylim = c(35, 69), cex.lab = 0.6)
-
-axis(1, at = c(min_age, 0, max_age), labels = c(min_age, 0, max_age), cex.axis = 0.7)
-axis(2, at = c(35, 65), labels = c(35, 65), las = 1, cex.axis = 0.7, tck = -0.01, line = 0, mgp = c(3, 0.3, 0))
-mtext("Age", 1, line = 0, cex = 0.5)
-mtext(expression(Risk ~ Taking ~ (italic(T) - score)), 2, line = 1, cex = 0.5)
-text(2.5, 68, "All Countries")
-
-coefs <- fixef(model1_combined)
-abline(a = coefs[1], b = coefs[2], lty = 1, lwd = 3, col = "red")
-abline(a = coefs[1] + coefs[3], b = coefs[2], lty = 2, lwd = 3, col = "red")
-
-dev.off()
-```
-
 
