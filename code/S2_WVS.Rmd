@@ -425,28 +425,10 @@ write.csv(coefsallmodels, "coefsallmodels.csv")
 ```
 
 
-# Debug Plot
-```{r}
-# Überprüfung auf NA-Werte in den betreffenden Spalten
-sum(is.na(mixed_model_data$age))
-sum(is.na(mixed_model_data$risktaking))
-
-# Entfernen von NA-Werten, falls vorhanden
-mixed_model_data <- na.omit(mixed_model_data)
-```
-
-
-```{r}
-summary(mixed_model_data$age)
-summary(mixed_model_data$risktaking)
-```
-
-
-
 # Plot fixed effects for all countries
 ```{r}
 # Define the filename for the PDF
-pdf("fixed_effects_plot_all_countries.pdf", width = 10, height = 8)  # Adjust width and height as needed
+pdf("WVS_fixed_effects_plot_all_countries.pdf", width = 10, height = 8)  # Adjust width and height as needed
 
 # Plot fixed effects for all countries --> this code did not work and gave me an error
 #smoothScatter(mixed_model_data$age, mixed_model_data$risktaking, las=1, xaxt="n", yaxt="n", 
@@ -593,8 +575,6 @@ model2_gps <- lmer(risktaking ~ 1 + age * hardship_index +
 summary_model2_gps = summary(model2_gps) 
 summary_model2_gps
 ```
-
-## work in Progress
 
 # Create coefs
 >>>>>>> 27a2ab0303cb8572f9c7e6eba13bee40fdd5de86
