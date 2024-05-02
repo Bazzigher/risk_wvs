@@ -92,7 +92,7 @@ WV5_data_df
 ```
 
 
-#rename and select variables of interest
+# rename and select variables of interest
 ```{r}
 data5 <- WV5_data_df %>%
   rename(gender = V235, age = V237, country_code = V2, wave = V1, risktaking = V86, children = V56, married = V55, employed = V241, education = V238)
@@ -129,7 +129,7 @@ print(country_counts)
 ```
 
 
-#Read Dataset (Wave 6)
+# Read Dataset (Wave 6)
 ```{r}
 load(paste0(base_path, "WV6_Data_R_v20201117.rdata")) 
 WV6_data <- WV6_Data_R_v20201117 
@@ -137,13 +137,13 @@ print(WV6_data)
 ```
 
 
-#rename and select variables of interest
+# rename and select variables of interest
 ```{r}
 data6 <- WV6_data %>%
   rename(wave = V1, gender = V240, age = V242,country_code = V2, risktaking = V76, children = V58, married = V57, employed = V229, education = V248)
 
 
-#select only the variables of interest
+# select only the variables of interest
 data6 <- data6 %>%
   dplyr::select(wave, gender, age, country_code,risktaking, children, married, employed, education)
 data6
@@ -342,6 +342,7 @@ anova_summary <- bind_rows(lapply(anova_results, tidy), .id = "Comparison")
 print(anova_summary)
 ```
 
+# INPUT Laura: Can we keep this code and delete the codes above? 
 # New Code Laura: mixed_models 0, 1, 2 & 3
 ```{r}
 # Clean data 
@@ -390,7 +391,7 @@ print(anova_results)
 
 
 
-# Input Laur: This code gave me an error
+# Input Laur: This code gave me an error. Can we delete this chunk?
 coefsallmodels=rbind(summary_model1_wvs$coefficients,
 summary_model2_wvs$coefficients,
 summary_model3_wvs$coefficients[c(1:2,4:8,3,9:10),])
@@ -402,25 +403,24 @@ modelcoefs$codeWVS=row.names(modelcoefs)
 regiondata=merge(modelcoefs,countryfacts,by="codeWVS") # merge matrices to include the hardship composite
 
 
+# Prep for coefs
 ```{r}
-# Zuweisung der 'code'-Spalte von countryfacts zur neuen Spalte 'codeWVS', falls noch nicht vorhanden
 countryfacts$codeWVS <- countryfacts$code
 
-# Erstellen der modelcoefs Daten
+# Create the modelcoefs data
 modelcoefs <- ranef(model2_wvs)$country
 modelcoefs$codeWVS <- row.names(modelcoefs)
 
-# Zusammenführen der Daten
+# Combine the data
 regiondata <- merge(modelcoefs, countryfacts, by = "codeWVS")
 ```
 
+# Combine coefs
 ```{r}
-# Kombinieren der Koeffizienten aus den Modellzusammenfassungen
 coefsallmodels <- rbind(summary_model1_wvs$coefficients,
                         summary_model2_wvs$coefficients,
                         summary_model3_wvs$coefficients[c(1:2,4:8,3,9:10),])
 
-# Schreiben der kombinierten Koeffizienten in eine CSV-Datei
 write.csv(coefsallmodels, "coefsallmodels.csv")
 ```
 
@@ -472,6 +472,7 @@ lines(mean(mixed_model_data$age) + seq(-3, 3, 0.1) * sd(mixed_model_data$age),
 dev.off()
 ```
 
+# INPUT Laura: Can we delete this code? 
 # Plot fixed effects for all countries
 ```{r}
 data$gender <- factor(data$gender)
@@ -497,7 +498,7 @@ print(my_plot)
 data
 ```
 
-# Plot fixed for all countries // New with density
+# Plot fixed for all countries with density
 ```{r}
 # Define the filename for the PDF
 pdf("fixed_effects_plot_all_countries_Laura.pdf", width = 10, height = 8)  # Adjust width and height as needed
@@ -545,9 +546,75 @@ for (country in unique(mixed_model_data$country)) {
 dev.off()
 ```
 
+######################################################################################
+# GPS Data
+
+# Load data GPS
+```{r}
+gps_data <- haven::read_dta(paste0(base_path, "individual_new.dta"))
+gps_data
+```
+
+# Clean the data by removing records with missing values
+```{r}
+gps_data <- gps_data %>%
+  drop_na(country, isocode, risktaking, gender, age)
+gps_data
+```
+
+#select only the variables of interest
+```{r}
+gps_data <- gps_data %>%
+  dplyr::select(country, isocode, ison, risktaking, gender, age)
+gps_data
+```
+
+# Transform risk variable into T-score (mean = 50, sd = 10)
+```{r}
+gps_data$risktaking = 10*scale(gps_data$risktaking, center=TRUE,scale=TRUE)+50
+gps_data
+```
+
+# Factor gender and scale age 
+```{r}
+#factor gender 
+gps_data$gender <- factor(gps_data$gender)
+
+#scale age 
+gps_data$age <- scale(gps_data$age)
+
+gps_data
+```
 
 
+# Model1 gps with age and gender as predictors
+```{r}
+model1_gps = lmer(risktaking ~ 1 + age + gender + (1 + age + gender|country),data = gps_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
+summary_model1_gps=summary(model1_gps)
+summary_model1_gps
+```
 
+# Create data set for mixed models GPS including hardship 
+```{r}
+countryfacts
+mixed_model_gps_data <- left_join(gps_data, countryfacts, by = "country")
+mixed_model_gps_data
+head(mixed_model_gps_data)
+```
+
+# Model2 gps with age, gender and hardship
+```{r}
+model2_gps <- lmer(risktaking ~ 1 + age * hardship_index + 
+                    gender * hardship_index + 
+                    (1 + age | country),
+                data = mixed_model_gps_data,control=lmerControl(optCtrl=list(maxfun=100000),optimizer="bobyqa"),REML = FALSE)
+summary_model2_gps = summary(model2_gps) 
+summary_model2_gps
+```
+
+## work in Progress
+
+# Create coefs
 ```{r}
 countryfacts$codeWVS <- countryfacts$code
 
@@ -566,7 +633,6 @@ coefsallmodels <- rbind(summary_model1_gps$coefficients,
 write.csv(coefsallmodels, "coefsallmodels.csv")
 ```
 
-## work in Progress
 
 # Plot fixed effects for all countries (model2)
 ```{r}
@@ -611,9 +677,10 @@ lines(seq(min(mixed_model_gps_data$age), max(mixed_model_gps_data$age), length.o
 dev.off()
 ```
 
+######################################################################################
+# Combined data
 
-
-
+# Combine data WVS and GPS
 ```{r}
 mixed_model_gps_data
 mixed_model_data
@@ -644,7 +711,7 @@ merged_data
 ```
 
 
-# Model1 (Achtung: es war folgendes drin vorher "data = gps_data", ich habe das nun angepasst)
+# Model1 
 ```{r}
 # Now run the mixed-effects model with source as a fixed effect
 model1_combined = lmer(risktaking ~ 1 + age + gender + (1 + age + gender|country),data = merged_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
@@ -652,7 +719,7 @@ summary_model1_combined=summary(model1_combined)
 summary_model1_combined
 ```
 
-
+# Model2
 ```{r}
 model2_combined <- lmer(risktaking ~ 1 + age * hardship_index + 
                     gender * hardship_index + 
