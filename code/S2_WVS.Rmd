@@ -498,6 +498,55 @@ ggsave("myplot_cristina.png", my_plot, width = 10, height = 30, units = "in", dp
 data
 ```
 
+# Plot fixed for all countries with density
+```{r}
+# Define the filename for the PDF
+pdf("fixed_effects_plot_all_countries_Laura.pdf", width = 10, height = 8)  # Adjust width and height as needed
+
+# Create a layout for all countries
+par(mfrow = c(3, 3))  # Adjust the number of rows and columns as needed
+
+# Loop over each country
+for (country in unique(mixed_model_data$country)) {
+  # Subset data for the current country
+  country_data <- subset(mixed_model_data, country == country)
+  
+  # Plot fixed effects for the current country with specified range
+  smoothScatter(country_data$age, country_data$risktaking, las=1, xaxt="n", yaxt="n", 
+                 xlab="Age", ylab="Risk-Taking Propensity", bty="n", 
+                 main=country, cex.main=0.8, nrpoints=0, 
+                 xlim=c(min(country_data$age, na.rm = TRUE), max(country_data$age, na.rm = TRUE)), 
+                 ylim=c(min(country_data$risktaking, na.rm = TRUE), max(country_data$risktaking, na.rm = TRUE)), 
+                 cex.lab=0.6)
+  
+  # Add axes and labels
+  axis(1, at=c(15, 85), labels=c("15", "85"), cex.axis=0.7, tck=-0.01, line=0, mgp=c(3, 0.02, 0))
+  axis(2, at=c(35, 65), labels=c(35, 65), las=1, cex.axis=0.7, tck=-0.01, line=0, mgp=c(3, 0.3, 0))
+  mtext("Age", 1, line=0, cex=0.5)
+  mtext(expression(Risk~Taking~(italic(T)-score)), 2, line=1, cex=0.5)
+  text(73, 68, country)
+  
+  # Retrieve coefficients
+  coefs <- fixef(model2_wvs)
+  
+  # Define regression lines
+  regline <- function(x) {
+    coefs[1] + coefs[2] * x + coefs[4] * 0.5 + coefs[5] * 0.5 + coefs[6] * 0.5 + coefs[7] * 0.5
+  }
+  lines(mean(country_data$age) + seq(-3, 3, 0.1) * sd(country_data$age), 
+        regline(seq(-3, 3, 0.1)), lty=1, lwd=3, col="red")
+  regline <- function(x) {
+    coefs[1] + coefs[2] * x + coefs[3] + coefs[4] * 0.5 + coefs[5] * 0.5 + coefs[6] * 0.5 + coefs[7] * 0.5
+  }
+  lines(mean(country_data$age) + seq(-3, 3, 0.1) * sd(country_data$age), 
+        regline(seq(-3, 3, 0.1)), lty=2, lwd=3, col="red")
+}
+
+# Close the PDF device
+dev.off()
+```
+
+
 <<<<<<< HEAD
 
 =======
