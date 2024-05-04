@@ -653,7 +653,7 @@ summary_model2_combined
 ```
 
 
-
+# Plots all countries combined datasets (WVS, GPS)
 ```{r}
 # Define the filename for the PDF
 pdf("combined_data_combined_countries.pdf", width = 10, height = 8)  # Adjust width and height as needed
@@ -693,9 +693,61 @@ curve(regline_age(x), from = min(merged_data$age), to = max(merged_data$age), ad
 curve(regline_gender(x), from = min(merged_data$age), to = max(merged_data$age), add = TRUE, col = "green", lty = 2, lwd = 3)
 
 dev.off()
-
 ```
 
+# Plots country individually with combined datasets (WVS, GPS)
+```{r}
+# Load necessary package
+library(dplyr)
+
+# Create a list of unique countries
+countries <- unique(merged_data$country)
+n_countries <- length(countries)
+
+# Define the filename for the PDF
+pdf("combined_data_by_country_individual.pdf", width = 10, height = 8)
+
+# Define the layout for the plots: 2x2
+par(mfrow = c(2, 2))
+
+for (i in 1:n_countries) {
+  # Filter data for the current country
+  country <- countries[i]
+  country_data <- merged_data %>%
+    filter(country == !!country)
+
+  # Plot smoothed scatter without individual data points
+  smoothScatter(country_data$age, country_data$risktaking, las = 1, xaxt = "n", yaxt = "n",
+                xlab = "Age", ylab = "Risk-Taking Propensity", bty = "n",
+                main = country, cex.main = 0.8, nrpoints = 0,
+                xlim = c(min(country_data$age, na.rm = TRUE), max(country_data$age, na.rm = TRUE)),
+                ylim = c(min(country_data$risktaking, na.rm = TRUE), max(country_data$risktaking, na.rm = TRUE)),
+                cex.lab = 0.6)
+
+  # Add axes and labels
+  axis(1, at = c(15, 85), labels = c("15", "85"), cex.axis = 0.7, tck = -0.01, line = 0, mgp = c(3, 0.02, 0))
+  axis(2, at = c(35, 65), labels = c(35, 65), las = 1, cex.axis = 0.7, tck = -0.01, line = 0, mgp = c(3, 0.3, 0))
+  mtext("Age", 1, line = 0, cex = 0.5)
+  mtext(expression(Risk~Taking~(italic(T)-score)), 2, line = 1, cex = 0.5)
+
+  # Add country label
+  text(73, 68, country)
+
+  # Plot regression lines
+  curve(regline_age(x), from = min(country_data$age, na.rm = TRUE), to = max(country_data$age, na.rm = TRUE), add = TRUE, col = "blue", lty = 1, lwd = 3)
+  curve(regline_gender(x), from = min(country_data$age, na.rm = TRUE), to = max(country_data$age, na.rm = TRUE), add = TRUE, col = "green", lty = 2, lwd = 3)
+
+  # When four plots are on one page, start a new page
+  if (i %% 4 == 0 && i != n_countries) {
+    par(mfrow = c(2, 2))  # Reset layout for new page
+  }
+}
+
+dev.off()
+```
+
+
+# Plots all countries GPS
 ```{r}
 # Define the filename for the PDF
 pdf("gps_country_plot.pdf", width = 10, height = 8)  # Adjust width and height as needed
@@ -737,6 +789,60 @@ curve(regline_gender(x), from = min(gps_data$age), to = max(gps_data$age), add =
 dev.off()
 ```
 
+
+# Plots country individually GPS
+```{r}
+# Load necessary package
+library(dplyr)
+
+# Create a list of unique countries
+countries <- unique(gps_data$country)
+n_countries <- length(countries)
+
+# Define the filename for the PDF
+pdf("gps_country_plot_individual.pdf", width = 10, height = 8)
+
+# Define the layout for the plots: 2x2
+par(mfrow = c(2, 2))
+
+for (i in 1:n_countries) {
+  # Filter data for the current country
+  country <- countries[i]
+  country_data <- gps_data %>%
+    filter(country == !!country)
+
+  # Plot smoothed scatter without individual data points
+  smoothScatter(country_data$age, country_data$risktaking, las = 1, xaxt = "n", yaxt = "n",
+                xlab = "Age", ylab = "Risk-Taking Propensity", bty = "n",
+                main = country, cex.main = 0.8, nrpoints = 0,
+                xlim = c(min(country_data$age, na.rm = TRUE), max(country_data$age, na.rm = TRUE)),
+                ylim = c(min(country_data$risktaking, na.rm = TRUE), max(country_data$risktaking, na.rm = TRUE)),
+                cex.lab = 0.6)
+
+  # Add axes and labels
+  axis(1, at = c(15, 85), labels = c("15", "85"), cex.axis = 0.7, tck = -0.01, line = 0, mgp = c(3, 0.02, 0))
+  axis(2, at = c(35, 65), labels = c(35, 65), las = 1, cex.axis = 0.7, tck = -0.01, line = 0, mgp = c(3, 0.3, 0))
+  mtext("Age", 1, line = 0, cex = 0.5)
+  mtext(expression(Risk~Taking~(italic(T)-score)), 2, line = 1, cex = 0.5)
+
+  # Add country label
+  text(73, 68, country)
+
+  # Plot regression lines
+  curve(regline_age(x), from = min(country_data$age, na.rm = TRUE), to = max(country_data$age, na.rm = TRUE), add = TRUE, col = "blue", lty = 1, lwd = 3)
+  curve(regline_gender(x), from = min(country_data$age, na.rm = TRUE), to = max(country_data$age, na.rm = TRUE), add = TRUE, col = "green", lty = 2, lwd = 3)
+
+  # When four plots are on one page, start a new page
+  if (i %% 4 == 0 && i != n_countries) {
+    par(mfrow = c(2, 2))  # Reset layout for new page
+  }
+}
+
+dev.off()
+```
+
+
+# Plots all countries WVS
 ```{r}
 # Define the filename for the PDF
 pdf("wvs_country.pdf", width = 10, height = 8)  # Adjust width and height as needed
@@ -778,6 +884,57 @@ curve(regline_gender(x), from = min(mixed_model_data$age), to = max(mixed_model_
 dev.off()
 ```
 
+
+# Plots country individually WVS
+```{r}
+# Load necessary package
+library(dplyr)
+
+# Create a list of unique countries
+countries <- unique(mixed_model_data$country)
+n_countries <- length(countries)
+
+# Define the filename for the PDF
+pdf("wvs_country_individueal.pdf", width = 10, height = 8)
+
+# Define the layout for the plots: 2x2
+par(mfrow = c(2, 2))
+
+for (i in 1:n_countries) {
+  # Filter data for the current country
+  country <- countries[i]
+  country_data <- mixed_model_data %>%
+    filter(country == !!country)
+
+  # Plot smoothed scatter without individual data points
+  smoothScatter(country_data$age, country_data$risktaking, las = 1, xaxt = "n", yaxt = "n",
+                xlab = "Age", ylab = "Risk-Taking Propensity", bty = "n",
+                main = country, cex.main = 0.8, nrpoints = 0,
+                xlim = c(min(country_data$age, na.rm = TRUE), max(country_data$age, na.rm = TRUE)),
+                ylim = c(min(country_data$risktaking, na.rm = TRUE), max(country_data$risktaking, na.rm = TRUE)),
+                cex.lab = 0.6)
+
+  # Add axes and labels
+  axis(1, at = c(15, 85), labels = c("15", "85"), cex.axis = 0.7, tck = -0.01, line = 0, mgp = c(3, 0.02, 0))
+  axis(2, at = c(35, 65), labels = c(35, 65), las = 1, cex.axis = 0.7, tck = -0.01, line = 0, mgp = c(3, 0.3, 0))
+  mtext("Age", 1, line = 0, cex = 0.5)
+  mtext(expression(Risk~Taking~(italic(T)-score)), 2, line = 1, cex = 0.5)
+
+  # Add country label
+  text(73, 68, country)
+
+  # Plot regression lines
+  curve(regline_age(x), from = min(country_data$age, na.rm = TRUE), to = max(country_data$age, na.rm = TRUE), add = TRUE, col = "blue", lty = 1, lwd = 3)
+  curve(regline_gender(x), from = min(country_data$age, na.rm = TRUE), to = max(country_data$age, na.rm = TRUE), add = TRUE, col = "green", lty = 2, lwd = 3)
+
+  # When four plots are on one page, start a new page
+  if (i %% 4 == 0 && i != n_countries) {
+    par(mfrow = c(2, 2))  # Reset layout for new page
+  }
+}
+
+dev.off()
+```
 
 
 
