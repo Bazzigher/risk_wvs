@@ -246,103 +246,7 @@ mixed_model_data
 unique(mixed_model_data$country)
 ```
 
-# Model0
-```{r}
-# intercept only model
-model0_wvs = lmer(risktaking ~ 1 + (1|country), data = mixed_model_data)
-summary_model0_wvs = summary(model0_wvs)
-summary_model0_wvs
-```
 
-# Model1 (age, gender)
-```{r}
-mixed_model_data
-
-# age, gender 
-model1_wvs <- lmer(risktaking ~ 1 + age + gender + (1 + age + gender | country), 
-                   data = mixed_model_data, 
-                   control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
-summary_model1_wvs=summary(model1_wvs)
-summary_model1_wvs
-
-summary
-```
-
-# Model2 (age, gender, children, marital status, education, employment status)
-```{r}
-#model 2
-
-# Define the lmer model and assign it to 'model_2'
-mixed_model_data$children <- factor(mixed_model_data$children)
-mixed_model_data$married <- factor(mixed_model_data$married)
-mixed_model_data$education <- factor(mixed_model_data$education)
-mixed_model_data$employed <- factor(mixed_model_data$employed)
-
-options(scipen = 100)
-model2_wvs <- lmer(risktaking ~ 1 + age + gender + children + 
-                 married + education + employed +
-                 (1 + age + gender + children + employed +
-                  married | country),
-                data = mixed_model_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
-
-
-# Display the summary of the model
-summary_model2_wvs = summary(model2_wvs)
-summary_model2_wvs
-```
-
-
-## This code did not work for Laura, but I kept it in the code in case i made a mistake
-
-# Model3 (age, gender, children, marital status, education, employment status, hardship)
-#```{r}
-options(scipen = 100)
-model3_wvs <- lmer(risktaking ~ 1 + age * hardship_index + 
-                    gender * hardship_index + married + children + 
-                    education + employed + 
-                    (1 + age + married + children + 
-                     education + employed | country),
-                data = mixed_model_data,control=lmerControl(optCtrl=list(maxfun=100000),optimizer="bobyqa"),REML = FALSE)
-
-summary_model3_wvs = summary(model3_wvs) 
-
-summary_model3_wvs
-#```
-
-
-```{r}
-model3_wvs <- lmer(risktaking ~ 1 + age * hardship_index + gender * hardship_index + married + children + 
-                   education + employed + 
-                   (1 + age + married + children + education + employed | country),
-                   data = mixed_model_data,
-                   REML = FALSE,  # Dies ist der korrekte Ort für den REML-Parameter
-                   control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
-
-summary_model3_wvs = summary(model3_wvs) 
-
-summary_model3_wvs
-```
-
-
-# ANOVA
-```{r}
-# Define anova_results list with multiple anova() calls
-anova_results <- list(
-  anova(model0_wvs, model1_wvs),
-  anova(model1_wvs, model2_wvs),
-  anova(model2_wvs, model3_wvs)
-)
-
-anova_results
-
-# Format ANOVA results into a tidy data frame
-anova_summary <- bind_rows(lapply(anova_results, tidy), .id = "Comparison")
-
-# Print the summary table
-print(anova_summary)
-```
-
-# INPUT Laura: Can we keep this code and delete the codes above? 
 # New Code Laura: mixed_models 0, 1, 2 & 3
 ```{r}
 # Clean data 
@@ -391,18 +295,6 @@ print(anova_results)
 
 
 
-# Input Laur: This code gave me an error. Can we delete this chunk?
-coefsallmodels=rbind(summary_model1_wvs$coefficients,
-summary_model2_wvs$coefficients,
-summary_model3_wvs$coefficients[c(1:2,4:8,3,9:10),])
-
-write.csv(coefsallmodels,"coefsallmodels.csv")
-
-modelcoefs=ranef(model2_wvs)$country
-modelcoefs$codeWVS=row.names(modelcoefs)
-regiondata=merge(modelcoefs,countryfacts,by="codeWVS") # merge matrices to include the hardship composite
-
-
 # Prep for coefs
 ```{r}
 countryfacts$codeWVS <- countryfacts$code
@@ -429,13 +321,6 @@ write.csv(coefsallmodels, "coefsallmodels.csv")
 ```{r}
 # Define the filename for the PDF
 pdf("WVS_fixed_effects_plot_all_countries.pdf", width = 10, height = 8)  # Adjust width and height as needed
-
-# Plot fixed effects for all countries --> this code did not work and gave me an error
-#smoothScatter(mixed_model_data$age, mixed_model_data$risktaking, las=1, xaxt="n", yaxt="n", 
-#               xlab="Age", ylab="Risk-Taking Propensity", bty="n", 
-#               main="ALL", cex.main=0.8, nrpoints=0, 
-#               xlim=c(15,85), ylim=c(35,69), cex.lab=0.6,
-#               bandwidth = 0.5)  # You can adjust the bandwidth value as needed
 
 
 # Plot fixed effects for all countries with specified range
@@ -472,31 +357,6 @@ lines(mean(mixed_model_data$age) + seq(-3, 3, 0.1) * sd(mixed_model_data$age),
 dev.off()
 ```
 
-# INPUT Laura: Can we delete this code? 
-# Plot fixed effects for all countries
-```{r}
-data$gender <- factor(data$gender)
-
-# Create the ggplot object
-my_plot <- ggplot(data, aes(x = age)) + 
-  geom_density(aes(fill = gender), alpha = 0.5) + 
-  scale_fill_manual(values = c("blue", "red")) +
-  facet_wrap(~ country, scales = "free_y", ncol = 4) + 
-  geom_smooth(aes(x = age, y = risktaking, color = gender, group = gender), method = "lm", linetype = "dashed", se = FALSE) +
-  theme_minimal() +
-  labs(x = "Age", y = "Propensity for Risk Taking (T score)", fill = "Age", color = "Sex") +
-  theme(legend.position = "top") +
-  scale_y_continuous(limits = c(30, NA)) # Set the lower limit to 30 and the upper to NA to determine it automatically
-
-# Print the plot
-print(my_plot)
-
-# Save the plot to a PNG file
-ggsave("myplot_cristina.png", my_plot, width = 10, height = 30, units = "in", dpi = 300)
-
-
-data
-```
 
 # Plot fixed for all countries with density
 ```{r}
@@ -547,16 +407,6 @@ dev.off()
 ```
 
 
-<<<<<<< HEAD
-
-=======
-# Plot fixed for all countries with density
->>>>>>> 27a2ab0303cb8572f9c7e6eba13bee40fdd5de86
-```{r}
-gps_data <- haven::read_dta(paste0(base_path, "individual_new.dta"))
-gps_data
-```
-
 ######################################################################################
 # GPS Data
 
@@ -597,8 +447,6 @@ gps_data$age <- scale(gps_data$age)
 gps_data
 ```
 
-<<<<<<< HEAD
-=======
 
 # Model1 gps with age and gender as predictors
 ```{r}
@@ -625,8 +473,8 @@ summary_model2_gps = summary(model2_gps)
 summary_model2_gps
 ```
 
+
 # Create coefs
->>>>>>> 27a2ab0303cb8572f9c7e6eba13bee40fdd5de86
 ```{r}
 # Clean the data by removing records with missing values
 gps_data <- gps_data %>%
@@ -634,11 +482,13 @@ gps_data <- gps_data %>%
 
 gps_data
 
-<<<<<<< HEAD
 # Display the cleaned data
 gps_data
-=======
-# Zusammenführen der Daten
+```
+
+
+# 
+```{r}
 regiondata <- merge(modelcoefs, countryfacts, by = "codeWVS")
 
 # Kombinieren der Koeffizienten aus den Modellzusammenfassungen
@@ -691,13 +541,10 @@ lines(seq(min(mixed_model_gps_data$age), max(mixed_model_gps_data$age), length.o
 
 # Close the PDF device
 dev.off()
->>>>>>> 27a2ab0303cb8572f9c7e6eba13bee40fdd5de86
 ```
 
 ######################################################################################
 # Combined data
-
-<<<<<<< HEAD
 ```{r}
 #select only the variables of interest
 gps_data <- gps_data %>%
@@ -750,9 +597,7 @@ summary_model2_gps
 ```
 
 
-=======
 # Combine data WVS and GPS
->>>>>>> 27a2ab0303cb8572f9c7e6eba13bee40fdd5de86
 ```{r}
 mixed_model_gps_data
 mixed_model_data
@@ -787,23 +632,15 @@ merged_data <- rbind(mixed_model_gps_data_new, mixed_model_data_new)
 merged_data
 ```
 
-<<<<<<< HEAD
-=======
-
 # Model1 
->>>>>>> 27a2ab0303cb8572f9c7e6eba13bee40fdd5de86
 ```{r}
 # Now run the mixed-effects model with source as a fixed effect
 model1_combined = lmer(risktaking ~ 1 + age + gender + (1 + age + gender|country),data = merged_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
 summary_model1_combined=summary(model1_combined)
 summary_model1_combined
-
-<<<<<<< HEAD
 ```
 
-=======
 # Model2
->>>>>>> 27a2ab0303cb8572f9c7e6eba13bee40fdd5de86
 ```{r}
 model2_combined <- lmer(risktaking ~ 1 + age * hardship_index + 
                     gender * hardship_index + 
@@ -819,7 +656,7 @@ summary_model2_combined
 
 ```{r}
 # Define the filename for the PDF
-pdf("combined.pdf", width = 10, height = 8)  # Adjust width and height as needed
+pdf("combined_data_combined_countries.pdf", width = 10, height = 8)  # Adjust width and height as needed
 
 
 # Plot smoothed scatter without individual data points
@@ -861,7 +698,7 @@ dev.off()
 
 ```{r}
 # Define the filename for the PDF
-pdf("gps_plot.pdf", width = 10, height = 8)  # Adjust width and height as needed
+pdf("gps_country_plot.pdf", width = 10, height = 8)  # Adjust width and height as needed
 
 
 # Plot smoothed scatter without individual data points
@@ -902,7 +739,7 @@ dev.off()
 
 ```{r}
 # Define the filename for the PDF
-pdf("wvs.pdf", width = 10, height = 8)  # Adjust width and height as needed
+pdf("wvs_country.pdf", width = 10, height = 8)  # Adjust width and height as needed
 
 
 # Plot smoothed scatter without individual data points
