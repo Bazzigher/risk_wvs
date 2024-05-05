@@ -246,103 +246,6 @@ mixed_model_data
 unique(mixed_model_data$country)
 ```
 
-# Model0
-```{r}
-# intercept only model
-model0_wvs = lmer(risktaking ~ 1 + (1|country), data = mixed_model_data)
-summary_model0_wvs = summary(model0_wvs)
-summary_model0_wvs
-```
-
-# Model1 (age, gender)
-```{r}
-mixed_model_data
-
-# age, gender 
-model1_wvs <- lmer(risktaking ~ 1 + age + gender + (1 + age + gender | country), 
-                   data = mixed_model_data, 
-                   control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
-summary_model1_wvs=summary(model1_wvs)
-summary_model1_wvs
-
-summary
-```
-
-# Model2 (age, gender, children, marital status, education, employment status)
-```{r}
-#model 2
-
-# Define the lmer model and assign it to 'model_2'
-mixed_model_data$children <- factor(mixed_model_data$children)
-mixed_model_data$married <- factor(mixed_model_data$married)
-mixed_model_data$education <- factor(mixed_model_data$education)
-mixed_model_data$employed <- factor(mixed_model_data$employed)
-
-options(scipen = 100)
-model2_wvs <- lmer(risktaking ~ 1 + age + gender + children + 
-                 married + education + employed +
-                 (1 + age + gender + children + employed +
-                  married | country),
-                data = mixed_model_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
-
-
-# Display the summary of the model
-summary_model2_wvs = summary(model2_wvs)
-summary_model2_wvs
-```
-
-
-## This code did not work for Laura, but I kept it in the code in case i made a mistake
-
-# Model3 (age, gender, children, marital status, education, employment status, hardship)
-#```{r}
-options(scipen = 100)
-model3_wvs <- lmer(risktaking ~ 1 + age * hardship_index + 
-                    gender * hardship_index + married + children + 
-                    education + employed + 
-                    (1 + age + married + children + 
-                     education + employed | country),
-                data = mixed_model_data,control=lmerControl(optCtrl=list(maxfun=100000),optimizer="bobyqa"),REML = FALSE)
-
-summary_model3_wvs = summary(model3_wvs) 
-
-summary_model3_wvs
-#```
-
-
-```{r}
-model3_wvs <- lmer(risktaking ~ 1 + age * hardship_index + gender * hardship_index + married + children + 
-                   education + employed + 
-                   (1 + age + married + children + education + employed | country),
-                   data = mixed_model_data,
-                   REML = FALSE,  # Dies ist der korrekte Ort für den REML-Parameter
-                   control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
-
-summary_model3_wvs = summary(model3_wvs) 
-
-summary_model3_wvs
-```
-
-
-# ANOVA
-```{r}
-# Define anova_results list with multiple anova() calls
-anova_results <- list(
-  anova(model0_wvs, model1_wvs),
-  anova(model1_wvs, model2_wvs),
-  anova(model2_wvs, model3_wvs)
-)
-
-anova_results
-
-# Format ANOVA results into a tidy data frame
-anova_summary <- bind_rows(lapply(anova_results, tidy), .id = "Comparison")
-
-# Print the summary table
-print(anova_summary)
-```
-
-# INPUT Laura: Can we keep this code and delete the codes above? 
 # New Code Laura: mixed_models 0, 1, 2 & 3
 ```{r}
 # Clean data 
@@ -396,19 +299,6 @@ print(anova_results)
 ```
 
 
-
-# Input Laur: This code gave me an error. Can we delete this chunk?
-coefsallmodels=rbind(summary_model1_wvs$coefficients,
-summary_model2_wvs$coefficients,
-summary_model3_wvs$coefficients[c(1:2,4:8,3,9:10),])
-
-write.csv(coefsallmodels,"coefsallmodels.csv")
-
-modelcoefs=ranef(model2_wvs)$country
-modelcoefs$codeWVS=row.names(modelcoefs)
-regiondata=merge(modelcoefs,countryfacts,by="codeWVS") # merge matrices to include the hardship composite
-
-
 # Prep for coefs
 ```{r}
 countryfacts$codeWVS <- countryfacts$code
@@ -427,135 +317,12 @@ coefsallmodels <- rbind(summary_model1_wvs$coefficients,
                         summary_model2_wvs$coefficients,
                         summary_model3_wvs$coefficients[c(1:2,4:8,3,9:10),])
 
-write.csv(coefsallmodels, "coefsallmodels.csv")
+print(coefsallmodels)
 ```
 
 
-# Plot fixed effects for all countries
-```{r}
-# Define the filename for the PDF
-pdf("WVS_fixed_effects_plot_all_countries.pdf", width = 10, height = 8)  # Adjust width and height as needed
 
-# Plot fixed effects for all countries --> this code did not work and gave me an error
-#smoothScatter(mixed_model_data$age, mixed_model_data$risktaking, las=1, xaxt="n", yaxt="n", 
-#               xlab="Age", ylab="Risk-Taking Propensity", bty="n", 
-#               main="ALL", cex.main=0.8, nrpoints=0, 
-#               xlim=c(15,85), ylim=c(35,69), cex.lab=0.6,
-#               bandwidth = 0.5)  # You can adjust the bandwidth value as needed
-
-
-# Plot fixed effects for all countries with specified range
-smoothScatter(mixed_model_data$age, mixed_model_data$risktaking, las=1, xaxt="n", yaxt="n", 
-               xlab="Age", ylab="Risk-Taking Propensity", bty="n", 
-               main="ALL", cex.main=0.8, nrpoints=0, 
-               xlim=c(min(mixed_model_data$age, na.rm = TRUE), max(mixed_model_data$age, na.rm = TRUE)), 
-               ylim=c(min(mixed_model_data$risktaking, na.rm = TRUE), max(mixed_model_data$risktaking, na.rm = TRUE)), 
-               cex.lab=0.6)
-
-# Add axes and labels
-axis(1, at=c(15, 85), labels=c("15", "85"), cex.axis=0.7, tck=-0.01, line=0, mgp=c(3, 0.02, 0))
-axis(2, at=c(35, 65), labels=c(35, 65), las=1, cex.axis=0.7, tck=-0.01, line=0, mgp=c(3, 0.3, 0))
-mtext("Age", 1, line=0, cex=0.5)
-mtext(expression(Risk~Taking~(italic(T)-score)), 2, line=1, cex=0.5)
-text(73, 68, "All Countries")
-
-# Retrieve coefficients
-coefs <- fixef(model2_wvs)
-
-# Define regression lines
-regline <- function(x) {
-  coefs[1] + coefs[2] * x + coefs[4] * 0.5 + coefs[5] * 0.5 + coefs[6] * 0.5 + coefs[7] * 0.5
-}
-lines(mean(mixed_model_data$age) + seq(-3, 3, 0.1) * sd(mixed_model_data$age), 
-      regline(seq(-3, 3, 0.1)), lty=1, lwd=3, col="red")
-regline <- function(x) {
-  coefs[1] + coefs[2] * x + coefs[3] + coefs[4] * 0.5 + coefs[5] * 0.5 + coefs[6] * 0.5 + coefs[7] * 0.5
-}
-lines(mean(mixed_model_data$age) + seq(-3, 3, 0.1) * sd(mixed_model_data$age), 
-      regline(seq(-3, 3, 0.1)), lty=2, lwd=3, col="red")
-
-# Close the PDF device
-dev.off()
-```
-
-# INPUT Laura: Can we delete this code? 
-# Plot fixed effects for all countries
-```{r}
-data$gender <- factor(data$gender)
-
-# Create the ggplot object
-my_plot <- ggplot(data, aes(x = age)) + 
-  geom_density(aes(fill = gender), alpha = 0.5) + 
-  scale_fill_manual(values = c("blue", "red")) +
-  facet_wrap(~ country, scales = "free_y", ncol = 4) + 
-  geom_smooth(aes(x = age, y = risktaking, color = gender, group = gender), method = "lm", linetype = "dashed", se = FALSE) +
-  theme_minimal() +
-  labs(x = "Age", y = "Propensity for Risk Taking (T score)", fill = "Age", color = "Sex") +
-  theme(legend.position = "top") +
-  scale_y_continuous(limits = c(30, NA)) # Set the lower limit to 30 and the upper to NA to determine it automatically
-
-# Print the plot
-print(my_plot)
-
-# Save the plot to a PNG file
-ggsave("myplot_cristina.png", my_plot, width = 10, height = 30, units = "in", dpi = 300)
-
-
-data
-```
-
-# Plot fixed for all countries with density
-```{r}
-# Define the filename for the PDF
-pdf("fixed_effects_plot_all_countries_Laura.pdf", width = 10, height = 8)  # Adjust width and height as needed
-
-# Create a layout for all countries
-par(mfrow = c(3, 3))  # Adjust the number of rows and columns as needed
-
-# Loop over each country
-for (country in unique(mixed_model_data$country)) {
-  # Subset data for the current country
-  country_data <- subset(mixed_model_data, country == country)
-  
-  # Plot fixed effects for the current country with specified range
-  smoothScatter(country_data$age, country_data$risktaking, las=1, xaxt="n", yaxt="n", 
-                 xlab="Age", ylab="Risk-Taking Propensity", bty="n", 
-                 main=country, cex.main=0.8, nrpoints=0, 
-                 xlim=c(min(country_data$age, na.rm = TRUE), max(country_data$age, na.rm = TRUE)), 
-                 ylim=c(min(country_data$risktaking, na.rm = TRUE), max(country_data$risktaking, na.rm = TRUE)), 
-                 cex.lab=0.6)
-  
-  # Add axes and labels
-  axis(1, at=c(15, 85), labels=c("15", "85"), cex.axis=0.7, tck=-0.01, line=0, mgp=c(3, 0.02, 0))
-  axis(2, at=c(35, 65), labels=c(35, 65), las=1, cex.axis=0.7, tck=-0.01, line=0, mgp=c(3, 0.3, 0))
-  mtext("Age", 1, line=0, cex=0.5)
-  mtext(expression(Risk~Taking~(italic(T)-score)), 2, line=1, cex=0.5)
-  text(73, 68, country)
-  
-  # Retrieve coefficients
-  coefs <- fixef(model2_wvs)
-  
-  # Define regression lines
-  regline <- function(x) {
-    coefs[1] + coefs[2] * x + coefs[4] * 0.5 + coefs[5] * 0.5 + coefs[6] * 0.5 + coefs[7] * 0.5
-  }
-  lines(mean(country_data$age) + seq(-3, 3, 0.1) * sd(country_data$age), 
-        regline(seq(-3, 3, 0.1)), lty=1, lwd=3, col="red")
-  regline <- function(x) {
-    coefs[1] + coefs[2] * x + coefs[3] + coefs[4] * 0.5 + coefs[5] * 0.5 + coefs[6] * 0.5 + coefs[7] * 0.5
-  }
-  lines(mean(country_data$age) + seq(-3, 3, 0.1) * sd(country_data$age), 
-        regline(seq(-3, 3, 0.1)), lty=2, lwd=3, col="red")
-}
-
-# Close the PDF device
-dev.off()
-```
-
-
-######################################################################################
 # GPS Data
-
 # Load data GPS
 ```{r}
 gps_data <- haven::read_dta(paste0(base_path, "individual_new.dta"))
@@ -619,61 +386,17 @@ summary_model2_gps = summary(model2_gps)
 summary_model2_gps
 ```
 
-# Create coefs
+# Create coefs GPS
 ```{r}
 # Zusammenführen der Daten
 regiondata <- merge(modelcoefs, countryfacts, by = "codeWVS")
 
 # Kombinieren der Koeffizienten aus den Modellzusammenfassungen
-coefsallmodels <- rbind(summary_model1_gps$coefficients,
-                        summary_model2_gps$coefficients)
+coefsallmodels_gps <- rbind(summary_model1_gps$coefficients,
+                            summary_model2_gps$coefficients)
 
 # Schreiben der kombinierten Koeffizienten in eine CSV-Datei
-print(coefsallmodels)
-```
-
-
-# Plot fixed effects for all countries (model2)
-```{r}
-# Define the filename for the PDF
-pdf("GPS_fixed_effects_plot_all_countries.pdf", width = 10, height = 8)  # Adjust width and height as needed
-
-# Plot fixed effects for all countries with specified range
-smoothScatter(mixed_model_gps_data$age, mixed_model_gps_data$risktaking, las=1, xaxt="n", yaxt="n", 
-               xlab="Age", ylab="Risk-Taking Propensity", bty="n", 
-               main="ALL", cex.main=0.8, nrpoints=0, 
-               xlim=c(min(mixed_model_gps_data$age, na.rm = TRUE), max(mixed_model_gps_data$age, na.rm = TRUE)), 
-               ylim=c(min(mixed_model_gps_data$risktaking, na.rm = TRUE), max(mixed_model_gps_data$risktaking, na.rm = TRUE)), 
-               cex.lab=0.6)
-
-# Add axes and labels
-axis(1, at=c(15, 85), labels=c("15", "85"), cex.axis=0.7, tck=-0.01, line=0, mgp=c(3, 0.02, 0))
-axis(2, at=c(35, 65), labels=c(35, 65), las=1, cex.axis=0.7, tck=-0.01, line=0, mgp=c(3, 0.3, 0))
-mtext("Age", 1, line=0, cex=0.5)
-mtext(expression(Risk~Taking~(italic(T)-score)), 2, line=1, cex=0.5)
-text(73, 68, "All Countries")
-
-# Retrieve coefficients
-coefs <- fixef(model2_gps)
-
-# Define regression lines for male
-regline_male <- function(x) {
-  coefs[1] + coefs[2] * x + coefs[4] * 0.5 + coefs[5] * 0.5 + coefs[6] * 0.5 + coefs[7] * 0.5
-}
-lines(seq(min(mixed_model_gps_data$age), max(mixed_model_gps_data$age), length.out = 100), 
-      regline_male(seq(min(mixed_model_gps_data$age), max(mixed_model_gps_data$age), length.out = 100)), 
-      lty=1, lwd=3, col="red")
-
-# Define regression lines for female
-regline_female <- function(x) {
-  coefs[1] + coefs[2] * x + coefs[3] + coefs[4] * 0.5 + coefs[5] * 0.5 + coefs[6] * 0.5 + coefs[7] * 0.5
-}
-lines(seq(min(mixed_model_gps_data$age), max(mixed_model_gps_data$age), length.out = 100), 
-      regline_female(seq(min(mixed_model_gps_data$age), max(mixed_model_gps_data$age), length.out = 100)), 
-      lty=2, lwd=3, col="blue")
-
-# Close the PDF device
-dev.off()
+print(coefsallmodels_gps)
 ```
 
 ######################################################################################
@@ -692,7 +415,6 @@ mixed_model_gps_data_new
 mixed_model_data
 
 #select the same variables as GPS dataset
-
 mixed_model_data_new<- mixed_model_data %>%
   dplyr::select(country, gender, age, hardship_index, risktaking, source)
 
@@ -705,7 +427,6 @@ mixed_model_data_new
 mixed_model_gps_data_new
 
 #Combine the two datasets 
-
 merged_data <- rbind(mixed_model_gps_data_new, mixed_model_data_new)
 merged_data
 ```
