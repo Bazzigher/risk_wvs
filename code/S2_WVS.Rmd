@@ -316,8 +316,6 @@ coefsallmodels <- rbind(summary_model1_wvs$coefficients,
 print(coefsallmodels)
 ```
 
-
-
 # GPS Data
 # Load data GPS
 ```{r}
@@ -451,6 +449,7 @@ summary_model2_combined
 ```
 
 
+
 # Plot combined dataset all countries 
 ```{r}
 # Define the filename for the PDF
@@ -500,11 +499,11 @@ pdf("gps_all_countries.pdf", width = 10, height = 8)  # Adjust width and height 
 
 
 # Plot smoothed scatter without individual data points
-smoothScatter(gps_data$age, gps_data$risktaking, las=1, xaxt="n", yaxt="n", 
+smoothScatter(mixed_model_gps_data_new$age, mixed_model_gps_data_new$risktaking, las=1, xaxt="n", yaxt="n", 
                xlab="Age", ylab="Risk-Taking Propensity", bty="n", 
                main="All Countries", cex.main=0.8, nrpoints=0, 
-               xlim=c(min(gps_data$age, na.rm = TRUE), max(gps_data$age, na.rm = TRUE)), 
-               ylim=c(min(gps_data$risktaking, na.rm = TRUE), max(gps_data$risktaking, na.rm = TRUE)), 
+               xlim=c(min(mixed_model_gps_data_new$age, na.rm = TRUE), max(gps_data$age, na.rm = TRUE)), 
+               ylim=c(min(mixed_model_gps_data_new$risktaking, na.rm = TRUE), max(gps_data$risktaking, na.rm = TRUE)), 
                cex.lab=0.6)
 
 # Add axes and labels
@@ -577,6 +576,7 @@ curve(regline_gender(x), from = min(mixed_model_data$age), to = max(mixed_model_
 dev.off()
 ```
 
+
 # Plot combined dataset individual countries 
 ```{r}
 # Define the filename for the PDF
@@ -606,7 +606,7 @@ for (country in unique(mixed_model_data$country)) {
   text(73, 68, country)
   
   # Retrieve coefficients
-  coefs <- fixef(model2_wvs)
+  coefs <- fixef(model2_combined)
   
   # Define regression lines
   regline <- function(x) {
@@ -655,7 +655,7 @@ for (country in unique(mixed_model_gps_data_new$country)) {
   text(73, 68, country)
   
   # Retrieve coefficients
-  coefs <- fixef(model2_wvs)
+  coefs <- fixef(model2_gps)
   
   # Define regression lines
   regline <- function(x) {
@@ -677,7 +677,7 @@ dev.off()
 # Plot WVS dataset individual countries 
 ```{r}
 # Define the filename for the PDF
-pdf("gps_individual_countries.pdf", width = 10, height = 8)  # Adjust width and height as needed
+pdf("wvs_individual_countries.pdf", width = 10, height = 8)  # Adjust width and height as needed
 
 # Create a layout for all countries
 par(mfrow = c(3, 3))  # Adjust the number of rows and columns as needed
