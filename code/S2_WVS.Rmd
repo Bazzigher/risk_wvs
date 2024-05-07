@@ -6,6 +6,7 @@ output:
 ---
 
 
+
 ```{r}
 rm(list = ls())
 ```
@@ -721,3 +722,48 @@ for (country in unique(mixed_model_data_new$country)) {
 # Close the PDF device
 dev.off()
 ```
+
+
+
+
+
+# This is the original code from Mata et al., 2016
+############################################################################################################################
+# PLOTTING:
+# Plot fixed and random (country specific) effects from Model 2 
+# (the model without hardship) in two figures with a total of 78 subplots (average of ALL countries + 77 individual countries)
+countrycodes = sort(as.numeric(modelcoefs$codeWVS))
+countrycodes=countrycodes[order(countryfacts[, "country"])]
+
+par(oma=c(1,1,1,1))
+mat=matrix(c(1,1,2,3,1,1,4:41),11, 4, byrow = TRUE)
+layout(mat)
+par(mar=c(1,2,0,1))
+layout.show(41)
+
+results = data.frame(matrix(data = NA, nrow = length(countrycodes), ncol = 15))
+names(results) = c("country", "code", "n", "females","meannage","minage","maxage","hardship","intercept","age", "sex","children","married","employ","education")
+
+# Plot fixed (average) effects from Model 2 (the model without hardship) in the first subplot
+smoothScatter(data$age,data$risk,las=1,xaxt="n",yaxt="n",xlab="Age",ylab="Risk-Taking Propensity",bty="n",main="",cex.main=.8,nrpoints=0,xlim=c(15,85),ylim=c(35,69),cex.lab=.6)
+
+axis(1, at = c(15, 85), labels=c("15","85"),cex.axis = 0.7,tck = -.01,line=0,mgp=c(3, .02, 0))
+axis(2, at = c(35, 65),labels=c(35,65), las = 1, cex.axis = 0.7,tck = -.01,line=0,mgp=c(3, .3, 0))
+mtext("Age", 1, line=0, cex = 0.5)
+mtext(expression(Risk~Taking~(italic(T)-score)), 2, line=1, cex = 0.5)
+text(73,68,"All Countries")
+
+coefs=fixef(model2)
+
+regline=function(x)
+{
+  coefs[1]+coefs[2]*x+coefs[4]*.5+coefs[5]*.5+coefs[6]*.5+coefs[7]*.5
+}
+lines(mean(data$age)+seq(-3,3,.1)*sd(data$age),regline(seq(-3,3,.1)),lty=1,lwd=3,col="red")
+regline=function(x)
+{
+  coefs[1]+coefs[2]*x+coefs[3]+coefs[4]*.5+coefs[5]*.5+coefs[6]*.5+coefs[7]*.5
+}
+lines(mean(data$age)+seq(-3,3,.1)*sd(data$age),regline(seq(-3,3,.1)),lty=2,lwd=3,col="red")
+
+
