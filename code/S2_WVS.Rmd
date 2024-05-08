@@ -820,6 +820,7 @@ for (country_code in countrycodes) {
 # Close the PDF device
 dev.off()
 
+<<<<<<< HEAD
 ```{r}
 countryfacts$codeWVS <- countryfacts$code
 
@@ -941,4 +942,20 @@ ggplot(merged, aes(x = age_gps, y = age_wvs)) +
   coord_fixed()
 
 ```
+```{r}
+correlation_intercepts <- cor(merged$Intercept_gps, merged$Intercept_wvs)
+print(correlation_intercepts)
+
+correlation_age <- cor(merged$age_gps, merged$age_wvs)
+print(correlation_age)
+
+correlation_gender <- cor(merged$gender_gps, merged$gender_wvs)
+print(correlation_gender)
+
+correlation_age
+correlation_gender
+correlation_intercepts
+```
+
+=======
 
