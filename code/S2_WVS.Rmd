@@ -315,6 +315,8 @@ coefsallmodels <- rbind(summary_model1_wvs$coefficients,
                         summary_model3_wvs$coefficients[c(1:2,4:8,3,9:10),])
 
 print(coefsallmodels)
+
+modelcoefs
 ```
 
 # GPS Data
@@ -766,4 +768,177 @@ regline=function(x)
 }
 lines(mean(data$age)+seq(-3,3,.1)*sd(data$age),regline(seq(-3,3,.1)),lty=2,lwd=3,col="red")
 
+
+
+########################################################
+# Alternativ code based on Matas: 
+
+# Define the filename for the PDF
+pdf("wvs_individual_countries.pdf", width = 10, height = 8)  # Adjust width and height as needed
+
+# Sorting and ordering country codes if necessary
+countrycodes <- sort(as.numeric(data$country), decreasing = FALSE)
+countrycodes <- unique(countrycodes)  # Assuming 'country' is already numeric, adjust if not
+
+# Create a layout for all countries
+par(mfrow = c(11, 7))  # Adjust the number of rows and columns as needed
+
+# Loop over each country code
+for (country_code in countrycodes) {
+  # Subset data for the current country
+  country_data <- subset(data, country == country_code)
+  
+  # Plot fixed effects for the current country with specified range
+  smoothScatter(country_data$age, country_data$risk, las=1, xaxt="n", yaxt="n", 
+                 xlab="Age", ylab="Risk-Taking Propensity", bty="n", 
+                 main=countrynames[countrynames$code == country_code, "name"], cex.main=0.8, nrpoints=0, 
+                 xlim=c(15, 85), ylim=c(35, 65), cex.lab=0.6)
+  
+  # Add axes and labels
+  axis(1, at=c(15, 85), labels=c("15", "85"), cex.axis=0.7, tck=-0.01, line=0, mgp=c(3, 0.02, 0))
+  axis(2, at=c(35, 65), labels=c(35, 65), las=1, cex.axis=0.7, tck=-0.01, line=0, mgp=c(3, 0.3, 0))
+  mtext("Age", 1, line=0, cex=0.5)
+  mtext(expression(Risk~Taking~(italic(T)-score)), 2, line=1, cex=0.5)
+  
+  # Retrieve coefficients
+  coefs <- fixef(model2_wvs)  # Assuming model2 contains the model coefficients
+  
+  # Define regression lines
+  regline <- function(x) {
+    coefs[1] + coefs[2] * x + coefs[4] * 0.5 + coefs[5] * 0.5 + coefs[6] * 0.5 + coefs[7] * 0.5
+  }
+  lines(mean(country_data$age) + seq(-3, 3, 0.1) * sd(country_data$age), 
+        regline(seq(-3, 3, 0.1)), lty=1, lwd=3, col="red")
+
+  regline <- function(x) {
+    coefs[1] + coefs[2] * x + coefs[3] + coefs[4] * 0.5 + coefs[5] * 0.5 + coefs[6] * 0.5 + coefs[7] * 0.5
+  }
+  lines(mean(country_data$age) + seq(-3, 3, 0.1) * sd(country_data$age), 
+        regline(seq(-3, 3, 0.1)), lty=2, lwd=3, col="blue")
+}
+
+# Close the PDF device
+dev.off()
+
+```{r}
+countryfacts$codeWVS <- countryfacts$code
+
+# Create the modelcoefs data
+modelcoefs_model1_wvs <- ranef(model1_wvs)$country
+modelcoefs_model1_wvs$codeWVS <- row.names(modelcoefs)
+
+# Combine the data
+regiondata <- merge(modelcoefs_model1_wvs, countryfacts, by = "codeWVS")
+modelcoefs_model1_wvs
+
+
+modelcoefs_model1_wvs <- modelcoefs_model1_wvs %>%
+  dplyr::select('(Intercept)', age, gender)
+modelcoefs_model1_wvs
+
+
+
+```
+
+```{r}
+# Assuming you've already extracted coefficients from your model as modelcoefs_model1_gps
+
+# Create the modelcoefs data
+modelcoefs_model1_gps <- ranef(model1_gps)$country
+modelcoefs_model1_gps$codeWVS <- row.names(modelcoefs_model1_gps)
+
+# Combine the data
+regiondata <- merge(modelcoefs_model1_gps, countryfacts, by = "codeWVS")
+
+modelcoefs_model1_gps
+
+
+
+```
+
+```{r}
+modelcoefs_model1_wvs <- modelcoefs_model1_wvs %>%
+  rename(Intercept_wvs= '(Intercept)' , age_wvs = age, gender_wvs = gender)
+modelcoefs_model1_wvs
+
+
+
+
+
+```
+```{r}
+modelcoefs_model1_gps <- modelcoefs_model1_gps %>%
+  rename(Intercept_gps= '(Intercept)' , age_gps = age, gender_gps = gender1)
+modelcoefs_model1_gps
+```
+```{r}
+common_countries <- intersect(modelcoefs_model1_wvs$codeWVS, modelcoefs_model1_wvs$codeWVS)
+selected_countries <- c("Argentina", "Australia", "Brazil", "Canada", "Chile", "China", "Egypt", "Finland", "France", "Georgia",
+                         "Germany", "Ghana", "Hungary", "India", "Indonesia", "Iran", "Japan", "Jordan", "Mexico", "Moldova",
+                         "Morocco", "Netherlands", "Peru", "Poland", "Romania", "Russia", "Rwanda", "South Africa", "South Korea",
+                         "Spain", "Sweden", "Switzerland", "Thailand", "Turkey", "Ukraine", "United States", "Algeria", "Colombia",
+                         "Estonia", "Haiti", "Iraq", "Kazakhstan", "Nigeria", "Pakistan", "Philippines", "Zimbabwe", "United Kingdom")
+
+# Filter the original dataset
+modelcoefs_model1_wvs_new <- modelcoefs_model1_wvs[modelcoefs_model1_wvs$codeWVS %in% selected_countries, ]
+
+# View the new dataset
+modelcoefs_model1_wvs_new
+
+
+
+common_countries <- intersect(modelcoefs_model1_gps$codeWVS, modelcoefs_model1_gps$codeWVS)
+selected_countries <- c("Argentina", "Australia", "Brazil", "Canada", "Chile", "China", "Egypt", "Finland", "France", "Georgia",
+                         "Germany", "Ghana", "Hungary", "India", "Indonesia", "Iran", "Japan", "Jordan", "Mexico", "Moldova",
+                         "Morocco", "Netherlands", "Peru", "Poland", "Romania", "Russia", "Rwanda", "South Africa", "South Korea",
+                         "Spain", "Sweden", "Switzerland", "Thailand", "Turkey", "Ukraine", "United States", "Algeria", "Colombia",
+                         "Estonia", "Haiti", "Iraq", "Kazakhstan", "Nigeria", "Pakistan", "Philippines", "Zimbabwe", "United Kingdom")
+
+# Filter the original dataset
+modelcoefs_model1_gps_new <- modelcoefs_model1_gps[modelcoefs_model1_gps$codeWVS %in% selected_countries, ]
+
+# View the new dataset
+modelcoefs_model1_gps_new
+
+modelcoefs_model1_gps_new
+
+
+merged <- left_join(modelcoefs_model1_gps_new, modelcoefs_model1_wvs_new, by = "codeWVS")
+merged
+```
+
+```{r}
+ggplot(merged, aes(x = Intercept_gps, y = Intercept_wvs)) +
+  geom_point(size = 1.5) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
+  labs(title = "Comparison of Intercept Values",
+       x = "Intercept_gps",
+       y = "Intercept_WVS") +
+  theme_minimal() +
+  coord_fixed()
+
+```
+```{r}
+ggplot(merged, aes(x = gender_gps, y = gender_wvs)) +
+  geom_point(size = 1.5) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
+  labs(title = "Comparison of Gender Effect on Risk Taking",
+       x = "Gender Effect GPS",
+       y = "Gender Effect WVS") +
+  theme_minimal() +
+  coord_fixed()
+
+
+```
+```{r}
+ggplot(merged, aes(x = age_gps, y = age_wvs)) +
+  geom_point(size = 1.5) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
+  labs(title = "Comparison of Age Effect on Risk Taking",
+       x = "Age Effect GPS",
+       y = "Age Effect WVS") +
+  theme_minimal() +
+  coord_fixed()
+
+```
 
