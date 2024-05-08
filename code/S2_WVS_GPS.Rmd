@@ -1,9 +1,18 @@
 ---
-title: "R Notebook"
-output: 
-  html_document:
-    collapsible: TRUE
+title: "S2_combined"
+output: html_document
+date: "2024-05-08"
 ---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
 
 
@@ -201,8 +210,11 @@ data
 #factor gender 
 data$gender <- factor(data$gender)
 
-#scale age 
-data$age <- scale(data$age)
+# Make a duplicate of the 'age' variable
+data$age_scale <- data$age
+
+# Scale the duplicated 'age' variable
+data$age_scale <- scale(data$age_scale)
 
 country_counts <- data %>%
   count(country)
@@ -257,7 +269,7 @@ mixed_model_data$employed <- factor(mixed_model_data$employed)
 
 # Modelle anpassen
 model0_wvs <- lmer(risktaking ~ 1 + (1|country), data = mixed_model_data)
-model1_wvs <- lmer(risktaking ~ 1 + age + gender + (1 + age + gender | country), 
+model1_wvs <- lmer(risktaking ~ 1 + age_scale + gender + (1 + age_scale + gender | country), 
                    data = mixed_model_data, 
                    control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
 
@@ -265,17 +277,17 @@ summary_model1_wvs = summary(model1_wvs)
 
 summary_model1_wvs
 
-model2_wvs <- lmer(risktaking ~ 1 + age + gender + children + married + education + employed +
-                   (1 + age + gender + children + employed + married | country),
+model2_wvs <- lmer(risktaking ~ 1 + age_scale + gender + children + married + education + employed +
+                   (1 + age_scale + gender + children + employed + married | country),
                    data = mixed_model_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
 
 summary_model2_wvs = summary(model2_wvs) 
 
 summary_model2_wvs
 
-model3_wvs <- lmer(risktaking ~ 1 + age * hardship_index + gender * hardship_index + married + children + 
+model3_wvs <- lmer(risktaking ~ 1 + age_scale * hardship_index + gender * hardship_index + married + children + 
                    education + employed + 
-                   (1 + age + married + children + education + employed | country),
+                   (1 + age_scale + married + children + education + employed | country),
                    data = mixed_model_data,
                    REML = FALSE,  # Dies ist der korrekte Ort für den REML-Parameter
                    control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
@@ -352,15 +364,19 @@ gps_data
 gps_data$gender <- factor(gps_data$gender)
 
 #scale age 
-gps_data$age <- scale(gps_data$age)
 
-gps_data
+# Make a duplicate of the 'age' variable
+gps_data$age_scale <- gps_data$age
+
+# Scale the duplicated 'age' variable
+gps_data$age_scale <- scale(gps_data$age_scale)
+
 ```
 
 
 # Model1 gps with age and gender as predictors
 ```{r}
-model1_gps = lmer(risktaking ~ 1 + age + gender + (1 + age + gender|country),data = gps_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
+model1_gps = lmer(risktaking ~ 1 + age_scale + gender + (1 + age_scale + gender|country),data = gps_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
 summary_model1_gps=summary(model1_gps)
 summary_model1_gps
 ```
@@ -375,9 +391,9 @@ head(mixed_model_gps_data)
 
 # Model2 gps with age, gender and hardship
 ```{r}
-model2_gps <- lmer(risktaking ~ 1 + age * hardship_index + 
+model2_gps <- lmer(risktaking ~ 1 + age_scale * hardship_index + 
                     gender * hardship_index + 
-                    (1 + age | country),
+                    (1 + age_scale | country),
                 data = mixed_model_gps_data,control=lmerControl(optCtrl=list(maxfun=100000),optimizer="bobyqa"),REML = FALSE)
 summary_model2_gps = summary(model2_gps) 
 summary_model2_gps
@@ -403,17 +419,17 @@ mixed_model_gps_data
 mixed_model_data
 
 mixed_model_gps_data$source <- "gps"
-mixed_model_data$source <- "data"
+mixed_model_data$source <- "wvs"
 
 #select gender, age, risktaking, country, hardship_index for GPS dataset
 mixed_model_gps_data_new<- mixed_model_gps_data %>%
-  dplyr::select(country, gender, age, hardship_index, risktaking, source)
+  dplyr::select(country, gender, age_scale, age, hardship_index, risktaking, source)
 mixed_model_gps_data_new
 mixed_model_data
 
 #select the same variables as GPS dataset
 mixed_model_data_new<- mixed_model_data %>%
-  dplyr::select(country, gender, age, hardship_index, risktaking, source)
+  dplyr::select(country, gender, age_scale, age, hardship_index, risktaking, source)
 
 mixed_model_data_new
 mixed_model_gps_data_new
@@ -428,6 +444,9 @@ merged_data <- rbind(mixed_model_gps_data_new, mixed_model_data_new)
 merged_data
 ```
 
+```{r}
+write.csv(merged_data, file = paste0(base_path, "data_combined.csv"), row.names = FALSE)
+```
 
 # Model1 
 ```{r}
@@ -537,6 +556,7 @@ curve(regline_gender(x), from = min(gps_data$age), to = max(gps_data$age), add =
 dev.off()
 ```
 
+
 # Plot WVS dataset all countries 
 ```{r}
 # Define the filename for the PDF
@@ -627,104 +647,6 @@ for (country in unique(mixed_model_data$country)) {
 # Close the PDF device
 dev.off()
 ```
-
-
-# Plot GPS dataset individual countries 
-```{r}
-# Define the filename for the PDF
-pdf("gps_individual_countries.pdf", width = 10, height = 8)  # Adjust width and height as needed
-
-# Create a layout for all countries
-par(mfrow = c(3, 3))  # Adjust the number of rows and columns as needed
-
-# Loop over each country
-for (country in unique(mixed_model_gps_data_new$country)) {
-  # Subset data for the current country
-  country_data <- subset(gps_data, country == country)
-  
-  # Plot fixed effects for the current country with specified range
-  smoothScatter(country_data$age, country_data$risktaking, las=1, xaxt="n", yaxt="n", 
-                 xlab="Age", ylab="Risk-Taking Propensity", bty="n", 
-                 main=country, cex.main=0.8, nrpoints=0, 
-                 xlim=c(min(country_data$age, na.rm = TRUE), max(country_data$age, na.rm = TRUE)), 
-                 ylim=c(min(country_data$risktaking, na.rm = TRUE), max(country_data$risktaking, na.rm = TRUE)), 
-                 cex.lab=0.6)
-  
-  # Add axes and labels
-  axis(1, at=c(15, 85), labels=c("15", "85"), cex.axis=0.7, tck=-0.01, line=0, mgp=c(3, 0.02, 0))
-  axis(2, at=c(35, 65), labels=c(35, 65), las=1, cex.axis=0.7, tck=-0.01, line=0, mgp=c(3, 0.3, 0))
-  mtext("Age", 1, line=0, cex=0.5)
-  mtext(expression(Risk~Taking~(italic(T)-score)), 2, line=1, cex=0.5)
-  text(73, 68, country)
-  
-  # Retrieve coefficients
-  coefs <- fixef(model2_gps)
-  
-  # Define regression lines
-  regline <- function(x) {
-    coefs[1] + coefs[2] * x + coefs[4] * 0.5 + coefs[5] * 0.5 + coefs[6] * 0.5 + coefs[7] * 0.5
-  }
-  lines(mean(country_data$age) + seq(-3, 3, 0.1) * sd(country_data$age), 
-        regline(seq(-3, 3, 0.1)), lty=1, lwd=3, col="blue")
-  regline <- function(x) {
-    coefs[1] + coefs[2] * x + coefs[3] + coefs[4] * 0.5 + coefs[5] * 0.5 + coefs[6] * 0.5 + coefs[7] * 0.5
-  }
-  lines(mean(country_data$age) + seq(-3, 3, 0.1) * sd(country_data$age), 
-        regline(seq(-3, 3, 0.1)), lty=2, lwd=3, col="green")
-}
-
-# Close the PDF device
-dev.off()
-```
-
-# Plot WVS dataset individual countries 
-```{r}
-# Define the filename for the PDF
-pdf("wvs_individual_countries.pdf", width = 10, height = 8)  # Adjust width and height as needed
-
-# Create a layout for all countries
-par(mfrow = c(3, 3))  # Adjust the number of rows and columns as needed
-
-# Loop over each country
-for (country in unique(mixed_model_data_new$country)) {
-  # Subset data for the current country
-  country_data <- subset(mixed_model_data_new, country == country)
-  
-  # Plot fixed effects for the current country with specified range
-  smoothScatter(country_data$age, country_data$risktaking, las=1, xaxt="n", yaxt="n", 
-                 xlab="Age", ylab="Risk-Taking Propensity", bty="n", 
-                 main=country, cex.main=0.8, nrpoints=0, 
-                 xlim=c(min(country_data$age, na.rm = TRUE), max(country_data$age, na.rm = TRUE)), 
-                 ylim=c(min(country_data$risktaking, na.rm = TRUE), max(country_data$risktaking, na.rm = TRUE)), 
-                 cex.lab=0.6)
-  
-  # Add axes and labels
-  axis(1, at=c(15, 85), labels=c("15", "85"), cex.axis=0.7, tck=-0.01, line=0, mgp=c(3, 0.02, 0))
-  axis(2, at=c(35, 65), labels=c(35, 65), las=1, cex.axis=0.7, tck=-0.01, line=0, mgp=c(3, 0.3, 0))
-  mtext("Age", 1, line=0, cex=0.5)
-  mtext(expression(Risk~Taking~(italic(T)-score)), 2, line=1, cex=0.5)
-  text(73, 68, country)
-  
-  # Retrieve coefficients
-  coefs <- fixef(model2_wvs)
-  
-  # Define regression lines
-  regline <- function(x) {
-    coefs[1] + coefs[2] * x + coefs[4] * 0.5 + coefs[5] * 0.5 + coefs[6] * 0.5 + coefs[7] * 0.5
-  }
-  lines(mean(country_data$age) + seq(-3, 3, 0.1) * sd(country_data$age), 
-        regline(seq(-3, 3, 0.1)), lty=1, lwd=3, col="blue")
-  regline <- function(x) {
-    coefs[1] + coefs[2] * x + coefs[3] + coefs[4] * 0.5 + coefs[5] * 0.5 + coefs[6] * 0.5 + coefs[7] * 0.5
-  }
-  lines(mean(country_data$age) + seq(-3, 3, 0.1) * sd(country_data$age), 
-        regline(seq(-3, 3, 0.1)), lty=2, lwd=3, col="green")
-}
-
-# Close the PDF device
-dev.off()
-```
-
 
 
 
@@ -821,6 +743,13 @@ for (country_code in countrycodes) {
 dev.off()
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+
+
+############################################
+# Correlations models???
+
 ```{r}
 countryfacts$codeWVS <- countryfacts$code
 
@@ -837,11 +766,6 @@ modelcoefs_model1_wvs <- modelcoefs_model1_wvs %>%
   dplyr::select('(Intercept)', age, gender)
 modelcoefs_model1_wvs
 
-
-
-```
-
-```{r}
 # Assuming you've already extracted coefficients from your model as modelcoefs_model1_gps
 
 # Create the modelcoefs data
@@ -852,6 +776,9 @@ modelcoefs_model1_gps$codeWVS <- row.names(modelcoefs_model1_gps)
 regiondata <- merge(modelcoefs_model1_gps, countryfacts, by = "codeWVS")
 
 modelcoefs_model1_gps
+<<<<<<< HEAD
+
+
 
 
 
@@ -866,12 +793,21 @@ modelcoefs_model1_wvs
 
 
 
+
 ```
+=======
+```
+
+>>>>>>> 36ff55cbf8720e5bd479e3d323b5afec2bd0eba8
 ```{r}
 modelcoefs_model1_gps <- modelcoefs_model1_gps %>%
   rename(Intercept_gps= '(Intercept)' , age_gps = age, gender_gps = gender1)
 modelcoefs_model1_gps
 ```
+<<<<<<< HEAD
+=======
+
+>>>>>>> 36ff55cbf8720e5bd479e3d323b5afec2bd0eba8
 ```{r}
 common_countries <- intersect(modelcoefs_model1_wvs$codeWVS, modelcoefs_model1_wvs$codeWVS)
 selected_countries <- c("Argentina", "Australia", "Brazil", "Canada", "Chile", "China", "Egypt", "Finland", "France", "Georgia",
@@ -907,8 +843,12 @@ modelcoefs_model1_gps_new
 merged <- left_join(modelcoefs_model1_gps_new, modelcoefs_model1_wvs_new, by = "codeWVS")
 merged
 ```
+```
+```
+
 
 ```{r}
+
 ggplot(merged, aes(x = Intercept_gps, y = Intercept_wvs)) +
   geom_point(size = 1.5) +
   geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
@@ -917,8 +857,7 @@ ggplot(merged, aes(x = Intercept_gps, y = Intercept_wvs)) +
        y = "Intercept_WVS") +
   theme_minimal() +
   coord_fixed()
-
-```
+```{r}
 ```{r}
 ggplot(merged, aes(x = gender_gps, y = gender_wvs)) +
   geom_point(size = 1.5) +
@@ -930,32 +869,6 @@ ggplot(merged, aes(x = gender_gps, y = gender_wvs)) +
   coord_fixed()
 
 
-```
-```{r}
-ggplot(merged, aes(x = age_gps, y = age_wvs)) +
-  geom_point(size = 1.5) +
-  geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
-  labs(title = "Comparison of Age Effect on Risk Taking",
-       x = "Age Effect GPS",
-       y = "Age Effect WVS") +
-  theme_minimal() +
-  coord_fixed()
+
 
 ```
-```{r}
-correlation_intercepts <- cor(merged$Intercept_gps, merged$Intercept_wvs)
-print(correlation_intercepts)
-
-correlation_age <- cor(merged$age_gps, merged$age_wvs)
-print(correlation_age)
-
-correlation_gender <- cor(merged$gender_gps, merged$gender_wvs)
-print(correlation_gender)
-
-correlation_age
-correlation_gender
-correlation_intercepts
-```
-
-=======
-
