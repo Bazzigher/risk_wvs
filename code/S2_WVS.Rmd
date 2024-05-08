@@ -537,6 +537,7 @@ curve(regline_gender(x), from = min(gps_data$age), to = max(gps_data$age), add =
 dev.off()
 ```
 
+
 # Plot WVS dataset all countries 
 ```{r}
 # Define the filename for the PDF
@@ -627,104 +628,6 @@ for (country in unique(mixed_model_data$country)) {
 # Close the PDF device
 dev.off()
 ```
-
-
-# Plot GPS dataset individual countries 
-```{r}
-# Define the filename for the PDF
-pdf("gps_individual_countries.pdf", width = 10, height = 8)  # Adjust width and height as needed
-
-# Create a layout for all countries
-par(mfrow = c(3, 3))  # Adjust the number of rows and columns as needed
-
-# Loop over each country
-for (country in unique(mixed_model_gps_data_new$country)) {
-  # Subset data for the current country
-  country_data <- subset(gps_data, country == country)
-  
-  # Plot fixed effects for the current country with specified range
-  smoothScatter(country_data$age, country_data$risktaking, las=1, xaxt="n", yaxt="n", 
-                 xlab="Age", ylab="Risk-Taking Propensity", bty="n", 
-                 main=country, cex.main=0.8, nrpoints=0, 
-                 xlim=c(min(country_data$age, na.rm = TRUE), max(country_data$age, na.rm = TRUE)), 
-                 ylim=c(min(country_data$risktaking, na.rm = TRUE), max(country_data$risktaking, na.rm = TRUE)), 
-                 cex.lab=0.6)
-  
-  # Add axes and labels
-  axis(1, at=c(15, 85), labels=c("15", "85"), cex.axis=0.7, tck=-0.01, line=0, mgp=c(3, 0.02, 0))
-  axis(2, at=c(35, 65), labels=c(35, 65), las=1, cex.axis=0.7, tck=-0.01, line=0, mgp=c(3, 0.3, 0))
-  mtext("Age", 1, line=0, cex=0.5)
-  mtext(expression(Risk~Taking~(italic(T)-score)), 2, line=1, cex=0.5)
-  text(73, 68, country)
-  
-  # Retrieve coefficients
-  coefs <- fixef(model2_gps)
-  
-  # Define regression lines
-  regline <- function(x) {
-    coefs[1] + coefs[2] * x + coefs[4] * 0.5 + coefs[5] * 0.5 + coefs[6] * 0.5 + coefs[7] * 0.5
-  }
-  lines(mean(country_data$age) + seq(-3, 3, 0.1) * sd(country_data$age), 
-        regline(seq(-3, 3, 0.1)), lty=1, lwd=3, col="blue")
-  regline <- function(x) {
-    coefs[1] + coefs[2] * x + coefs[3] + coefs[4] * 0.5 + coefs[5] * 0.5 + coefs[6] * 0.5 + coefs[7] * 0.5
-  }
-  lines(mean(country_data$age) + seq(-3, 3, 0.1) * sd(country_data$age), 
-        regline(seq(-3, 3, 0.1)), lty=2, lwd=3, col="green")
-}
-
-# Close the PDF device
-dev.off()
-```
-
-# Plot WVS dataset individual countries 
-```{r}
-# Define the filename for the PDF
-pdf("wvs_individual_countries.pdf", width = 10, height = 8)  # Adjust width and height as needed
-
-# Create a layout for all countries
-par(mfrow = c(3, 3))  # Adjust the number of rows and columns as needed
-
-# Loop over each country
-for (country in unique(mixed_model_data_new$country)) {
-  # Subset data for the current country
-  country_data <- subset(mixed_model_data_new, country == country)
-  
-  # Plot fixed effects for the current country with specified range
-  smoothScatter(country_data$age, country_data$risktaking, las=1, xaxt="n", yaxt="n", 
-                 xlab="Age", ylab="Risk-Taking Propensity", bty="n", 
-                 main=country, cex.main=0.8, nrpoints=0, 
-                 xlim=c(min(country_data$age, na.rm = TRUE), max(country_data$age, na.rm = TRUE)), 
-                 ylim=c(min(country_data$risktaking, na.rm = TRUE), max(country_data$risktaking, na.rm = TRUE)), 
-                 cex.lab=0.6)
-  
-  # Add axes and labels
-  axis(1, at=c(15, 85), labels=c("15", "85"), cex.axis=0.7, tck=-0.01, line=0, mgp=c(3, 0.02, 0))
-  axis(2, at=c(35, 65), labels=c(35, 65), las=1, cex.axis=0.7, tck=-0.01, line=0, mgp=c(3, 0.3, 0))
-  mtext("Age", 1, line=0, cex=0.5)
-  mtext(expression(Risk~Taking~(italic(T)-score)), 2, line=1, cex=0.5)
-  text(73, 68, country)
-  
-  # Retrieve coefficients
-  coefs <- fixef(model2_wvs)
-  
-  # Define regression lines
-  regline <- function(x) {
-    coefs[1] + coefs[2] * x + coefs[4] * 0.5 + coefs[5] * 0.5 + coefs[6] * 0.5 + coefs[7] * 0.5
-  }
-  lines(mean(country_data$age) + seq(-3, 3, 0.1) * sd(country_data$age), 
-        regline(seq(-3, 3, 0.1)), lty=1, lwd=3, col="blue")
-  regline <- function(x) {
-    coefs[1] + coefs[2] * x + coefs[3] + coefs[4] * 0.5 + coefs[5] * 0.5 + coefs[6] * 0.5 + coefs[7] * 0.5
-  }
-  lines(mean(country_data$age) + seq(-3, 3, 0.1) * sd(country_data$age), 
-        regline(seq(-3, 3, 0.1)), lty=2, lwd=3, col="green")
-}
-
-# Close the PDF device
-dev.off()
-```
-
 
 
 
@@ -820,7 +723,10 @@ for (country_code in countrycodes) {
 # Close the PDF device
 dev.off()
 
-<<<<<<< HEAD
+
+
+############################################
+# Correlations models???
 ```{r}
 countryfacts$codeWVS <- countryfacts$code
 
@@ -836,9 +742,6 @@ modelcoefs_model1_wvs
 modelcoefs_model1_wvs <- modelcoefs_model1_wvs %>%
   dplyr::select('(Intercept)', age, gender)
 modelcoefs_model1_wvs
-
-
-
 ```
 
 ```{r}
@@ -852,26 +755,20 @@ modelcoefs_model1_gps$codeWVS <- row.names(modelcoefs_model1_gps)
 regiondata <- merge(modelcoefs_model1_gps, countryfacts, by = "codeWVS")
 
 modelcoefs_model1_gps
-
-
-
 ```
 
 ```{r}
 modelcoefs_model1_wvs <- modelcoefs_model1_wvs %>%
   rename(Intercept_wvs= '(Intercept)' , age_wvs = age, gender_wvs = gender)
 modelcoefs_model1_wvs
-
-
-
-
-
 ```
+
 ```{r}
 modelcoefs_model1_gps <- modelcoefs_model1_gps %>%
   rename(Intercept_gps= '(Intercept)' , age_gps = age, gender_gps = gender1)
 modelcoefs_model1_gps
 ```
+
 ```{r}
 common_countries <- intersect(modelcoefs_model1_wvs$codeWVS, modelcoefs_model1_wvs$codeWVS)
 selected_countries <- c("Argentina", "Australia", "Brazil", "Canada", "Chile", "China", "Egypt", "Finland", "France", "Georgia",
@@ -917,8 +814,8 @@ ggplot(merged, aes(x = Intercept_gps, y = Intercept_wvs)) +
        y = "Intercept_WVS") +
   theme_minimal() +
   coord_fixed()
-
 ```
+
 ```{r}
 ggplot(merged, aes(x = gender_gps, y = gender_wvs)) +
   geom_point(size = 1.5) +
@@ -928,9 +825,8 @@ ggplot(merged, aes(x = gender_gps, y = gender_wvs)) +
        y = "Gender Effect WVS") +
   theme_minimal() +
   coord_fixed()
-
-
 ```
+
 ```{r}
 ggplot(merged, aes(x = age_gps, y = age_wvs)) +
   geom_point(size = 1.5) +
@@ -943,5 +839,4 @@ ggplot(merged, aes(x = age_gps, y = age_wvs)) +
 
 ```
 
-=======
 
