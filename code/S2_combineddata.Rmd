@@ -178,7 +178,145 @@ combined_coefs <- rbind(coefs_model1, coefs_model2)
 print(combined_coefs)
 ```
 
-# Retrieve coefficients from the model output
+# Plot Model1 individual countries
+```{r}
+# Create a new data frame with risktaking, age_scale, and datafit
+# Calculate fitted values for each observation
+merged_data$age <- 15 * merged_data$age + 42
+
+merged_data$datafit <- fitted(model1_combined)
+
+merged_data$gender <- factor(merged_data$gender)
+
+# Assuming merged_data includes a variable named 'gender' indicating the gender of each individual
+
+plot <- ggplot(merged_data, aes(age, risktaking, colour = country, linetype = factor(gender))) + 
+  geom_point(aes(group = interaction(country, gender)), size = 0.5) +  
+  geom_smooth(aes(group = interaction(country, gender)), method = "lm", se = FALSE, size = 1.5, color = "red") +  
+  facet_wrap(~country, ncol = 9, scales = "free") +  
+  theme_minimal(base_size = 10) +  
+  theme(strip.text = element_text(size = 10),  
+        axis.text = element_text(size = 8),  
+        strip.background = element_blank(),  
+        panel.spacing = unit(1, "lines")) +  
+  guides(color = FALSE, linetype = guide_legend(title = "Gender")) +  
+  scale_linetype_manual(values = c("solid", "dashed"))  # Define line types for genders
+
+# Save the plot as an image file
+ggsave(filename = "Individual_countries_model1.pdf", plot = plot, width = 40, height = 40)
+
+head(merged_data)
+```
+
+# Plot of model1 combined countries 
+```{r}
+# Define regression lines for model1_combined
+intercept_model1 <- fixef(model1_combined)["(Intercept)"]
+slope_age_model1 <- fixef(model1_combined)["age"]
+slope_gender_model1 <- fixef(model1_combined)["gender"]
+
+# Print coefficients for debugging
+print(paste("Intercept (Model 1):", intercept_model1))
+print(paste("Slope Age (Model 1):", slope_age_model1))
+print(paste("Slope Gender (Model 1):", slope_gender_model1))
+
+regline_age_model1 <- function(x) {
+  intercept_model1 + slope_age_model1 * ((x - mean_age) / sd_age)
+}
+
+regline_gender_model1 <- function(x) {
+  intercept_model1 + slope_gender_model1 + slope_age_model1 * ((x - mean_age) / sd_age)
+}
+
+# Plot regression lines for model1_combined
+pdf("combined_all_countries_model1.pdf", width = 10, height = 8)  # Adjust width and height as needed
+
+# Plot smoothed scatter without individual data points
+smoothScatter(merged_data$age, merged_data$risktaking, las = 1, xaxt = "n", yaxt = "n", 
+              xlab = "Age", ylab = "Risk-Taking Propensity", bty = "n", 
+              main = "All Countries (Model 1)", cex.main = 0.8, nrpoints = 0, 
+              xlim = c(min(merged_data$age, na.rm = TRUE), max(merged_data$age, na.rm = TRUE)), 
+              ylim = c(min(merged_data$risktaking, na.rm = TRUE), max(merged_data$risktaking, na.rm = TRUE)), 
+              cex.lab = 0.6)
+
+# Add axes and labels
+axis(1, at = c(15, 85), labels = c("15", "85"), cex.axis = 0.7, tck = -0.01, line = 0, mgp = c(3, 0.02, 0))
+axis(2, at = c(35, 65), labels = c(35, 65), las = 1, cex.axis = 0.7, tck = -0.01, line = 0, mgp = c(3, 0.3, 0))
+mtext("Age", 1, line = 0, cex = 0.5)
+mtext(expression(Risk~Taking~(italic(T)-score)), 2, line = 1, cex = 0.5)
+
+# Plot regression lines for model1_combined
+curve(regline_age_model1(x), from = min(merged_data$age, na.rm = TRUE), to = max(merged_data$age, na.rm = TRUE), add = TRUE, col = "blue", lty = 1, lwd = 3)
+curve(regline_gender_model1(x), from = min(merged_data$age, na.rm = TRUE), to = max(merged_data$age, na.rm = TRUE), add = TRUE, col = "green", lty = 2, lwd = 3)
+
+dev.off()
+```
+
+# Plot Model1 individual countries
+```{r}
+countries_per_page <- 105  # Adjust to the actual number of plots per page
+# Extrahiere einzigartige Länder aus dem Datensatz
+all_countries <- unique(merged_data$country)
+num_pages <- ceiling(length(all_countries) / countries_per_page)  
+
+#loop over the countries
+for (page in 1:num_pages) {
+  # PDF
+  pdf(paste0("combined_individual_country_M1", page, ".pdf"), width = 10, height = 8)
+  
+  # Index der ersten und letzten Länder für die aktuelle Seite berechnen
+  start_index <- (page - 1) * countries_per_page + 1
+  end_index <- min(start_index + countries_per_page - 1, length(all_countries))
+  
+  # Länder für die aktuelle Seite extrahieren
+  countries_on_page <- all_countries[start_index:end_index]
+  
+  # Raster von Plots für die aktuelle Seite erstellen
+  par(mfrow = c(2, 3))  # 2 Zeilen, 3 Spalten
+  
+  # Schleife über alle Länder auf der aktuellen Seite
+  for (country in countries_on_page) {
+    # Daten für das aktuelle Land extrahieren
+    data_country <- merged_data[merged_data$country == country, ]
+    
+    # Altersbereich definieren
+    age_range <- seq(min(data_country$age, na.rm = TRUE), max(data_country$age, na.rm = TRUE), length.out = 100)
+    
+    # Datenrahmen für Vorhersagen erstellen
+    pred_data <- data.frame(
+      age = age_range,
+      gender = rep(0, 100),
+      hardship_index = rep(median(merged_data$hardship_index, na.rm = TRUE), 100)
+    )
+    
+    # Vorhersagen für Männer und Frauen berechnen
+    predictions_female <- predict(model1_combined, newdata = pred_data, re.form = NA)
+    
+    # Plot für das aktuelle Land erstellen
+    smoothScatter(data_country$age, data_country$risktaking, las = 1, xaxt = "n", yaxt = "n", 
+                  xlab = "Age", ylab = "Risk-Taking Propensity", bty = "n", 
+                  main = country, cex.main = 0.8, nrpoints = 0, 
+                  xlim = c(min(data_country$age, na.rm = TRUE), max(data_country$age, na.rm = TRUE)), 
+                  ylim = c(min(data_country$risktaking, na.rm = TRUE), max(data_country$risktaking, na.rm = TRUE)), 
+                  cex.lab = 0.6)
+    
+    # Achsen und Beschriftungen hinzufügen
+    axis(1, at = c(15, 85), labels = c("15", "85"), cex.axis = 0.7, tck = -0.01, line = 0, mgp = c(3, 0.02, 0))
+    axis(2, at = c(35, 65), labels = c(35, 65), las = 1, cex.axis = 0.7, tck = -0.01, line = 0, mgp = c(3, 0.3, 0))
+    mtext("Age", 1, line = 0, cex = 0.5)
+    mtext(expression(Risk~Taking~(italic(T)-score)), 2, line = 1, cex = 0.5)
+    
+    # Regression line für das aktuelle Land plotten
+    lines(age_range, predictions_female, col = "blue", lty = 1, lwd = 3)
+  }
+  
+  # PDF-Datei schließen
+  dev.off()
+}
+```
+
+
+# Retrieve coefficients from the model2 output
 ```{r}
 intercept <- fixef(model2_combined)["(Intercept)"]
 slope_age <- fixef(model2_combined)["age_scale"]
@@ -196,7 +334,7 @@ print(paste("Slope Age*Hardship:", slope_age_hardship))
 print(paste("Slope Gender*Hardship:", slope_gender_hardship))
 ```
 
-# Plot all countries combined
+# Plot all countries combined Model2
 ```{r}
 pdf("combined_all_countries.pdf", width = 10, height = 8)  # Adjust width and height as needed
 
@@ -248,7 +386,7 @@ dev.off()
 
 ```
 
-# Plot individual countries 
+# Plot individual countries Model2
 ```{r}
 countries_per_page <- 105  # Adjust to the actual number of plots per page
 # Extrahiere einzigartige Länder aus dem Datensatz
@@ -316,50 +454,6 @@ for (page in 1:num_pages) {
   # PDF-Datei schließen
   dev.off()
 }
-```
-
-```{r}
-# Create a new data frame with risktaking, age_scale, and datafit
-# Assuming 'mixed_model_data' contains a column named 'country'
-# Calculate fitted values for each observation
-merged_data$age <- 15 * merged_data$age + 42
-
-merged_data$datafit <- fitted(model1_combined)
-
-library(ggplot2)
-
-merged_data$gender <- factor(merged_data$gender)
-
-# Assuming merged_data includes a variable named 'gender' indicating the gender of each individual
-
-plot <- ggplot(merged_data, aes(age, risktaking, colour = country, linetype = factor(gender))) + 
-  geom_point(aes(group = interaction(country, gender)), size = 0.5) +  
-  geom_smooth(aes(group = interaction(country, gender)), method = "lm", se = FALSE, size = 1.5, color = "red") +  
-  facet_wrap(~country, ncol = 9, scales = "free") +  
-  theme_minimal(base_size = 10) +  
-  theme(strip.text = element_text(size = 10),  
-        axis.text = element_text(size = 8),  
-        strip.background = element_blank(),  
-        panel.spacing = unit(1, "lines")) +  
-  guides(color = FALSE, linetype = guide_legend(title = "Gender")) +  
-  scale_linetype_manual(values = c("solid", "dashed"))  # Define line types for genders
-
-# Save the plot as an image file
-ggsave(filename = "new_plot.pdf", plot = plot, width = 40, height = 40)
-
-
-
-
-
-
-merged_data
-
-
-
-```
-
-```{r}
-merged_data
 ```
 
 
