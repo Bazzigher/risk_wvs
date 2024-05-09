@@ -318,6 +318,8 @@ modelcoefs$codeWVS <- row.names(modelcoefs)
 
 # Combine the data
 regiondata <- merge(modelcoefs, countryfacts, by = "codeWVS")
+
+modelcoefs
 ```
 
 # Combine coefs
@@ -451,7 +453,7 @@ write.csv(merged_data, file = paste0(base_path, "data_combined.csv"), row.names 
 # Model1 
 ```{r}
 # Now run the mixed-effects model with source as a fixed effect
-model1_combined = lmer(risktaking ~ 1 + age + gender + (1 + age + gender|country),data = merged_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
+model1_combined = lmer(risktaking ~ 1 + age_scale + gender + (1 + age_scale + gender|country),data = merged_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
 summary_model1_combined=summary(model1_combined)
 summary_model1_combined
 
@@ -460,9 +462,9 @@ summary_model1_combined
 
 # Model2
 ```{r}
-model2_combined <- lmer(risktaking ~ 1 + age * hardship_index + 
+model2_combined <- lmer(risktaking ~ 1 + age_scale * hardship_index + 
                     gender * hardship_index + 
-                    (1 + age | country),
+                    (1 + age_scale | country),
                 data = merged_data,control=lmerControl(optCtrl=list(maxfun=100000),optimizer="bobyqa"),REML = FALSE)
 
 summary_model2_combined = summary(model2_combined) 
@@ -609,45 +611,67 @@ pdf("combined_individual_countries.pdf", width = 10, height = 8)  # Adjust width
 par(mfrow = c(3, 3))  # Adjust the number of rows and columns as needed
 
 # Loop over each country
-for (country in unique(mixed_model_data$country)) {
+for (country in unique(modelcoefs$codeWVS)) {
   # Subset data for the current country
-  country_data <- subset(mixed_model_data, country == country)
+  country_data <- subset(modelcoefs, codeWVS == country)
   
-  # Plot fixed effects for the current country with specified range
-  smoothScatter(country_data$age, country_data$risktaking, las=1, xaxt="n", yaxt="n", 
-                 xlab="Age", ylab="Risk-Taking Propensity", bty="n", 
-                 main=country, cex.main=0.8, nrpoints=0, 
-                 xlim=c(min(country_data$age, na.rm = TRUE), max(country_data$age, na.rm = TRUE)), 
-                 ylim=c(min(country_data$risktaking, na.rm = TRUE), max(country_data$risktaking, na.rm = TRUE)), 
-                 cex.lab=0.6)
+  # Filter out non-finite values
+  country_data <- country_data[is.finite(country_data$age_scale) & is.finite(country_data$risktaking), ]
   
-  # Add axes and labels
-  axis(1, at=c(15, 85), labels=c("15", "85"), cex.axis=0.7, tck=-0.01, line=0, mgp=c(3, 0.02, 0))
-  axis(2, at=c(35, 65), labels=c(35, 65), las=1, cex.axis=0.7, tck=-0.01, line=0, mgp=c(3, 0.3, 0))
-  mtext("Age", 1, line=0, cex=0.5)
-  mtext(expression(Risk~Taking~(italic(T)-score)), 2, line=1, cex=0.5)
-  text(73, 68, country)
-  
-  # Retrieve coefficients
-  coefs <- fixef(model2_combined)
-  
-  # Define regression lines
-  regline <- function(x) {
-    coefs[1] + coefs[2] * x + coefs[4] * 0.5 + coefs[5] * 0.5 + coefs[6] * 0.5 + coefs[7] * 0.5
+  # Check if there's still data left
+  if (nrow(country_data) > 0) {
+    # Plot fixed effects for the current country with specified range
+    smoothScatter(country_data$age_scale, country_data$risktaking, las=1, xaxt="n", yaxt="n", 
+                   xlab="Age", ylab="Risk-Taking Propensity", bty="n", 
+                   main=country, cex.main=0.8, nrpoints=0, 
+                   xlim=c(min(country_data$age_scale, na.rm = TRUE), max(country_data$age_scale, na.rm = TRUE)), 
+                   ylim=c(min(country_data$risktaking, na.rm = TRUE), max(country_data$risktaking, na.rm = TRUE)), 
+                   cex.lab=0.6)
+    
+    # Add axes and labels
+    axis(1, at=c(15, 85), labels=c("15", "85"), cex.axis=0.7, tck=-0.01, line=0, mgp=c(3, 0.02, 0))
+    axis(2, at=c(35, 65), labels=c(35, 65), las=1, cex.axis=0.7, tck=-0.01, line=0, mgp=c(3, 0.3, 0))
+    mtext("Age", 1, line=0, cex=0.5)
+    mtext(expression(Risk~Taking~(italic(T)-score)), 2, line=1, cex=0.5)
+    text(73, 68, country)
+    
+    # Retrieve coefficients specific to the current country
+    coefs <- fixef(model2_wvs)[paste0("country", country)]
+    
+    # Define regression lines
+    regline1 <- function(x) {
+      coefs[1] + coefs[2] * x + coefs[3] * mean(country_data$age_scale) + coefs[4] * 0.5 + coefs[5] * 0.5 + coefs[6] * 0.5 + coefs[7] * 0.5
+    }
+    lines(seq(min(country_data$age_scale), max(country_data$age_scale), length.out = 100), 
+          regline1(seq(min(country_data$age_scale), max(country_data$age_scale), length.out = 100)), 
+          lty=1, lwd=3, col="blue")
+    
+    regline2 <- function(x) {
+      coefs[1] + coefs[2] * x + coefs[3] + coefs[4] * 0.5 + coefs[5] * 0.5 + coefs[6] * 0.5 + coefs[7] * 0.5
+    }
+    lines(seq(min(country_data$age_scale), max(country_data$age_scale), length.out = 100), 
+          regline2(seq(min(country_data$age_scale), max(country_data$age_scale), length.out = 100)), 
+          lty=2, lwd=3, col="green")
+  } else {
+    # Print a message if there's no valid data for the country
+    cat("No valid data for", country, "\n")
   }
-  lines(mean(country_data$age) + seq(-3, 3, 0.1) * sd(country_data$age), 
-        regline(seq(-3, 3, 0.1)), lty=1, lwd=3, col="blue")
-  regline <- function(x) {
-    coefs[1] + coefs[2] * x + coefs[3] + coefs[4] * 0.5 + coefs[5] * 0.5 + coefs[6] * 0.5 + coefs[7] * 0.5
-  }
-  lines(mean(country_data$age) + seq(-3, 3, 0.1) * sd(country_data$age), 
-        regline(seq(-3, 3, 0.1)), lty=2, lwd=3, col="green")
 }
 
 # Close the PDF device
 dev.off()
+
+
+
+modelcoefs
 ```
 
+```{r}
+
+
+
+
+```
 
 
 
@@ -848,6 +872,34 @@ merged
 
 
 ```{r}
+# Create a new data frame with risktaking, age_scale, and datafit
+# Assuming 'mixed_model_data' contains a column named 'country'
+# Calculate fitted values for each observation
+mixed_model_data$datafit <- fitted(model2_wvs)
+
+library(ggplot2)
+
+# Increase the size of individual plots within the facet grid and enhance the visibility of regression lines
+plot <- ggplot(mixed_model_data, aes(risktaking, age_scale, group = country, colour = country)) + 
+  geom_point(size = 2) +  # Increase point size
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed", size = 1.5) +  # Adjust regression line thickness
+  facet_wrap(~country, ncol = 9, scales = "free") +  # Adjust facet grid and allow free scales
+  theme_minimal(base_size = 10) +  # Increase base font size
+  theme(strip.text = element_text(size = 10),  # Adjust strip text size
+        axis.text = element_text(size = 8),  # Adjust axis text size
+        strip.background = element_blank(),  # Remove strip background
+        panel.spacing = unit(1, "lines")) +  # Adjust spacing between panels
+  guides(color = FALSE)  # Remove legend
+
+# Save the plot as an image file
+ggsave(filename = "new_plot.pdf", plot = plot, width = 20, height = 20)  # Adjust width and height for better visibility
+
+
+
+
+
+
+```{r}
 
 ggplot(merged, aes(x = Intercept_gps, y = Intercept_wvs)) +
   geom_point(size = 1.5) +
@@ -867,8 +919,6 @@ ggplot(merged, aes(x = gender_gps, y = gender_wvs)) +
        y = "Gender Effect WVS") +
   theme_minimal() +
   coord_fixed()
-
-
-
-
 ```
+
+
