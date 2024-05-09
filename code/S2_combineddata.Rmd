@@ -299,5 +299,4 @@ for (page in 1:num_pages) {
   # PDF-Datei schließen
   dev.off()
 }
-
 ```
