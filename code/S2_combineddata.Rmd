@@ -300,3 +300,29 @@ for (page in 1:num_pages) {
   dev.off()
 }
 ```
+
+```{r}
+# Create a new data frame with risktaking, age_scale, and datafit
+# Assuming 'mixed_model_data' contains a column named 'country'
+# Calculate fitted values for each observation
+merged_data$datafit <- fitted(model1_combined)
+
+library(ggplot2)
+
+# Increase the size of individual plots within the facet grid and enhance the visibility of regression lines
+plot <- ggplot(merged_data, aes(age_scale, risktaking, group = country, colour = country)) + 
+  geom_point(size = 0.5) +  # Increase point size
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed", size = 1.5) +  # Adjust regression line thickness
+  facet_wrap(~country, ncol = 9, scales = "free") +  # Adjust facet grid and allow free scales
+  theme_minimal(base_size = 10) +  # Increase base font size
+  theme(strip.text = element_text(size = 10),  # Adjust strip text size
+        axis.text = element_text(size = 8),  # Adjust axis text size
+        strip.background = element_blank(),  # Remove strip background
+        panel.spacing = unit(1, "lines")) +  # Adjust spacing between panels
+  guides(color = FALSE)  # Remove legend
+
+# Save the plot as an image file
+ggsave(filename = "new_plot.pdf", plot = plot, width = 40, height = 40)  # Adjust width and height for better visibility
+```
+
+
