@@ -32,6 +32,56 @@ head(merged_data)
 
 summary(merged_data$age)  # Check the age variable
 ```
+# Demografics
+```{r}
+# Anzahl der einzigartigen Länder im Datensatz ermitteln
+num_countries <- length(unique(merged_data$country))
+
+# Anzahl der Länder ausgeben
+print(num_countries)
+```
+
+
+```{r}
+library(dplyr)
+
+# Gruppieren der Daten nach Land und Geschlecht und Zählen der Teilnehmer
+participant_counts <- merged_data %>%
+  group_by(country, gender) %>%
+  summarise(participant_count = n())
+
+# Gruppieren der Daten nach Land und Zählen der Gesamtanzahl der Teilnehmer pro Land
+total_counts <- participant_counts %>%
+  group_by(country) %>%
+  summarise(total_participants = sum(participant_count))
+
+# Filtern der Daten, um nur Frauen zu zählen
+female_counts <- participant_counts %>%
+  filter(gender == 0) %>%
+  rename(female_count = participant_count) %>%
+  select(country, female_count)
+
+# Filtern der Daten, um nur Männer zu zählen
+male_counts <- participant_counts %>%
+  filter(gender == 1) %>%
+  rename(male_count = participant_count) %>%
+  select(country, male_count)
+
+# Zusammenführen der Informationen zu einer Tabelle
+participant_table <- merge(female_counts, male_counts, by = "country", all = TRUE)
+
+# Zusammenführen der Gesamtanzahl von Teilnehmern pro Land
+participant_table <- merge(participant_table, total_counts, by = "country", all = TRUE)
+
+# Benennung der Spalten
+names(participant_table) <- c("country", "female_count", "male_count", "total_participants")
+
+# Fehlende Werte mit 0 füllen
+participant_table[is.na(participant_table)] <- 0
+
+# Anzeigen der Tabelle
+print(participant_table)
+```
 
 
 # Model1 
@@ -111,17 +161,6 @@ curve(regline_age(x), from = min(merged_data$age, na.rm = TRUE), to = max(merged
 curve(regline_gender(x), from = min(merged_data$age, na.rm = TRUE), to = max(merged_data$age, na.rm = TRUE), add = TRUE, col = "green", lty = 2, lwd = 3)
 
 dev.off()
-```
-
-
-
-```{r}
-# Anzahl der einzigartigen Länder im Datensatz ermitteln
-num_countries <- length(unique(merged_data$country))
-
-# Anzahl der Länder ausgeben
-print(num_countries)
-
 ```
 
 
