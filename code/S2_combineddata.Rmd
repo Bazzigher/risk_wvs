@@ -195,15 +195,14 @@ dev.off()
 
 # Plot individual countries 
 ```{r}
-# Anzahl der Länder pro Seite und Anzahl der Seiten berechnen
-countries_per_page <- 105  # Anzahl der Länder pro Seite
+countries_per_page <- 105  # Countries per page
 # Extrahiere einzigartige Länder aus dem Datensatz
 all_countries <- unique(merged_data$country)
-num_pages <- ceiling(length(all_countries) / countries_per_page)  # Anzahl der Seiten berechnen
+num_pages <- ceiling(length(all_countries) / countries_per_page)  
 
-# Schleife über alle Seiten
+#loop over the countries
 for (page in 1:num_pages) {
-  # PDF-Datei für die aktuelle Seite erstellen
+  # PDF
   pdf(paste0("combined_individual_country", page, ".pdf"), width = 10, height = 8)
   
   # Index der ersten und letzten Länder für die aktuelle Seite berechnen
