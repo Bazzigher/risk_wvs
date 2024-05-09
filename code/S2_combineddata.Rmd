@@ -319,7 +319,7 @@ merged_data$gender <- factor(merged_data$gender)
 
 plot <- ggplot(merged_data, aes(age, risktaking, colour = country, linetype = factor(gender))) + 
   geom_point(aes(group = interaction(country, gender)), size = 0.5) +  
-  geom_smooth(aes(group = interaction(country, gender)), method = "lm", se = FALSE, size = 1.5) +  
+  geom_smooth(aes(group = interaction(country, gender)), method = "lm", se = FALSE, size = 1.5, color = "red") +  
   facet_wrap(~country, ncol = 9, scales = "free") +  
   theme_minimal(base_size = 10) +  
   theme(strip.text = element_text(size = 10),  
