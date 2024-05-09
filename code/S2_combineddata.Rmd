@@ -119,6 +119,8 @@ merged_data$age <- scale(merged_data$age)
 # Imputation von fehlenden Werten im hardship_index mit dem Median
 median_hardship_index <- median(merged_data$hardship_index, na.rm = TRUE)
 merged_data$hardship_index[is.na(merged_data$hardship_index)] <- median_hardship_index
+
+merged_data
 ```
 
 # Model1 
@@ -305,24 +307,44 @@ for (page in 1:num_pages) {
 # Create a new data frame with risktaking, age_scale, and datafit
 # Assuming 'mixed_model_data' contains a column named 'country'
 # Calculate fitted values for each observation
+merged_data$age <- 15 * merged_data$age + 42
+
 merged_data$datafit <- fitted(model1_combined)
 
 library(ggplot2)
 
-# Increase the size of individual plots within the facet grid and enhance the visibility of regression lines
-plot <- ggplot(merged_data, aes(age_scale, risktaking, group = country, colour = country)) + 
-  geom_point(size = 0.5) +  # Increase point size
-  geom_smooth(method = "lm", se = FALSE, linetype = "dashed", size = 1.5) +  # Adjust regression line thickness
-  facet_wrap(~country, ncol = 9, scales = "free") +  # Adjust facet grid and allow free scales
-  theme_minimal(base_size = 10) +  # Increase base font size
-  theme(strip.text = element_text(size = 10),  # Adjust strip text size
-        axis.text = element_text(size = 8),  # Adjust axis text size
-        strip.background = element_blank(),  # Remove strip background
-        panel.spacing = unit(1, "lines")) +  # Adjust spacing between panels
-  guides(color = FALSE)  # Remove legend
+merged_data$gender <- factor(merged_data$gender)
+
+# Assuming merged_data includes a variable named 'gender' indicating the gender of each individual
+
+plot <- ggplot(merged_data, aes(age, risktaking, colour = country, linetype = factor(gender))) + 
+  geom_point(aes(group = interaction(country, gender)), size = 0.5) +  
+  geom_smooth(aes(group = interaction(country, gender)), method = "lm", se = FALSE, size = 1.5) +  
+  facet_wrap(~country, ncol = 9, scales = "free") +  
+  theme_minimal(base_size = 10) +  
+  theme(strip.text = element_text(size = 10),  
+        axis.text = element_text(size = 8),  
+        strip.background = element_blank(),  
+        panel.spacing = unit(1, "lines")) +  
+  guides(color = FALSE, linetype = guide_legend(title = "Gender")) +  
+  scale_linetype_manual(values = c("solid", "dashed"))  # Define line types for genders
 
 # Save the plot as an image file
-ggsave(filename = "new_plot.pdf", plot = plot, width = 40, height = 40)  # Adjust width and height for better visibility
+ggsave(filename = "new_plot.pdf", plot = plot, width = 40, height = 40)
+
+
+
+
+
+
+merged_data
+
+
+
+```
+
+```{r}
+merged_data
 ```
 
 
