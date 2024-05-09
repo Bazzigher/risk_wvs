@@ -543,6 +543,9 @@ print(participant_table)</code></pre>
 ## 103                Yemen          459        463                922
 ## 104               Zambia          721        698               1419
 ## 105             Zimbabwe         1194       1306               2500</code></pre>
+<pre class="r"><code># Imputation von fehlenden Werten im hardship_index mit dem Median
+median_hardship_index &lt;- median(merged_data$hardship_index, na.rm = TRUE)
+merged_data$hardship_index[is.na(merged_data$hardship_index)] &lt;- median_hardship_index</code></pre>
 </div>
 <div id="model1" class="section level1">
 <h1>Model1</h1>
@@ -598,35 +601,114 @@ summary_model2_combined</code></pre>
 ## Control: lmerControl(optCtrl = list(maxfun = 1e+05), optimizer = &quot;bobyqa&quot;)
 ## 
 ##       AIC       BIC    logLik  deviance  df.resid 
-## 1656018.4 1656121.8 -827999.2 1655998.4    226979 
+## 1663331.4 1663434.8 -831655.7 1663311.4    227956 
 ## 
 ## Scaled residuals: 
 ##     Min      1Q  Median      3Q     Max 
-## -3.0405 -0.7632 -0.0736  0.7226  3.6465 
+## -3.0387 -0.7637 -0.0735  0.7226  3.6446 
 ## 
 ## Random effects:
 ##  Groups   Name        Variance Std.Dev. Corr
-##  country  (Intercept)  6.4730  2.5442       
-##           age_scale    0.4901  0.7001   0.18
-##  Residual             85.9985  9.2735       
-## Number of obs: 226989, groups:  country, 104
+##  country  (Intercept)  6.4140  2.5326       
+##           age_scale    0.4865  0.6975   0.18
+##  Residual             86.0681  9.2773       
+## Number of obs: 227966, groups:  country, 105
 ## 
 ## Fixed effects:
 ##                          Estimate Std. Error t value
-## (Intercept)              51.38888    0.25159 204.253
-## age_scale                -2.01214    0.07323 -27.478
-## hardship_index            0.56514    0.32658   1.730
-## gender                   -2.18799    0.03922 -55.792
-## age_scale:hardship_index  0.67645    0.09620   7.032
-## hardship_index:gender     0.52283    0.05266   9.928
+## (Intercept)              51.37996    0.24928 206.115
+## age_scale                -2.00881    0.07267 -27.642
+## hardship_index            0.56632    0.32511   1.742
+## gender                   -2.18121    0.03915 -55.715
+## age_scale:hardship_index  0.67619    0.09589   7.051
+## hardship_index:gender     0.52220    0.05268   9.913
 ## 
 ## Correlation of Fixed Effects:
 ##             (Intr) ag_scl hrdsh_ gender ag_s:_
-## age_scale    0.171                            
-## hardshp_ndx -0.006  0.009                     
-## gender      -0.082  0.004  0.002              
-## ag_scl:hrd_  0.009  0.015  0.176  0.008       
-## hrdshp_ndx:  0.002  0.008 -0.082  0.008  0.011</code></pre>
+## age_scale    0.169                            
+## hardshp_ndx -0.005  0.009                     
+## gender      -0.083  0.004  0.002              
+## ag_scl:hrd_  0.009  0.016  0.174  0.008       
+## hrdshp_ndx:  0.002  0.008 -0.083  0.008  0.011</code></pre>
+<pre class="r"><code># Überprüfe die Modellspezifikationen für beide Modelle
+print(summary(model1_combined))</code></pre>
+<pre><code>## Linear mixed model fit by REML [&#39;lmerMod&#39;]
+## Formula: risktaking ~ 1 + age_scale + gender + (1 + age_scale + gender |  
+##     country)
+##    Data: merged_data
+## Control: lmerControl(optimizer = &quot;bobyqa&quot;, optCtrl = list(maxfun = 1e+05))
+## 
+## REML criterion at convergence: 1663164
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -3.0216 -0.7663 -0.0766  0.7197  3.6428 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev. Corr     
+##  country  (Intercept)  6.6274  2.5744            
+##           age_scale    0.7445  0.8629   0.24     
+##           gender       0.7661  0.8753   0.04 0.37
+##  Residual             85.9352  9.2701            
+## Number of obs: 227966, groups:  country, 105
+## 
+## Fixed effects:
+##             Estimate Std. Error t value
+## (Intercept) 51.36517    0.25360  202.55
+## age_scale   -2.00846    0.08802  -22.82
+## gender      -2.16489    0.09655  -22.42
+## 
+## Correlation of Fixed Effects:
+##           (Intr) ag_scl
+## age_scale  0.226       
+## gender    -0.010  0.315</code></pre>
+<pre class="r"><code>print(summary(model2_combined))</code></pre>
+<pre><code>## Linear mixed model fit by maximum likelihood  [&#39;lmerMod&#39;]
+## Formula: 
+## risktaking ~ 1 + age_scale * hardship_index + gender * hardship_index +  
+##     (1 + age_scale | country)
+##    Data: merged_data
+## Control: lmerControl(optCtrl = list(maxfun = 1e+05), optimizer = &quot;bobyqa&quot;)
+## 
+##       AIC       BIC    logLik  deviance  df.resid 
+## 1663331.4 1663434.8 -831655.7 1663311.4    227956 
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -3.0387 -0.7637 -0.0735  0.7226  3.6446 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev. Corr
+##  country  (Intercept)  6.4140  2.5326       
+##           age_scale    0.4865  0.6975   0.18
+##  Residual             86.0681  9.2773       
+## Number of obs: 227966, groups:  country, 105
+## 
+## Fixed effects:
+##                          Estimate Std. Error t value
+## (Intercept)              51.37996    0.24928 206.115
+## age_scale                -2.00881    0.07267 -27.642
+## hardship_index            0.56632    0.32511   1.742
+## gender                   -2.18121    0.03915 -55.715
+## age_scale:hardship_index  0.67619    0.09589   7.051
+## hardship_index:gender     0.52220    0.05268   9.913
+## 
+## Correlation of Fixed Effects:
+##             (Intr) ag_scl hrdsh_ gender ag_s:_
+## age_scale    0.169                            
+## hardshp_ndx -0.005  0.009                     
+## gender      -0.083  0.004  0.002              
+## ag_scl:hrd_  0.009  0.016  0.174  0.008       
+## hrdshp_ndx:  0.002  0.008 -0.083  0.008  0.011</code></pre>
+<pre class="r"><code>anova(model1_combined, model2_combined)</code></pre>
+<pre><code>## refitting model(s) with ML (instead of REML)</code></pre>
+<pre><code>## Data: merged_data
+## Models:
+## model1_combined: risktaking ~ 1 + age_scale + gender + (1 + age_scale + gender | country)
+## model2_combined: risktaking ~ 1 + age_scale * hardship_index + gender * hardship_index + (1 + age_scale | country)
+##                 npar     AIC     BIC  logLik deviance Chisq Df Pr(&gt;Chisq)
+## model1_combined   10 1663178 1663281 -831579  1663158                    
+## model2_combined   10 1663331 1663435 -831656  1663311     0  0</code></pre>
 </div>
 <div id="retrieve-coefficients-from-the-model-output" class="section level1">
 <h1>Retrieve coefficients from the model output</h1>
@@ -639,15 +721,15 @@ slope_gender_hardship &lt;- fixef(model2_combined)[&quot;gender:hardship_index&q
 
 # Print coefficients for debugging
 print(paste(&quot;Intercept:&quot;, intercept))</code></pre>
-<pre><code>## [1] &quot;Intercept: 51.3888846502136&quot;</code></pre>
+<pre><code>## [1] &quot;Intercept: 51.3799553927448&quot;</code></pre>
 <pre class="r"><code>print(paste(&quot;Slope Age:&quot;, slope_age))</code></pre>
-<pre><code>## [1] &quot;Slope Age: -2.01214188698418&quot;</code></pre>
+<pre><code>## [1] &quot;Slope Age: -2.00881414506&quot;</code></pre>
 <pre class="r"><code>print(paste(&quot;Slope Gender:&quot;, slope_gender))</code></pre>
-<pre><code>## [1] &quot;Slope Gender: -2.18798675872571&quot;</code></pre>
+<pre><code>## [1] &quot;Slope Gender: -2.18120797118932&quot;</code></pre>
 <pre class="r"><code>print(paste(&quot;Slope Hardship:&quot;, slope_hardship))</code></pre>
-<pre><code>## [1] &quot;Slope Hardship: 0.565143625480289&quot;</code></pre>
+<pre><code>## [1] &quot;Slope Hardship: 0.566321821386774&quot;</code></pre>
 <pre class="r"><code>print(paste(&quot;Slope Age*Hardship:&quot;, slope_age_hardship))</code></pre>
-<pre><code>## [1] &quot;Slope Age*Hardship: 0.676452993939405&quot;</code></pre>
+<pre><code>## [1] &quot;Slope Age*Hardship: 0.676188878677321&quot;</code></pre>
 <pre class="r"><code>print(paste(&quot;Slope Gender*Hardship:&quot;, slope_gender_hardship))</code></pre>
 <pre><code>## [1] &quot;Slope Gender*Hardship: NA&quot;</code></pre>
 </div>
@@ -764,57 +846,6 @@ for (page in 1:num_pages) {
   # PDF-Datei schließen
   dev.off()
 }</code></pre>
-</div>
-<div id="plot-for-specific-country-e.g.-switzerland" class="section level1">
-<h1>Plot for specific country (e.g. Switzerland)</h1>
-<pre class="r"><code># 1. Extrahiere die Daten für das Land &quot;Andorra&quot;
-data_Switzerland &lt;- merged_data[merged_data$country == &quot;Switzerland&quot;, ]
-
-# 2. Berechne die spezifischen Koeffizienten des Modells für &quot;Andorra&quot;
-intercept_Switzerland &lt;- fixef(model2_combined, data = data_Switzerland)[&quot;(Intercept)&quot;]
-slope_age_Switzerland &lt;- fixef(model2_combined, data = data_Switzerland)[&quot;age_scale&quot;]
-slope_gender_Switzerland &lt;- fixef(model2_combined, data = data_Switzerland)[&quot;gender&quot;]
-slope_hardship_Switzerland &lt;- fixef(model2_combined, data = data_Switzerland)[&quot;hardship_index&quot;]
-slope_age_hardship_Switzerland &lt;- fixef(model2_combined, data = data_Switzerland)[&quot;age_scale:hardship_index&quot;]
-slope_gender_hardship_Switzerland &lt;- fixef(model2_combined, data = data_Switzerland)[&quot;gender:hardship_index&quot;]
-
-# 3. Erstelle den Plot für &quot;Andorra&quot; mit den spezifischen Koeffizienten
-pdf(&quot;Switzerland_plot.pdf&quot;, width = 10, height = 8)
-
-# Plot smoothed scatter ohne individuelle Datenpunkte
-smoothScatter(data_Switzerland$age, data_Switzerland$risktaking, las = 1, xaxt = &quot;n&quot;, yaxt = &quot;n&quot;, 
-              xlab = &quot;Age&quot;, ylab = &quot;Risk-Taking Propensity&quot;, bty = &quot;n&quot;, 
-              main = &quot;Switzerland&quot;, cex.main = 0.8, nrpoints = 0, 
-              xlim = c(min(data_Switzerland$age, na.rm = TRUE), max(data_Switzerland$age, na.rm = TRUE)), 
-              ylim = c(min(data_Switzerland$risktaking, na.rm = TRUE), max(data_Switzerland$risktaking, na.rm = TRUE)), 
-              cex.lab = 0.6)
-
-# Achsen und Beschriftungen hinzufügen
-axis(1, at = c(15, 85), labels = c(&quot;15&quot;, &quot;85&quot;), cex.axis = 0.7, tck = -0.01, line = 0, mgp = c(3, 0.02, 0))
-axis(2, at = c(35, 65), labels = c(35, 65), las = 1, cex.axis = 0.7, tck = -0.01, line = 0, mgp = c(3, 0.3, 0))
-mtext(&quot;Age&quot;, 1, line = 0, cex = 0.5)
-mtext(expression(Risk~Taking~(italic(T)-score)), 2, line = 1, cex = 0.5)
-text(73, 68, &quot;Switzerland&quot;)
-
-# Regression lines für &quot;Andorra&quot; definieren
-mean_age_Switzerland &lt;- mean(data_Switzerland$age, na.rm = TRUE)
-sd_age_Switzerland &lt;- sd(data_Switzerland$age, na.rm = TRUE)
-
-regline_age_Switzerland &lt;- function(x) {
-  intercept_Switzerland + slope_age_Switzerland * ((x - mean_age_Switzerland) / sd_age_Switzerland)
-}
-
-regline_gender_Switzerland &lt;- function(x) {
-  intercept_Switzerland + slope_gender_Switzerland + slope_age_Switzerland * ((x - mean_age_Switzerland) / sd_age_Switzerland)
-}
-
-# Regression lines für &quot;Andorra&quot; plotten
-curve(regline_age_Switzerland(x), from = min(data_Switzerland$age, na.rm = TRUE), to = max(data_Switzerland$age, na.rm = TRUE), add = TRUE, col = &quot;blue&quot;, lty = 1, lwd = 3)
-curve(regline_gender_Switzerland(x), from = min(data_Switzerland$age, na.rm = TRUE), to = max(data_Switzerland$age, na.rm = TRUE), add = TRUE, col = &quot;green&quot;, lty = 2, lwd = 3)
-
-dev.off()</code></pre>
-<pre><code>## quartz_off_screen 
-##                 2</code></pre>
 </div>
 
 

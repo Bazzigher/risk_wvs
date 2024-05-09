@@ -212,13 +212,23 @@ for (page in 1:num_pages) {
     # Daten für das aktuelle Land extrahieren
     data_country <- merged_data[merged_data$country == country, ]
     
-    # Koeffizienten des Modells für das aktuelle Land extrahieren
-    intercept_country <- fixef(model2_combined, data = data_country)["(Intercept)"]
-    slope_age_country <- fixef(model2_combined, data = data_country)["age_scale"]
-    slope_gender_country <- fixef(model2_combined, data = data_country)["gender"]
-    slope_hardship_country <- fixef(model2_combined, data = data_country)["hardship_index"]
-    slope_age_hardship_country <- fixef(model2_combined, data = data_country)["age_scale:hardship_index"]
-    slope_gender_hardship_country <- fixef(model2_combined, data = data_country)["gender:hardship_index"]
+    # Altersbereich definieren
+    age_range <- seq(min(data_country$age, na.rm = TRUE), max(data_country$age, na.rm = TRUE), length.out = 100)
+    
+    # Datenrahmen für Vorhersagen erstellen
+    pred_data <- data.frame(
+      age_scale = (age_range - mean(merged_data$age, na.rm = TRUE)) / sd(merged_data$age, na.rm = TRUE),
+      gender = rep(0, 100),
+      hardship_index = rep(median(merged_data$hardship_index, na.rm = TRUE), 100)
+    )
+    
+    # Vorhersagen für Männer und Frauen berechnen
+    pred_data_female <- pred_data
+    pred_data_male <- pred_data
+    pred_data_male$gender <- 1
+    
+    predictions_female <- predict(model2_combined, newdata = pred_data_female, re.form = NA)
+    predictions_male <- predict(model2_combined, newdata = pred_data_male, re.form = NA)
     
     # Plot für das aktuelle Land erstellen
     smoothScatter(data_country$age, data_country$risktaking, las = 1, xaxt = "n", yaxt = "n", 
@@ -234,21 +244,9 @@ for (page in 1:num_pages) {
     mtext("Age", 1, line = 0, cex = 0.5)
     mtext(expression(Risk~Taking~(italic(T)-score)), 2, line = 1, cex = 0.5)
     
-    # Regression lines für das aktuelle Land definieren
-    mean_age_country <- mean(data_country$age, na.rm = TRUE)
-    sd_age_country <- sd(data_country$age, na.rm = TRUE)
-    
-    regline_age_country <- function(x) {
-      intercept_country + slope_age_country * ((x - mean_age_country) / sd_age_country)
-    }
-    
-    regline_gender_country <- function(x) {
-      intercept_country + slope_gender_country + slope_age_country * ((x - mean_age_country) / sd_age_country)
-    }
-    
     # Regression lines für das aktuelle Land plotten
-    curve(regline_age_country(x), from = min(data_country$age, na.rm = TRUE), to = max(data_country$age, na.rm = TRUE), add = TRUE, col = "blue", lty = 1, lwd = 3)
-    curve(regline_gender_country(x), from = min(data_country$age, na.rm = TRUE), to = max(data_country$age, na.rm = TRUE), add = TRUE, col = "green", lty = 2, lwd = 3)
+    lines(age_range, predictions_female, col = "blue", lty = 1, lwd = 3)
+    lines(age_range, predictions_male, col = "green", lty = 2, lwd = 3)
   }
   
   # PDF-Datei schließen
