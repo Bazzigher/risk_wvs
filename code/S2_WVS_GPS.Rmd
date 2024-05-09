@@ -417,6 +417,7 @@ print(coefsallmodels_gps)
 ######################################################################################
 # Combine data WVS and GPS
 ```{r}
+# Combine data WVS and GPS
 mixed_model_gps_data
 mixed_model_data
 
@@ -443,8 +444,24 @@ mixed_model_gps_data_new
 
 #Combine the two datasets 
 merged_data <- rbind(mixed_model_gps_data_new, mixed_model_data_new)
+
+# Update 'source' based on country presence
+merged_data$source <- ifelse(merged_data$country %in% mixed_model_gps_data$country & merged_data$country %in% mixed_model_data$country, "both", merged_data$source)
+merged_data$source <- ifelse(merged_data$country %in% mixed_model_data$country & !merged_data$country %in% mixed_model_gps_data$country, "wvs", merged_data$source)
+merged_data$source <- ifelse(!merged_data$country %in% mixed_model_data$country & merged_data$country %in% mixed_model_gps_data$country, "gps", merged_data$source)
+
+# Show the updated merged_data
 merged_data
 ```
+
+```{r}
+# Count the number of countries in each category
+source_counts <- table(merged_data$source)
+
+# Print the counts
+print(source_counts)
+```
+
 
 ```{r}
 write.csv(merged_data, file = paste0(base_path, "data_combined.csv"), row.names = FALSE)
