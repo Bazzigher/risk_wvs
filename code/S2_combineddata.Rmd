@@ -60,19 +60,33 @@ print(source_counts)
 
 # Worldmap of the recorded countries
 ```{r}
-world_map <- map_data("world") # Create a world map with country borders
+# Create a world map with country borders
+world_map <- map_data("world")
 
-recorded_countries <- unique(merged_data$country) # Get the list of recorded countries from your cleaned_data
+# Create a data frame with countries and their source
+recorded_countries <- merged_data %>%
+  select(country, source) %>%
+  distinct()
 
-world_map$recorded <- ifelse(world_map$region %in% recorded_countries, "Recorded", "Not Recorded") # Create a new variable indicating whether a country has been recorded or not
+# Merge world map data with recorded countries data
+world_map <- world_map %>%
+  left_join(recorded_countries, by = c("region" = "country"))
+
+# Define a new variable for coloring the countries
+world_map$fill_color <- case_when(
+  world_map$source == "both" ~ "both",
+  world_map$source == "wvs" ~ "wvs",
+  world_map$source == "gps" ~ "gps",
+  TRUE ~ "none"
+)
 
 # Plot the world map with recorded countries highlighted
-ggplot(world_map, aes(x = long, y = lat, group = group, fill = recorded)) +
+ggplot(world_map, aes(x = long, y = lat, group = group, fill = fill_color)) +
   geom_polygon(color = "white") +
-  scale_fill_manual(values = c("Recorded" = "black", "Not Recorded" = "lightgrey"), guide = "none") +  # Set guide to "none" to remove the legend
+  scale_fill_manual(values = c("both" = "black", "wvs" = "darkred", "gps" = "darkblue", "none" = "lightgrey")) +
   theme_void() +
-  labs(fill = "Status") +
-  theme(legend.position = "none", plot.title = element_text(hjust = 0.5))  # Remove legend and center the title
+  labs(fill = "Source") +
+  theme(legend.position = "bottom", plot.title = element_text(hjust = 0.3))  # Center the title and move the legend to the bottom
 ```
 
 
@@ -177,6 +191,33 @@ combined_coefs <- rbind(coefs_model1, coefs_model2)
 # Anzeigen der kombinierten Koeffizienten
 print(combined_coefs)
 ```
+```{r}
+head(merged_data)
+```
+
+# Plot Model1 combined countries
+```{r}
+# Calculate fitted values for each observation
+merged_data$age <- 15 * merged_data$age + 42
+merged_data$datafit <- fitted(model1_combined)
+merged_data$gender <- factor(merged_data$gender)
+
+# Plot ohne Facettierung nach Ländern
+plot_all_countries <- ggplot(merged_data, aes(age, risktaking, colour = country, linetype = factor(gender))) + 
+  geom_point(size = 0.5) +  
+  geom_smooth(method = "lm", se = FALSE, size = 1.5, color = "red") +  
+  theme_minimal(base_size = 10) +  
+  theme(axis.text = element_text(size = 8)) +  
+  guides(color = FALSE, linetype = guide_legend(title = "Gender")) +  
+  scale_linetype_manual(values = c("solid", "dashed"))  # Define line types for genders
+
+# Speichern des Plots als Bild
+ggsave(filename = "Combined_countries_model1.pdf", plot = plot_all_countries, width = 10, height = 8)
+
+# Anzeigen der ersten Zeilen des Datenrahmens
+head(merged_data)
+```
+
 
 # Plot Model1 individual countries
 ```{r}
