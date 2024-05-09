@@ -83,6 +83,13 @@ participant_table[is.na(participant_table)] <- 0
 print(participant_table)
 ```
 
+```{r}
+# Imputation von fehlenden Werten im hardship_index mit dem Median
+median_hardship_index <- median(merged_data$hardship_index, na.rm = TRUE)
+merged_data$hardship_index[is.na(merged_data$hardship_index)] <- median_hardship_index
+```
+
+
 
 # Model1 
 ```{r}
@@ -103,6 +110,19 @@ summary_model2_combined = summary(model2_combined)
 
 summary_model2_combined
 ```
+
+
+```{r}
+# Überprüfe die Modellspezifikationen für beide Modelle
+print(summary(model1_combined))
+print(summary(model2_combined))
+```
+
+
+```{r}
+anova(model1_combined, model2_combined)
+```
+
 
 # Retrieve coefficients from the model output
 ```{r}
@@ -235,56 +255,5 @@ for (page in 1:num_pages) {
   dev.off()
 }
 
-```
-
-
-# Plot for specific country (e.g. Switzerland)
-```{r}
-# 1. Extrahiere die Daten für das Land "Andorra"
-data_Switzerland <- merged_data[merged_data$country == "Switzerland", ]
-
-# 2. Berechne die spezifischen Koeffizienten des Modells für "Andorra"
-intercept_Switzerland <- fixef(model2_combined, data = data_Switzerland)["(Intercept)"]
-slope_age_Switzerland <- fixef(model2_combined, data = data_Switzerland)["age_scale"]
-slope_gender_Switzerland <- fixef(model2_combined, data = data_Switzerland)["gender"]
-slope_hardship_Switzerland <- fixef(model2_combined, data = data_Switzerland)["hardship_index"]
-slope_age_hardship_Switzerland <- fixef(model2_combined, data = data_Switzerland)["age_scale:hardship_index"]
-slope_gender_hardship_Switzerland <- fixef(model2_combined, data = data_Switzerland)["gender:hardship_index"]
-
-# 3. Erstelle den Plot für "Andorra" mit den spezifischen Koeffizienten
-pdf("Switzerland_plot.pdf", width = 10, height = 8)
-
-# Plot smoothed scatter ohne individuelle Datenpunkte
-smoothScatter(data_Switzerland$age, data_Switzerland$risktaking, las = 1, xaxt = "n", yaxt = "n", 
-              xlab = "Age", ylab = "Risk-Taking Propensity", bty = "n", 
-              main = "Switzerland", cex.main = 0.8, nrpoints = 0, 
-              xlim = c(min(data_Switzerland$age, na.rm = TRUE), max(data_Switzerland$age, na.rm = TRUE)), 
-              ylim = c(min(data_Switzerland$risktaking, na.rm = TRUE), max(data_Switzerland$risktaking, na.rm = TRUE)), 
-              cex.lab = 0.6)
-
-# Achsen und Beschriftungen hinzufügen
-axis(1, at = c(15, 85), labels = c("15", "85"), cex.axis = 0.7, tck = -0.01, line = 0, mgp = c(3, 0.02, 0))
-axis(2, at = c(35, 65), labels = c(35, 65), las = 1, cex.axis = 0.7, tck = -0.01, line = 0, mgp = c(3, 0.3, 0))
-mtext("Age", 1, line = 0, cex = 0.5)
-mtext(expression(Risk~Taking~(italic(T)-score)), 2, line = 1, cex = 0.5)
-text(73, 68, "Switzerland")
-
-# Regression lines für "Andorra" definieren
-mean_age_Switzerland <- mean(data_Switzerland$age, na.rm = TRUE)
-sd_age_Switzerland <- sd(data_Switzerland$age, na.rm = TRUE)
-
-regline_age_Switzerland <- function(x) {
-  intercept_Switzerland + slope_age_Switzerland * ((x - mean_age_Switzerland) / sd_age_Switzerland)
-}
-
-regline_gender_Switzerland <- function(x) {
-  intercept_Switzerland + slope_gender_Switzerland + slope_age_Switzerland * ((x - mean_age_Switzerland) / sd_age_Switzerland)
-}
-
-# Regression lines für "Andorra" plotten
-curve(regline_age_Switzerland(x), from = min(data_Switzerland$age, na.rm = TRUE), to = max(data_Switzerland$age, na.rm = TRUE), add = TRUE, col = "blue", lty = 1, lwd = 3)
-curve(regline_gender_Switzerland(x), from = min(data_Switzerland$age, na.rm = TRUE), to = max(data_Switzerland$age, na.rm = TRUE), add = TRUE, col = "green", lty = 2, lwd = 3)
-
-dev.off()
 ```
 
