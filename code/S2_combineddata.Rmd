@@ -50,6 +50,12 @@ source_counts <- merged_data %>%
   summarise(num_countries = n_distinct(country))
 
 print(source_counts)
+
+# Count the number of countries in each category
+source_counts <- table(merged_data$source)
+
+# Print the counts
+print(source_counts)
 ```
 
 # Worldmap of the recorded countries
@@ -112,6 +118,15 @@ print(participant_table)
 # Scale the 'age' variable
 ```{r}
 merged_data$age <- scale(merged_data$age)
+
+# Laden des Pakets dplyr, falls noch nicht geschehen
+library(dplyr)
+
+# Entfernen der Variable age_scale
+merged_data <- select(merged_data, -age_scale)
+
+# Überprüfen des bereinigten Datensatzes
+head(merged_data)
 ```
 
 
