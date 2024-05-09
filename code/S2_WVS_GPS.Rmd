@@ -789,9 +789,11 @@ dev.off()
 
 
 ############################################
-# Correlations models???
+# Correlations models
 
 ```{r}
+#wvsdata
+
 countryfacts$codeWVS <- countryfacts$code
 
 # Create the modelcoefs data
@@ -804,12 +806,17 @@ modelcoefs_model1_wvs
 
 
 modelcoefs_model1_wvs <- modelcoefs_model1_wvs %>%
-  dplyr::select('(Intercept)', age, gender)
+  dplyr::select('(Intercept)', age_scale, gender, codeWVS)
 modelcoefs_model1_wvs
 
-# Assuming you've already extracted coefficients from your model as modelcoefs_model1_gps
+modelcoefs_model1_wvs <- modelcoefs_model1_wvs %>%
+  rename(Intercept_wvs= '(Intercept)' , age_wvs = age_scale, gender_wvs = gender)
+modelcoefs_model1_wvs
 
-# Create the modelcoefs data
+modelcoefs_model1_wvs
+
+
+#gps data
 modelcoefs_model1_gps <- ranef(model1_gps)$country
 modelcoefs_model1_gps$codeWVS <- row.names(modelcoefs_model1_gps)
 
@@ -817,38 +824,18 @@ modelcoefs_model1_gps$codeWVS <- row.names(modelcoefs_model1_gps)
 regiondata <- merge(modelcoefs_model1_gps, countryfacts, by = "codeWVS")
 
 modelcoefs_model1_gps
-<<<<<<< HEAD
 
 
+modelcoefs_model1_gps <- modelcoefs_model1_gps %>%
+  rename(Intercept_gps= '(Intercept)' , age_gps = age_scale, gender_gps = gender1)
+modelcoefs_model1_gps
 
-
-
-```
-
-```{r}
-modelcoefs_model1_wvs <- modelcoefs_model1_wvs %>%
-  rename(Intercept_wvs= '(Intercept)' , age_wvs = age, gender_wvs = gender)
 modelcoefs_model1_wvs
 
 
-
-
-
-
-```
-=======
 ```
 
->>>>>>> 36ff55cbf8720e5bd479e3d323b5afec2bd0eba8
-```{r}
-modelcoefs_model1_gps <- modelcoefs_model1_gps %>%
-  rename(Intercept_gps= '(Intercept)' , age_gps = age, gender_gps = gender1)
-modelcoefs_model1_gps
-```
-<<<<<<< HEAD
-=======
 
->>>>>>> 36ff55cbf8720e5bd479e3d323b5afec2bd0eba8
 ```{r}
 common_countries <- intersect(modelcoefs_model1_wvs$codeWVS, modelcoefs_model1_wvs$codeWVS)
 selected_countries <- c("Argentina", "Australia", "Brazil", "Canada", "Chile", "China", "Egypt", "Finland", "France", "Georgia",
@@ -863,8 +850,6 @@ modelcoefs_model1_wvs_new <- modelcoefs_model1_wvs[modelcoefs_model1_wvs$codeWVS
 # View the new dataset
 modelcoefs_model1_wvs_new
 
-
-
 common_countries <- intersect(modelcoefs_model1_gps$codeWVS, modelcoefs_model1_gps$codeWVS)
 selected_countries <- c("Argentina", "Australia", "Brazil", "Canada", "Chile", "China", "Egypt", "Finland", "France", "Georgia",
                          "Germany", "Ghana", "Hungary", "India", "Indonesia", "Iran", "Japan", "Jordan", "Mexico", "Moldova",
@@ -878,64 +863,67 @@ modelcoefs_model1_gps_new <- modelcoefs_model1_gps[modelcoefs_model1_gps$codeWVS
 # View the new dataset
 modelcoefs_model1_gps_new
 
-modelcoefs_model1_gps_new
+modelcoefs_model1_wvs_new
 
 
 merged <- left_join(modelcoefs_model1_gps_new, modelcoefs_model1_wvs_new, by = "codeWVS")
 merged
 ```
-```
-```
-
-
 ```{r}
-# Create a new data frame with risktaking, age_scale, and datafit
-# Assuming 'mixed_model_data' contains a column named 'country'
-# Calculate fitted values for each observation
-mixed_model_data$datafit <- fitted(model2_wvs)
-
-library(ggplot2)
-
-# Increase the size of individual plots within the facet grid and enhance the visibility of regression lines
-plot <- ggplot(mixed_model_data, aes(risktaking, age_scale, group = country, colour = country)) + 
-  geom_point(size = 2) +  # Increase point size
-  geom_smooth(method = "lm", se = FALSE, linetype = "dashed", size = 1.5) +  # Adjust regression line thickness
-  facet_wrap(~country, ncol = 9, scales = "free") +  # Adjust facet grid and allow free scales
-  theme_minimal(base_size = 10) +  # Increase base font size
-  theme(strip.text = element_text(size = 10),  # Adjust strip text size
-        axis.text = element_text(size = 8),  # Adjust axis text size
-        strip.background = element_blank(),  # Remove strip background
-        panel.spacing = unit(1, "lines")) +  # Adjust spacing between panels
-  guides(color = FALSE)  # Remove legend
-
-# Save the plot as an image file
-ggsave(filename = "new_plot.pdf", plot = plot, width = 20, height = 20)  # Adjust width and height for better visibility
-
-
-
-
-
-
-```{r}
+#plots intercepts
 
 ggplot(merged, aes(x = Intercept_gps, y = Intercept_wvs)) +
   geom_point(size = 1.5) +
   geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
   labs(title = "Comparison of Intercept Values",
-       x = "Intercept_gps",
-       y = "Intercept_WVS") +
+       x = "Intercept Global Preference Study ",
+       y = "Intercept World Value Survey") +
   theme_minimal() +
+  xlim(c(-2, 2)) +
+  ylim(c(-2, 2)) +
   coord_fixed()
-```{r}
+```
+
 ```{r}
 ggplot(merged, aes(x = gender_gps, y = gender_wvs)) +
   geom_point(size = 1.5) +
   geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
   labs(title = "Comparison of Gender Effect on Risk Taking",
-       x = "Gender Effect GPS",
-       y = "Gender Effect WVS") +
+       x = "Effect of Gender on Risk Taking Global Preference Study",
+       y = "Effect of Gender on Risk Taking World Value Survey") +
   theme_minimal() +
+  xlim(c(-2, 2)) +
+  ylim(c(-2, 2)) +
   coord_fixed()
 ```
+
+```{r}
+ggplot(merged, aes(x = age_gps, y = age_wvs)) +
+  geom_point(size = 1.5) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
+  labs(title = "Comparison of Age Effect on Risk Taking",
+       x = "Effect of Age on Risk Taking Global Preference Study",
+       y = "Effect of Age on Risk Taking World Value Survey") +
+  theme_minimal() +
+  xlim(c(-2, 2)) +
+  ylim(c(-2, 2)) +
+  coord_fixed()
+```
+
+```{r}
+#correlations 
+
+correlation_intercept <- cor(merged$Intercept_gps, merged$Intercept_wvs)
+
+correlation_age <- cor(merged$age_gps, merged$gender_wvs)
+
+correlation_gender <- cor(merged$gender_gps, merged$gender_wvs)
+
+print(correlation_age)
+print(correlation_gender)
+print(correlation_intercept)
+```
+
+
 
 
