@@ -373,6 +373,8 @@ gps_data$age_scale <- gps_data$age
 # Scale the duplicated 'age' variable
 gps_data$age_scale <- scale(gps_data$age_scale)
 
+gps_data
+
 ```
 
 
@@ -798,11 +800,12 @@ countryfacts$codeWVS <- countryfacts$code
 
 # Create the modelcoefs data
 modelcoefs_model1_wvs <- ranef(model1_wvs)$country
-modelcoefs_model1_wvs$codeWVS <- row.names(modelcoefs)
+modelcoefs_model1_wvs$codeWVS <- row.names(modelcoefs_model1_wvs)
 
 # Combine the data
 regiondata <- merge(modelcoefs_model1_wvs, countryfacts, by = "codeWVS")
 modelcoefs_model1_wvs
+
 
 
 modelcoefs_model1_wvs <- modelcoefs_model1_wvs %>%
@@ -819,6 +822,8 @@ modelcoefs_model1_wvs
 #gps data
 modelcoefs_model1_gps <- ranef(model1_gps)$country
 modelcoefs_model1_gps$codeWVS <- row.names(modelcoefs_model1_gps)
+
+modelcoefs_model1_gps
 
 # Combine the data
 regiondata <- merge(modelcoefs_model1_gps, countryfacts, by = "codeWVS")
@@ -868,44 +873,77 @@ modelcoefs_model1_wvs_new
 
 merged <- left_join(modelcoefs_model1_gps_new, modelcoefs_model1_wvs_new, by = "codeWVS")
 merged
+countryfacts
+
+new_countryfacts <- countryfacts %>%
+  dplyr::select(codeWVS, country)
+new_countryfacts
+
+new_countryfacts
+merged
+
+merged <- merged %>%
+  rename(country = codeWVS)
+merged
+
+new_merged <- left_join(merged, new_countryfacts, by = "country" )
+new_merged
 ```
 ```{r}
 #plots intercepts
-
-ggplot(merged, aes(x = Intercept_gps, y = Intercept_wvs)) +
-  geom_point(size = 1.5) +
+library(ggrepel)
+ggplot(new_merged, aes(x = Intercept_gps, y = Intercept_wvs, label = codeWVS)) +
+  geom_point(size = 3) +
+  geom_text_repel(
+    aes(label = codeWVS),
+    box.padding = 0.5,
+    point.padding = 0.1,
+    force = 5
+  ) +
   geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
-  labs(title = "Comparison of Intercept Values",
-       x = "Intercept Global Preference Study ",
+  labs(x = "Intercept Global Preference Study",
        y = "Intercept World Value Survey") +
   theme_minimal() +
-  xlim(c(-2, 2)) +
-  ylim(c(-2, 2)) +
   coord_fixed()
+
+new_merged
 ```
 
 ```{r}
-ggplot(merged, aes(x = gender_gps, y = gender_wvs)) +
-  geom_point(size = 1.5) +
+ggplot(new_merged, aes(x = gender_gps, y = gender_wvs, label = codeWVS)) +
+  geom_point(size = 3) +
+  geom_text_repel(
+    aes(label = codeWVS),
+    box.padding = 0.5,
+    point.padding = 0.1,
+    force = 5
+  ) +
   geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
-  labs(title = "Comparison of Gender Effect on Risk Taking",
-       x = "Effect of Gender on Risk Taking Global Preference Study",
+  labs(x = "Effect of Gender on Risk Taking Global Preference Study",
        y = "Effect of Gender on Risk Taking World Value Survey") +
   theme_minimal() +
-  xlim(c(-2, 2)) +
+  xlim(-2, 2) +
   ylim(c(-2, 2)) +
   coord_fixed()
+
+
+
 ```
 
 ```{r}
-ggplot(merged, aes(x = age_gps, y = age_wvs)) +
-  geom_point(size = 1.5) +
+ggplot(new_merged, aes(x = age_gps, y = age_wvs, label = codeWVS)) +
+  geom_point(size = 3) +
+  geom_text_repel(
+    aes(label = codeWVS),
+    box.padding = 0.5,
+    point.padding = 0.1,
+    force = 5
+  ) +
   geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
-  labs(title = "Comparison of Age Effect on Risk Taking",
-       x = "Effect of Age on Risk Taking Global Preference Study",
+  labs(x = "Effect of Age on Risk Taking Global Preference Study",
        y = "Effect of Age on Risk Taking World Value Survey") +
   theme_minimal() +
-  xlim(c(-2, 2)) +
+  xlim(-2, 2) +
   ylim(c(-2, 2)) +
   coord_fixed()
 ```
@@ -913,11 +951,11 @@ ggplot(merged, aes(x = age_gps, y = age_wvs)) +
 ```{r}
 #correlations 
 
-correlation_intercept <- cor(merged$Intercept_gps, merged$Intercept_wvs)
+correlation_intercept <- cor(new_merged$Intercept_gps, new_merged$Intercept_wvs)
 
-correlation_age <- cor(merged$age_gps, merged$gender_wvs)
+correlation_age <- cor(new_merged$age_gps, new_merged$gender_wvs)
 
-correlation_gender <- cor(merged$gender_gps, merged$gender_wvs)
+correlation_gender <- cor(new_merged$gender_gps, new_merged$gender_wvs)
 
 print(correlation_age)
 print(correlation_gender)
