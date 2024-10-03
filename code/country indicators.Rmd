@@ -1,0 +1,287 @@
+---
+title: "Mental Health indicators"
+output: html_document
+date: "2024-09-24"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+rm(list = ls())
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+```{r}
+#load library 
+
+library(data.table)
+library(tidyr)
+library(maps)
+library(haven)
+library(ggplot2)
+library(dplyr)
+library(readxl)
+library(lmerTest)
+library(lme4)
+library(broom)
+library(tibble)
+```
+
+
+
+```{r}
+base_path <- "/Users/cristinacandido/Desktop/Masterthesis/R Studio/"
+```
+
+```{r}
+gbd_indicators <- read.csv(paste0(base_path, "gbd_new.csv"))
+gbd_indicators
+```
+
+```{r}
+#select only the variables of interest
+gbd_indicators <- gbd_indicators %>%
+  dplyr::select(location, cause, val)
+gbd_indicators
+
+```
+```{r}
+# Assuming the data looks like: country | disorder | value
+gbd_country <- gbd_indicators %>%
+  pivot_wider(names_from = cause, values_from = val)
+
+gbd_country
+
+```
+```{r}
+# Apply the logit transformation correctly for percentage variables
+gbd_country$`Bipolar disorder` = log(gbd_country$`Bipolar disorder` / (100 - gbd_country$`Bipolar disorder`))
+gbd_country$`Anxiety disorders` = log(gbd_country$`Anxiety disorders` / (100 - gbd_country$`Anxiety disorders`))
+gbd_country$`Autism spectrum disorders` = log(gbd_country$`Autism spectrum disorders` / (100 - gbd_country$`Autism spectrum disorders`))
+gbd_country$`Attention-deficit/hyperactivity disorder` = log(gbd_country$`Attention-deficit/hyperactivity disorder` / (100 - gbd_country$`Attention-deficit/hyperactivity disorder`))
+gbd_country$`Conduct disorder` = log(gbd_country$`Conduct disorder` / (100 - gbd_country$`Conduct disorder`))
+gbd_country$`Alcohol use disorders` = log(gbd_country$`Alcohol use disorders` / (100 - gbd_country$`Alcohol use disorders`))
+gbd_country$`Drug use disorders` = log(gbd_country$`Drug use disorders` / (100 - gbd_country$`Drug use disorders`))
+gbd_country$`Depressive disorders` = log(gbd_country$`Depressive disorders` / (100 - gbd_country$`Depressive disorders`))
+gbd_country$`Substance use disorders` = log(gbd_country$`Substance use disorders` / (100 - gbd_country$`Substance use disorders`))
+gbd_country$`Self-harm` = log(gbd_country$`Self-harm` / (100 - gbd_country$`Self-harm`))
+gbd_country$`Sexual violence` = log(gbd_country$`Sexual violence` / (100 - gbd_country$`Sexual violence`))
+gbd_country$`Physical violence by sharp object` = log(gbd_country$`Physical violence by sharp object` / (100 - gbd_country$`Physical violence by sharp object`))
+gbd_country$`Physical violence by other means` = log(gbd_country$`Physical violence by other means` / (100 - gbd_country$`Physical violence by other means`))
+gbd_country$`Self-harm by firearm` = log(gbd_country$`Self-harm by firearm` / (100 - gbd_country$`Self-harm by firearm`))
+gbd_country$`Self-harm by other specified means` = log(gbd_country$`Self-harm by other specified means` / (100 - gbd_country$`Self-harm by other specified means`))
+gbd_country$`Interpersonal violence` = log(gbd_country$`Interpersonal violence` / (100 - gbd_country$`Interpersonal violence`))
+gbd_country$`Conflict and terrorism` = log(gbd_country$`Conflict and terrorism` / (100 - gbd_country$`Conflict and terrorism`))
+gbd_country$`Physical violence by firearm` = log(gbd_country$`Physical violence by firearm` / (100 - gbd_country$`Physical violence by firearm`))
+
+gbd_country
+
+```
+```{r}
+# Rename columns 
+gbd_country <- gbd_country %>%
+  rename(
+    Bipolar_disorder = `Bipolar disorder`,
+    Anxiety_disorder = `Anxiety disorders`,
+    Depressive_disorders = `Depressive disorders`,
+    Substance_use_disorder = `Substance use disorders`,
+    Conduct_Disorder = `Conduct disorder`,
+    Physical_violence_sharp_object = `Physical violence by sharp object`,
+    Physical_violence_other = `Physical violence by other means`,
+    Autism_spectrum = `Autism spectrum disorders`,
+    ADHD = `Attention-deficit/hyperactivity disorder`,
+    sexual_violence = `Sexual violence`,
+    Self_harm = `Self-harm`,
+    Self_harm_firearm = `Self-harm by firearm`,
+    Self_harm_other = `Self-harm by other specified means`,
+    Interpersonal_violence = `Interpersonal violence`,
+    Alcohol_use_disorder = `Alcohol use disorders`,
+    Drug_use_disorder = `Drug use disorders`,
+    Physical_violence_firearm = `Physical violence by firearm`,
+    Conflict_and_terrorism = `Conflict and terrorism`)
+
+gbd_country
+```
+
+
+```{r}
+#rename the countries so that they match with the risk data 
+
+gbd_country <- gbd_country%>%
+  mutate(country = recode(location,
+                          "Bosnia and Herzegovina" = "Bosnia Herzegovina", 
+                          "Venezuela (Bolivarian Republic of)" = "Venezuela",
+                          "Taiwan (Province of China" = "Taiwan",
+                          "United Republic of Tanzania" = "Tanzania", 
+                          "Czechia" = "Czech Republic",
+                          "United States of America" = "United States",
+                          "Bolivia (Plurinationale State of)" = "Bolivia",
+                          "Republic of Korea" = "South Korea",
+                          "Republic of Moldova" = "Moldova", 
+                          "Cyprus" = "Cyprus (G)", 
+                          "Iran (Islamic Republic of)" = "Iran",
+                          "Russian Federation" = "Russia",
+                          "TTürkiye" = "Turkey"))
+                          
+ gbd_country
+```
+
+
+```{r}
+# Rename the column 'location' to 'country'
+
+library(dplyr)
+gbd_country<- gbd_country %>%
+  dplyr::select(country, Substance_use_disorder, Bipolar_disorder, Anxiety_disorder, Physical_violence_sharp_object, Physical_violence_other, Autism_spectrum, ADHD, Conduct_Disorder, sexual_violence, Depressive_disorders, Self_harm, Self_harm_firearm, Self_harm_other, Interpersonal_violence, Physical_violence_firearm, Alcohol_use_disorder, Drug_use_disorder, Conflict_and_terrorism)
+gbd_country
+```
+
+
+```{r}
+#join risk data from wvs and gps with the gbd indicators
+
+gbd_wvs_gps <- left_join(gbd_country, risk_data, by = "country")
+gbd_wvs_gps
+
+gbd_wvs_gps
+
+
+
+
+
+```
+```{r}
+# Remove rows with any NA values
+clean_data <- na.omit(gbd_wvs_gps)
+clean_data
+```
+
+#load hardship countries
+```{r}
+countryfacts <- read_excel(paste0(base_path, "Hardship_complete_2024.xlsx"))
+countryfacts
+```
+
+```{r}
+# Log Countryfacts 
+
+countryfacts$homiciderate=log(countryfacts$homiciderate)
+countryfacts$gdp=log(countryfacts$gdp)
+countryfacts$infantmortality=log(countryfacts$infantmortality)
+countryfacts$lifeexpectancy=log(countryfacts$lifeexpectancy)
+
+countryfacts
+
+# Reverse Codierung
+countryfacts$homiciderate=scale(countryfacts$homiciderate)
+countryfacts$gdp=scale(-countryfacts$gdp)
+countryfacts$infantmortality=scale(countryfacts$infantmortality)
+countryfacts$lifeexpectancy=scale(-countryfacts$lifeexpectancy)
+countryfacts$gini=scale(countryfacts$gini)
+countryfacts$femalemale_primedu=scale(-countryfacts$femalemale_primedu)
+countryfacts
+
+countryfacts$hardship_index=(countryfacts$homiciderate+countryfacts$gdp+countryfacts$gini+countryfacts$lifeexpectancy+countryfacts$infantmortality+countryfacts$femalemale_primedu)/6
+
+countryfacts
+```
+
+# Impute missing values in the hardship indicators using the median
+```{r}
+countryfacts <- countryfacts %>%
+  mutate(across(c("homiciderate", "gdp", "infantmortality", "lifeexpectancy", "gini", "femalemale_primedu"),
+                ~ifelse(is.na(.), median(., na.rm = TRUE), .)))
+
+countryfacts
+
+# Use the mutate function to change the country name
+countryfacts <- countryfacts %>%
+  mutate(country = ifelse(label == "Serbia and Montenegro", "Serbia", label))
+countryfacts
+
+
+```
+```{r}
+#join hardship with gbd indicators 
+country_all_indicators <- left_join(countryfacts, clean_data, by = "country")
+country_all_indicators
+
+#run specification curve
+
+library(specr)
+
+specs <- setup(
+  data = country_all_indicators,  # Pass your dataframe
+  y = "avg_risk",     # Specify your dependent variable
+  x = c("homiciderate", "gdp", "infantmortality", "lifeexpectancy", "gini", "femalemale_primedu", "hardship_index", "Depressive_disorders",  
+         "Substance_use_disorder", 
+         "Bipolar_disorder", 
+         "Conduct_Disorder", 
+         "Anxiety_disorder",
+        "Physical_violence_sharp_object",
+        "Self_harm",
+        "sexual_violence", 
+        "Physical_violence_other",
+        "Autism_spectrum",
+        "ADHD",
+        "Self_harm_firearm",
+        "Self_harm_other",
+        "Physical_violence_firearm",
+        "Alcohol_use_disorder",
+        "Drug_use_disorder",
+        "Conflict_and_terrorism"),  
+  model = "lm")
+  
+
+summary(specs)
+
+
+results <- specr(specs)
+results
+
+summary(results, type = "curve")
+
+summary(results, 
+        type = "curve",
+        group = "x",
+        stats = lst(median, mean, min, max))
+```
+```{r}
+plot(results)
+
+library(ggthemes)
+(a <- plot(results, type = "curve", ci = F, ribbon = T) + 
+   geom_point(size = 4))
+
+
+(b <- plot(results, type = "choices", choices = c("x", "y", "model", "controls")) +
+   geom_point(size = 2, shape = 4)) 
+
+(c <- plot(results, type = "samplesizes") + ylim(0, 400))
+
+library(cowplot)
+plot_grid(a, b, c, ncol = 1,
+          align = "v",
+          rel_heights = c(1.5, 2, 0.8),
+          axis = "rbl")
+
+plot(results, type = "boxplot") + 
+  geom_point(alpha = .4) + 
+  scale_fill_brewer(palette = "Pastel2") +
+  labs(x = "Effect size", fill = "")
+
+#
+```
+

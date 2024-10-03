@@ -1,0 +1,285 @@
+---
+title: "Cristina Semester 3"
+output: html_document
+date: "2024-09-22"
+---
+
+```{r}
+rm(list = ls())
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+base_path <- "/Users/cristinacandido/Desktop/Masterthesis/R Studio/"
+```
+
+#load library 
+```{r}
+library(data.table)
+library(tidyr)
+library(maps)
+library(haven)
+library(ggplot2)
+library(dplyr)
+library(readxl)
+library(lmerTest)
+library(lme4)
+library(broom)
+library(tibble)
+```
+
+```{r}
+# Load Data of Wave 5
+WV5_data <- readRDS(paste0(base_path, "F00007944-WV5_Data_R_v20180912.rds"))
+
+# Convert WV5_data-object in data.frame 
+WV5_data_df <- as.data.frame(WV5_data)
+
+
+```
+
+```{r}
+# rename and select variables of interest
+
+data5 <- WV5_data_df %>%
+  rename(gender = V235, age = V237, country_code = V2, wave = V1, risktaking = V86)
+data5
+
+colnames(data5)
+
+#select only the variables of interest
+data5 <- data5 %>%
+  dplyr::select(gender, age, country_code, wave, risktaking)
+data5
+
+# Read countrynames data from the CSV file (to decode the dataset 5)
+countrynames <- read.csv(paste0(base_path, "/countrynames.txt"), header = FALSE, as.is = TRUE)
+colnames(countrynames) <- c("code", "name")
+
+# Assuming WV5_data has a column named country_code
+data5$country <- countrynames$name[match(data5$country_code, countrynames$code)]
+
+# Check the frequency of each country in the new column
+table(data5$country)
+
+# Display the updated WV5_data
+head(data5)
+unique(data5$country)
+
+print(countrynames)
+
+country_counts <- data5 %>%
+  count(country)
+
+# Print the result
+print(country_counts)
+
+
+
+```
+#load Wave 6
+```{r}
+load(paste0(base_path, "WV6_Data_R_v20201117.rdata")) 
+WV6_data <- WV6_Data_R_v20201117 
+head(WV6_data)
+```
+```{r}
+# rename and select variables of interest
+
+data6 <- WV6_data %>%
+  rename(wave = V1, gender = V240, age = V242,country_code = V2, risktaking = V76)
+
+
+# select only the variables of interest
+data6 <- data6 %>%
+  dplyr::select(wave, gender, age, country_code,risktaking)
+data6
+```
+
+```{r}
+# Load Countrynames 
+
+countrynames = read.csv(paste0(base_path, "countrynames.txt"), header=FALSE,as.is=TRUE)
+colnames(countrynames) = c("code", "name")
+data6$country = countrynames$name[match(data6$country_code, countrynames$code)]
+table(data6$country)
+data6
+```
+
+
+
+#bind data5 and 6
+
+```{r}
+wvs = rbind(data5, data6)
+wvs
+
+
+country_counts_wvs <- wvs %>%
+  count(country)
+
+# Print the result
+print(country_counts_wvs)
+
+wvs
+
+wvs = subset(wvs, risktaking > 0 & gender > 0 & age >0)
+wvs <- na.omit(wvs)
+
+country_counts_wvs_final <- wvs %>%
+  count(country)
+
+# Print the result
+print(country_counts_wvs_final)
+
+table(wvs$country == "Hong Kong")
+
+wvs_hk <- wvs[wvs$country == "Hong Kong", ]
+head(wvs_hk)
+
+
+```
+
+```{r}
+# Use the mutate function to change the country name
+wvs <- wvs %>%
+  mutate(country = ifelse(country == "Great Britain", "United Kingdom", country))
+
+wvs
+```
+```{r}
+
+
+# Transfrom risk item such that high values represent more risk taking
+wvs$risktaking = 6 - wvs$risktaking + 1
+
+  
+# Transform risk variable into T-score (mean = 50, sd = 10)
+wvs$risktaking = 10*scale(wvs$risktaking, center=TRUE,scale=TRUE)+50
+
+wvs
+
+
+
+#factor gender 
+wvs$gender <- factor(wvs$gender)
+
+# Make a duplicate of the 'age' variable
+wvs$age_scale <- wvs$age
+
+# Scale the duplicated 'age' variable
+wvs$age_scale <- scale(wvs$age_scale)
+
+country_counts_wvs <- wvs %>%
+  count(country)
+
+# Print the result
+print(country_counts_wvs)
+
+wvs
+
+
+```
+
+# GPS Data
+# Load data GPS
+
+```{r}
+gps_data <- haven::read_dta(paste0(base_path, "individual_new.dta"))
+gps_data
+```
+
+# Clean the data by removing records with missing values
+```{r}
+gps_data <- gps_data %>%
+  drop_na(country, isocode, risktaking, gender, age)
+gps_data
+```
+
+#select only the variables of interest
+```{r}
+gps_data <- gps_data %>%
+  dplyr::select(country, isocode, ison, risktaking, gender, age)
+gps_data
+```
+
+# Transform risk variable into T-score (mean = 50, sd = 10)
+```{r}
+gps_data$risktaking = 10*scale(gps_data$risktaking, center=TRUE,scale=TRUE)+50
+gps_data
+```
+
+# Factor gender and scale age 
+```{r}
+#factor gender 
+gps_data$gender <- factor(gps_data$gender)
+
+#scale age 
+
+# Make a duplicate of the 'age' variable
+gps_data$age_scale <- gps_data$age
+
+# Scale the duplicated 'age' variable
+gps_data$age_scale <- scale(gps_data$age_scale)
+
+gps_data
+```
+```{r}
+gps_data
+```
+```{r}
+gps_data <- gps_data %>%
+   dplyr::select(country, risktaking, age, gender)
+
+gps_data
+
+country_counts_gps <- gps_data %>%
+  count(country)
+country_counts_gps
+
+#change "Vietnam" to "Viet Nam"
+gps_data <- gps_data %>%
+  mutate(country = ifelse(country == "Vietnam", "Viet Nam", country))
+
+gps_data
+
+wvs_data <- wvs %>%
+  dplyr::select(country, risktaking, age, gender)
+
+gps_data
+wvs_data
+
+
+#Combine the two datasets 
+merged_data <- rbind(wvs_data, gps_data)
+
+
+
+# Show the updated merged_data
+merged_data
+
+
+```
+
+```{r}
+#totale number of countries in wvs and gps combined
+country_counts_gps_wvs <- merged_data %>%
+  count(country)
+country_counts_gps_wvs
+```
+```{r}
+#calculate the average per country 
+library(dplyr)
+
+risk_data <- merged_data %>%
+  group_by(country) %>%
+  summarize(avg_risk = mean(risktaking, na.rm = TRUE))
+
+risk_data
+#now I am ready for the specification curve. At this point I need to collect the country indicators data. The total number of countries for the gps and wvs dataset together are 105 
+```
+

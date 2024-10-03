@@ -1,0 +1,252 @@
+---
+title: "Correlation model 1"
+output: html_document
+date: "2024-10-02"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+```{r}
+#semester 1 model
+#regression results for WVS
+
+regression_results_WVS <- wvs_data %>%
+  group_by(country) %>%
+  do(model = lm(risktaking ~ scale(age) + gender, data = .)) %>%
+  summarize(
+    country = first(country),
+    intercept = coef(summary(model))[1, 1],
+    slope_age = coef(summary(model))[2, 1],
+    slope_gender = coef(summary(model))[3, 1]
+  )
+
+regression_results_WVS
+
+
+```
+```{r}
+#regression results for gps
+
+regression_results_gps <- gps_data %>%
+  group_by(country) %>%
+  do(model = lm(risktaking ~ scale(age) + gender, data = .)) %>%
+  summarize(
+    country = first(country),
+    intercept = coef(summary(model))[1, 1],
+    slope_age = coef(summary(model))[2, 1],
+    slope_gender = coef(summary(model))[3, 1]
+  )
+
+regression_results_gps
+```
+```{r}
+common_countries <- intersect(wvs_data$country, gps_data$country)
+selected_countries <- c("Argentina", "Australia", "Brazil", "Canada", "Chile", "China", "Egypt", "Finland", "France", "Georgia",
+                         "Germany", "Ghana", "Hungary", "India", "Indonesia", "Iran", "Japan", "Jordan", "Mexico", "Moldova",
+                         "Morocco", "Netherlands", "Peru", "Poland", "Romania", "Russia", "Rwanda", "South Africa", "South Korea",
+                         "Spain", "Sweden", "Switzerland", "Thailand", "Turkey", "Ukraine", "United States", "Algeria", "Colombia",
+                         "Estonia", "Haiti", "Iraq", "Kazakhstan", "Nigeria", "Pakistan", "Philippines", "Zimbabwe", "United Kingdom")
+
+# Filter the original dataset
+wvs_common_countries <- wvs_data[wvs_data$country %in% selected_countries, ]
+
+# View the new dataset
+wvs_common_countries
+
+
+# Filter the original dataset
+gps_common_countries <- gps_data[gps_data$country %in% selected_countries, ]
+
+# View the new dataset
+gps_common_countries
+```
+
+#regression results for the new datasets with only countries in common 
+```{r}
+regression_results_wvs_common <- wvs_common_countries %>%
+  group_by(country) %>%
+  do(model = lm(risktaking ~ scale(age) + gender, data = .)) %>%
+  summarize(
+    country = first(country),
+    intercept_WVS = coef(summary(model))[1, 1],
+    slope_age_WVS = coef(summary(model))[2, 1],
+    slope_gender_WVS = coef(summary(model))[3, 1]
+  )
+
+regression_results_wvs_common
+
+```
+```{r}
+regression_results_gps_common <- gps_common_countries %>%
+  group_by(country) %>%
+  do(model = lm(risktaking ~ scale(age) + gender, data = .)) %>%
+  summarize(
+    country = first(country),
+    intercept_gps = coef(summary(model))[1, 1],
+    slope_age_gps = coef(summary(model))[2, 1],
+    slope_gender_gps = coef(summary(model))[3, 1]
+  )
+
+regression_results_gps_common
+
+
+```
+
+```{r}
+merged_results_regression_common <- merge(regression_results_gps_common, regression_results_wvs_common, by = "country", all = TRUE)
+
+# Perform the left_join operation
+regression_common_countryfacts <- left_join(merged_results_regression_common, countryfacts, by = "country")
+
+
+
+# Select specific columns
+regression_common_countryfacts <- regression_common_countryfacts %>%
+  dplyr::select(country, intercept_gps, slope_age_gps, slope_gender_gps, intercept_WVS, slope_age_WVS, slope_gender_WVS, code)
+
+# Print the final data
+regression_common_countryfacts
+```
+
+```{r}
+#now its time to perform the correlations 
+correlation_intercepts_regression <- cor(regression_common_countryfacts$intercept_gps, regression_common_countryfacts$intercept_WVS)
+
+
+correlation_age_regression <- cor(regression_common_countryfacts$slope_age_gps, regression_common_countryfacts$slope_age_WVS)
+
+
+correlation_gender_regression <- cor(regression_common_countryfacts$slope_gender_gps, regression_common_countryfacts$slope_gender_WVS)
+
+```
+
+```{r}
+wvs_data
+
+#run mixed model effects for wvs 
+model1_wvs <- lmer(risktaking ~ 1 + scale(age) + gender + (1 + scale(age) + gender | country), 
+                   data = wvs_data, 
+                   control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
+summary_model1_wvs = summary(model1_wvs) 
+
+summary_model1_wvs
+```
+
+```{r}
+#run mixed model effects for gps
+model1_gps = lmer(risktaking ~ 1 + scale(age) + gender + (1 + scale(age) + gender|country),data = gps_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
+summary_model1_gps=summary(model1_gps)
+summary_model1_gps
+```
+```{r}
+#wvsdata
+
+countryfacts$codeWVS <- countryfacts$code
+
+# Create the modelcoefs data
+modelcoefs_model1_wvs <- ranef(model1_wvs)$country
+modelcoefs_model1_wvs$codeWVS <- row.names(modelcoefs_model1_wvs)
+
+# Combine the data
+regiondata <- merge(modelcoefs_model1_wvs, countryfacts, by = "codeWVS")
+modelcoefs_model1_wvs
+
+modelcoefs_model1_wvs
+
+modelcoefs_model1_wvs <- modelcoefs_model1_wvs %>%
+  dplyr::select('(Intercept)', 'scale(age)', 'gender2', codeWVS)
+modelcoefs_model1_wvs
+
+modelcoefs_model1_wvs <- modelcoefs_model1_wvs %>%
+  rename(Intercept_wvs= '(Intercept)' , age_wvs = 'scale(age)', gender_wvs = 'gender2')
+modelcoefs_model1_wvs
+
+modelcoefs_model1_wvs
+
+
+#gps data
+modelcoefs_model1_gps <- ranef(model1_gps)$country
+modelcoefs_model1_gps$codeWVS <- row.names(modelcoefs_model1_gps)
+
+modelcoefs_model1_gps
+
+# Combine the data
+regiondata <- merge(modelcoefs_model1_gps, countryfacts, by = "codeWVS")
+
+modelcoefs_model1_gps
+
+
+modelcoefs_model1_gps <- modelcoefs_model1_gps %>%
+  rename(Intercept_gps= '(Intercept)' , age_gps = 'scale(age)', gender_gps = 'gender1') 
+modelcoefs_model1_gps
+
+modelcoefs_model1_wvs
+```
+```{r}
+common_countries_mixed_model_wvs <- intersect(modelcoefs_model1_wvs$codeWVS, modelcoefs_model1_wvs$codeWVS)
+selected_countries_mixed_model_wvs <- c("Argentina", "Australia", "Brazil", "Canada", "Chile", "China", "Egypt", "Finland", "France", "Georgia",
+                         "Germany", "Ghana", "Hungary", "India", "Indonesia", "Iran", "Japan", "Jordan", "Mexico", "Moldova",
+                         "Morocco", "Netherlands", "Peru", "Poland", "Romania", "Russia", "Rwanda", "South Africa", "South Korea",
+                         "Spain", "Sweden", "Switzerland", "Thailand", "Turkey", "Ukraine", "United States", "Algeria", "Colombia",
+                         "Estonia", "Haiti", "Iraq", "Kazakhstan", "Nigeria", "Pakistan", "Philippines", "Zimbabwe", "United Kingdom")
+
+# Filter the original dataset
+modelcoefs_model1_wvs_common <- modelcoefs_model1_wvs[modelcoefs_model1_wvs$codeWVS %in% selected_countries_mixed_model_wvs, ]
+
+# View the new dataset
+modelcoefs_model1_wvs_common
+
+common_countries_mixed_model_gps <- intersect(modelcoefs_model1_gps$codeWVS, modelcoefs_model1_gps$codeWVS)
+selected_countries_mixed_model_gps <- c("Argentina", "Australia", "Brazil", "Canada", "Chile", "China", "Egypt", "Finland", "France", "Georgia",
+                         "Germany", "Ghana", "Hungary", "India", "Indonesia", "Iran", "Japan", "Jordan", "Mexico", "Moldova",
+                         "Morocco", "Netherlands", "Peru", "Poland", "Romania", "Russia", "Rwanda", "South Africa", "South Korea",
+                         "Spain", "Sweden", "Switzerland", "Thailand", "Turkey", "Ukraine", "United States", "Algeria", "Colombia",
+                         "Estonia", "Haiti", "Iraq", "Kazakhstan", "Nigeria", "Pakistan", "Philippines", "Zimbabwe", "United Kingdom")
+
+# Filter the original dataset
+modelcoefs_model1_gps_common <- modelcoefs_model1_gps[modelcoefs_model1_gps$codeWVS %in% selected_countries_mixed_model_gps, ]
+
+common_countries_merged_mixed_model1 <- left_join(modelcoefs_model1_gps_common, modelcoefs_model1_wvs_common, by = "codeWVS")
+common_countries_merged_mixed_model1
+
+```
+```{r}
+correlation_intercept_model1 <- cor(common_countries_merged_mixed_model1$Intercept_gps, common_countries_merged_mixed_model1$Intercept_wvs)
+
+correlation_age_model1 <- cor(common_countries_merged_mixed_model1$age_gps, common_countries_merged_mixed_model1$age_wvs)
+
+correlation_gender_model1 <- cor(common_countries_merged_mixed_model1$gender_gps, common_countries_merged_mixed_model1$gender_wvs)
+
+correlation_age_model1
+correlation_gender_model1
+correlation_intercept_model1
+
+```
+```{r}
+correlation_age_regression
+correlation_gender_regression
+correlation_intercepts_regression
+```
+
