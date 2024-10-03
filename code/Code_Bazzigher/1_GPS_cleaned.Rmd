@@ -1,0 +1,175 @@
+---
+title: "S2_GPS"
+output: html_document
+
+date: "2024-05-08"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, results = 'hide', message = FALSE, warning = FALSE)
+rm(list = ls())
+```
+
+# Set path Laura: ONLY USE FOR LAURA 
+```{r}
+base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+```
+
+# Library 
+```{r}
+library(data.table)
+library(tidyr)
+library(maps)
+library(haven)
+library(ggplot2)
+library(dplyr)
+library(readxl)
+library(lmerTest)
+library(lme4)
+library(broom)
+library(tibble)
+```
+
+
+# Data
+## Load data 
+```{r}
+# Countryfacts
+countryfacts <- read_excel(file.path(base_path, "Hardship_complete_2024.xlsx"))
+
+# Data GPS 
+gps_data <- haven::read_dta(file.path(base_path, "individual_new.dta"))
+
+head(gps_data)
+```
+
+
+# COUNTRYFACTS 
+## check countryfacts 
+```{r}
+# Plot histograms for each numeric variable
+countryfacts %>% 
+  select_if(is.numeric) %>% 
+  gather() %>% 
+  ggplot(aes(value)) + 
+  facet_wrap(~key, scales = "free") + 
+  geom_histogram(bins = 30) + 
+  theme_minimal()
+
+# Check the correlation matrix
+cor_matrix <- cor(countryfacts %>% select_if(is.numeric), use = "complete.obs")
+print(cor_matrix)
+```
+
+
+## Log Countryfacts 
+```{r}
+# Log-transform the variables using dplyr
+countryfacts <- countryfacts %>%
+  mutate(
+    homiciderate = log(homiciderate),
+    gdp = log(gdp),
+    infantmortality = log(infantmortality),
+    lifeexpectancy = log(lifeexpectancy),
+    femalemale_primedu = log(femalemale_primedu) # new - not in the original code
+  )
+
+# View the transformed data
+countryfacts
+
+# Plot histograms for each numeric variable
+countryfacts %>% 
+  select_if(is.numeric) %>% 
+  gather() %>% 
+  ggplot(aes(value)) + 
+  facet_wrap(~key, scales = "free") + 
+  geom_histogram(bins = 30) + 
+  theme_minimal()
+```
+
+## Reverse Coding - Standardize and create hardship_index using dplyr
+```{r}
+countryfacts <- countryfacts %>%
+  mutate(
+    homiciderate = scale(homiciderate),
+    gdp = scale(-gdp),
+    infantmortality = scale(infantmortality),
+    lifeexpectancy = scale(-lifeexpectancy),
+    gini = scale(gini),
+    femalemale_primedu = scale(-femalemale_primedu),
+    hardship_index = (homiciderate + gdp + gini + lifeexpectancy + infantmortality + femalemale_primedu) / 6
+  )
+
+countryfacts
+```
+
+## Impute missing values in the hardship indicators using the median
+```{r}
+countryfacts <- countryfacts %>%
+  mutate(across(c("homiciderate", "gdp", "infantmortality", "lifeexpectancy", "gini", "femalemale_primedu"),
+                ~ifelse(is.na(.), median(., na.rm = TRUE), .)))
+
+countryfacts
+
+# Use the mutate function to change the country name
+countryfacts <- countryfacts %>%
+  mutate(country = ifelse(label == "Serbia and Montenegro", "Serbia", label))
+countryfacts
+```
+
+# GPS
+## Clean GPS data by removing records with missing values
+```{r}
+gps_data <- gps_data %>%
+  drop_na(country, isocode, risktaking, gender, age)
+gps_data
+```
+
+
+## Select only the variables of interest
+```{r}
+gps_data <- gps_data %>%
+  dplyr::select(country, isocode, ison, risktaking, gender, age)
+gps_data
+```
+
+
+## Transform risk variable into T-score (mean = 50, sd = 10)
+```{r}
+gps_data <- gps_data %>%
+  mutate(risktaking = 10 * scale(risktaking, center = TRUE, scale = TRUE) + 50)
+gps_data
+```
+
+## Factor gender and scale age 
+```{r}
+gps_data <- gps_data %>%
+  mutate(
+    gender = factor(gender),
+    age_scale = scale(age)
+  )
+
+gps_data
+```
+
+## Bind counrtyfacts and GPS data
+```{r}
+gps_data <- gps_data %>%
+  left_join(countryfacts, by = "country")
+head(gps_data)
+str(gps_data)
+```
+
+# write csv gps_data
+```{r}
+write.csv(gps_data, file = file.path(base_path, "gps_cleaned.csv"), row.names = FALSE)
+```
+
+# write csv countryfacts
+```{r}
+write.csv(countryfacts, file = file.path(base_path, "countryfacts_cleaned.csv"), row.names = FALSE)
+```
+
+
+
+

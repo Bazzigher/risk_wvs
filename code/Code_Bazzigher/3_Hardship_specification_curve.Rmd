@@ -1,0 +1,108 @@
+---
+title: "3_Hardship_specification_curve"
+output: html_document
+date: "2024-05-08"
+---
+
+```{r}
+rm(list = ls())
+```
+
+# Set path Laura: ONLY USE FOR LAURA 
+```{r}
+base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+```
+
+# Library 
+```{r}
+library(tidyverse)
+library(data.table)
+library(tidyr)
+library(maps)
+library(haven)
+library(ggplot2)
+library(dplyr)
+library(readxl)
+library(lmerTest)
+library(lme4)
+library(broom)
+library(tibble)
+```
+
+# Load all data
+```{r}
+# Countryfacts
+countryfacts <- read_excel(file.path(base_path, "Hardship_complete_2024.xlsx"))
+str(countryfacts)
+
+risktaking <- read.csv(file.path(base_path, "gps_cleaned.csv"), header=TRUE, as.is=TRUE)
+str(risktaking)
+```
+
+
+```{r}
+risktaking <- merge(countryfacts, risktaking, by = "code")
+str(risktaking)
+```
+# Remove duplicated columns
+```{r}
+risktaking <- risktaking %>%
+  select(-ends_with(".y")) %>%
+  rename_with(~ gsub("\\.x", "", .), ends_with(".x"))
+str(risktaking)
+```
+# Remove unnecessary columns
+```{r}
+risktaking <- risktaking %>%
+  select(-isocode, -ison, -label, -codeWVS, -age_scale)
+str(risktaking)
+```
+# Define dependent variable
+```{r}
+dependent_var <- "risktaking"
+```
+
+# Define independent variables
+```{r}
+independent_vars <- c('homiciderate', 'gdp', 'infantmortality', 'gini', 'femalemale_primedu')
+```
+
+# Create all possible combinations of independent variables
+```{r}
+combinations <- unlist(lapply(1:length(independent_vars), 
+                              function(x) combn(independent_vars, x, simplify = FALSE)), 
+                       recursive = FALSE)
+```
+
+# Function to estimate a model and store the results
+```{r}
+estimate_model <- function(dependent_var, independent_vars, data) {
+  formula <- as.formula(paste(dependent_var, "~", paste(independent_vars, collapse = "+")))
+  model <- lm(formula, data)
+  tidy_model <- tidy(model)
+  return(tidy_model)
+}
+```
+
+# Store results of all specifications
+```{r}
+results <- do.call(rbind, lapply(combinations, function(combo) {
+  model_results <- estimate_model(dependent_var, combo, risktaking)
+  model_results$variables <- paste(combo, collapse = ", ")
+  model_results
+}))
+
+# Filter significant results
+results$significant <- results$p.value < 0.05
+```
+
+# Create the Specification Curve Plot
+```{r}
+ggplot(results, aes(x = reorder(variables, estimate), y = estimate, fill = significant)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  labs(x = "Model Specifications", y = "Coefficient", title = "Specification Curve Analysis") +
+  theme_minimal() +
+  scale_fill_manual(values = c("TRUE" = "blue", "FALSE" = "red")) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black")
+```

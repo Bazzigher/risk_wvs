@@ -1,0 +1,438 @@
+---
+title: "S2_Correlation models"
+output:
+  html_document: default
+  pdf_document: default
+date: "2024-05-08"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, results = 'hide', message = FALSE, warning = FALSE)
+rm(list = ls())
+```
+
+# Set path Laura: ONLY USE FOR LAURA 
+```{r}
+base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+```
+
+# library
+```{r}
+library(ggplot2)
+library(lme4)
+library(dplyr)
+library(lmerTest)
+library(tidyverse)
+library(maps)
+library(ggrepel)
+```
+
+# Load preprocessed data countryfacts, GPS & WVS 
+```{r}
+GPS_data <- read.csv(file.path(base_path, "gps_cleaned.csv"), header=TRUE, as.is=TRUE)
+WVS_data <- read.csv(file.path(base_path, "wvs_cleaned.csv"), header=TRUE, as.is=TRUE)
+countryfacts <- read.csv(file.path(base_path, "countryfacts_cleaned.csv"), header=TRUE, as.is=TRUE)
+head(GPS_data)
+head(WVS_data)
+head(countryfacts)
+```
+
+```{r}
+str(GPS_data)
+str(WVS_data)
+str(countryfacts)
+```
+
+
+# Descriptive Statistics
+## Frequency Distributions
+```{r}
+# Frequency distribution of countries in GPS_data dataset
+table(GPS_data$country)
+
+# Frequency distribution of genders in GPS_data dataset
+table(GPS_data$gender)
+
+# Frequency distribution of age groups in GPS_data dataset
+table(cut(GPS_data$age, breaks=c(0, 20, 30, 40, 50, 60, 70, 80, 100)))
+
+# Frequency distribution of countries in WVS_data dataset
+table(WVS_data$country)
+
+# Frequency distribution of genders in WVS_data dataset
+table(WVS_data$gender)
+
+# Frequency distribution of age groups in WVS_data dataset
+table(cut(WVS_data$age, breaks=c(0, 20, 30, 40, 50, 60, 70, 80, 100)))
+```
+
+## Means and Medians
+```{r}
+# Mean and median of risk-taking in GPS_data dataset
+mean(GPS_data$risktaking, na.rm = TRUE)
+median(GPS_data$risktaking, na.rm = TRUE)
+
+# Mean and median of age in GPS_data dataset
+mean(GPS_data$age, na.rm = TRUE)
+median(GPS_data$age, na.rm = TRUE)
+
+# Mean and median of gender in GPS_data dataset
+mean(GPS_data$gender, na.rm = TRUE)
+median(GPS_data$gender, na.rm = TRUE)
+
+# Mean and median of risk-taking in WVS_data dataset
+mean(WVS_data$risktaking, na.rm = TRUE)
+median(WVS_data$risktaking, na.rm = TRUE)
+
+# Mean and median of age in WVS_data dataset
+mean(WVS_data$age, na.rm = TRUE)
+median(WVS_data$age, na.rm = TRUE)
+
+# Mean and median of gender in WVS_data dataset
+mean(WVS_data$gender, na.rm = TRUE)
+median(WVS_data$gender, na.rm = TRUE)
+```
+
+## Standard Deviation and Variance
+```{r}
+# Standard deviation and variance of risk-taking in GPS_data dataset
+sd(GPS_data$risktaking, na.rm = TRUE)
+var(GPS_data$risktaking, na.rm = TRUE)
+
+# Standard deviation and variance of age in GPS_data dataset
+sd(GPS_data$age, na.rm = TRUE)
+var(GPS_data$age, na.rm = TRUE)
+
+# Standard deviation and variance of economic indicators in GPS_data dataset
+sd(GPS_data$gender, na.rm = TRUE)
+var(GPS_data$gender, na.rm = TRUE)
+
+# Standard deviation and variance of risk-taking in WVS_data dataset
+sd(WVS_data$risktaking, na.rm = TRUE)
+var(WVS_data$risktaking, na.rm = TRUE)
+
+# Standard deviation and variance of age in WVS_data dataset
+sd(WVS_data$age, na.rm = TRUE)
+var(WVS_data$age, na.rm = TRUE)
+
+# Standard deviation and variance of gender in WVS_data dataset
+sd(WVS_data$gender, na.rm = TRUE)
+var(WVS_data$gender, na.rm = TRUE)
+```
+
+## Minimum and Maximum
+```{r}
+# Minimum and maximum of risk-taking in GPS_data dataset
+min(GPS_data$risktaking, na.rm = TRUE)
+max(GPS_data$risktaking, na.rm = TRUE)
+
+# Minimum and maximum of age in GPS_data dataset
+min(GPS_data$age, na.rm = TRUE)
+max(GPS_data$age, na.rm = TRUE)
+
+# Minimum and maximum of risk-taking in WVS_data dataset
+min(WVS_data$risktaking, na.rm = TRUE)
+max(WVS_data$risktaking, na.rm = TRUE)
+
+# Minimum and maximum of age in WVS_data dataset
+min(WVS_data$age, na.rm = TRUE)
+max(WVS_data$age, na.rm = TRUE)
+```
+
+## Correlations
+```{r}
+# Correlations between numeric variables in GPS_data dataset
+cor(GPS_data[, sapply(GPS_data, is.numeric)], use = "complete.obs")
+
+# Correlations between numeric variables in WVS_data dataset
+cor(WVS_data[, sapply(WVS_data, is.numeric)], use = "complete.obs")
+
+# Correlations between numeric variables in countryfacts dataset
+cor(countryfacts[, sapply(countryfacts, is.numeric)], use = "complete.obs")
+```
+
+## Average risk-taking
+```{r}
+# Average risk-taking by country in GPS_data dataset
+aggregate(risktaking ~ country, data = GPS_data, FUN = mean, na.rm = TRUE)
+
+# Average risk-taking by country in WVS_data dataset
+aggregate(risktaking ~ country, data = WVS_data, FUN = mean, na.rm = TRUE)
+```
+
+## Gender-Based Analyses
+```{r}
+# Average risk-taking by gender in GPS_data dataset
+aggregate(risktaking ~ gender, data = GPS_data, FUN = mean, na.rm = TRUE)
+
+# Age distribution by gender in GPS_data dataset
+aggregate(age ~ gender, data = GPS_data, FUN = summary)
+
+# Average risk-taking by gender in WVS_data dataset
+aggregate(risktaking ~ gender, data = WVS_data, FUN = mean, na.rm = TRUE)
+
+# Age distribution by gender in WVS_data dataset
+aggregate(age ~ gender, data = WVS_data, FUN = summary)
+```
+
+
+# Risk vs age with color-coded gender per Country
+## GPS - Risk vs age with color-coded gender per Country 
+```{r}
+# Skalierung des Z-Scores für das Alter anpassen
+GPS_data$age_scale <- 15 * GPS_data$age_scale + 42
+
+# Risk vs age with color-coded gender per Country
+ggplot(GPS_data, aes(age_scale, risktaking, color = factor(gender))) +
+  geom_point(size = 0.1) +  
+  geom_smooth(method = "lm") +
+  geom_vline(xintercept = 42, linetype = "dashed", color = "black", size = 1) +  # Vertikale Linie für den Mittelwert
+  scale_color_manual(values = c("blue", "red"), labels = c("Male", "Female")) +
+  labs(color = "Gender", x = "Age", y = "Risk Taking") +  # Hier wurden die Achsentitel geändert
+  scale_x_continuous(breaks = seq(0, 100, by = 15), limits = c(15, 100)) +  # Anpassung der Intervalle auf der X-Achse
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+## WVS - Risk vs age with color-coded gender per Country 
+```{r}
+WVS_data$age_scale <- 15 * WVS_data$age_scale + 42
+
+
+ggplot(WVS_data, aes(age_scale, risktaking, color = as.factor(gender))) +
+  geom_point(position = position_jitter(width = 0.1, height = 0.1), size = 0.1) +  
+  geom_smooth(method = "lm") +
+  geom_vline(xintercept = 42, linetype = "dashed", color = "black", size = 1) +  
+  scale_color_manual(values = c("blue", "red"), labels = c("Male", "Female")) +
+  labs(color = "Gender") +
+  xlab("Age") +
+  ylab("Risk Taking") +
+  scale_x_continuous(breaks = seq(0, 100, by = 15), limits = c(15, 100)) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+# Mixed-Models WVS
+## mixed_models 0, 1 & 2
+```{r}
+# Clean data 
+WVS_data <- na.omit(WVS_data)  # remove all NA's 
+WVS_data <- WVS_data[complete.cases(WVS_data), ]
+
+# Models 0, 1, & 2 
+model0_wvs <- lmer(risktaking ~ 1 + (1|country), data = WVS_data)
+
+## Model 1 wvs with age & gender
+model1_wvs <- lmer(risktaking ~ 1 + age_scale + gender + (1 + age_scale + gender | country), 
+                   data = WVS_data, 
+                   control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 30000)))
+summary_model1_wvs <- summary(model1_wvs) 
+print(summary_model1_wvs)
+
+## Model 2 wvs with age, gender and hardship
+model2_wvs <- lmer(risktaking ~ 1 + age_scale * hardship_index + 
+                    gender * hardship_index + 
+                    (1 + age_scale | country),
+                data = WVS_data,
+                control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 30000)),
+                REML = FALSE)
+summary_model2_wvs <- summary(model2_wvs) 
+print(summary_model2_wvs)
+
+# ANOVA 
+anova_results_wvs <- list(
+  anova(model0_wvs, model1_wvs),
+  anova(model1_wvs, model2_wvs)
+)
+
+print(anova_results_wvs)
+```
+
+# Mixed Models GPS
+## mixed_models 0, 1 & 2
+```{r}
+# Clean data 
+GPS_data <- na.omit(GPS_data)  # remove all NA's 
+GPS_data <- GPS_data[complete.cases(GPS_data), ]
+
+# Models 0, 1, & 2 
+model0_gps <- lmer(risktaking ~ 1 + (1|country), data = GPS_data)
+
+## Model 1 gps with age & gender
+model1_gps <- lmer(risktaking ~ 1 + age_scale + gender + (1 + age_scale + gender | country), 
+                   data = GPS_data, 
+                   control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 30000)))
+summary_model1_gps <- summary(model1_gps) 
+print(summary_model1_gps)
+
+## Model 2 gps with age, gender and hardship
+model2_gps <- lmer(risktaking ~ 1 + age_scale * hardship_index + 
+                    gender * hardship_index + 
+                    (1 + age_scale | country),
+                data = GPS_data,
+                control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 30000)),
+                REML = FALSE)
+summary_model2_gps <- summary(model2_gps) 
+print(summary_model2_gps)
+
+# ANOVA
+anova_results_gps <- list(
+  anova(model0_gps, model1_gps),
+  anova(model1_gps, model2_gps)
+)
+
+print(anova_results_gps)
+```
+
+```{r}
+summary(model1_wvs)
+summary(model2_wvs)
+```
+
+
+###################################################################################################################
+
+# Correlations models
+## Create the modelcoefs data for WVS
+```{r}
+# Extract random effects
+ranef_model1_wvs <- ranef(model1_wvs)
+str(ranef_model1_wvs)
+
+# Check if random effects for 'country' are present
+if ("country" %in% names(ranef_model1_wvs)) {
+  modelcoefs_model1_wvs <- ranef_model1_wvs$country
+  modelcoefs_model1_wvs$country <- row.names(modelcoefs_model1_wvs)
+} else {
+  stop("No random effects for 'country' found in the model")
+}
+
+# Check the structure of the extracted random effects
+str(modelcoefs_model1_wvs)
+
+# Rename columns
+modelcoefs_model1_wvs <- modelcoefs_model1_wvs %>%
+  dplyr::select('(Intercept)', age_scale, gender, country) %>%
+  rename(Intercept_wvs = '(Intercept)', age_wvs = age_scale, gender_wvs = gender)
+
+# Check the structure after renaming
+str(modelcoefs_model1_wvs)
+```
+
+## Create the modelcoefs data for GPS
+```{r}
+ranef_model1_gps <- ranef(model1_gps)
+str(ranef_model1_gps)
+
+if ("country" %in% names(ranef_model1_gps)) {
+  modelcoefs_model1_gps <- ranef_model1_gps$country
+  modelcoefs_model1_gps$country <- row.names(modelcoefs_model1_gps)
+} else {
+  stop("No random effects for 'country' found in the model")
+}
+
+# Select and rename columns for GPS
+modelcoefs_model1_gps <- modelcoefs_model1_gps %>%
+  dplyr::select('(Intercept)', age_scale, gender, country) %>%
+  rename(Intercept_gps = '(Intercept)', age_gps = age_scale, gender_gps = gender)
+
+# Check the structure after renaming
+str(modelcoefs_model1_gps)
+```
+
+
+## Filter common countries
+```{r}
+common_countries <- intersect(modelcoefs_model1_wvs$country, modelcoefs_model1_gps$country)
+
+modelcoefs_model1_wvs_new <- modelcoefs_model1_wvs[modelcoefs_model1_wvs$country %in% common_countries, ]
+modelcoefs_model1_gps_new <- modelcoefs_model1_gps[modelcoefs_model1_gps$country %in% common_countries, ]
+```
+
+## Merge the datasets
+```{r}
+merged <- left_join(modelcoefs_model1_gps_new, modelcoefs_model1_wvs_new, by = "country")
+
+# Check intermediate results
+head(merged)
+str(merged)
+```
+
+## Select and rename columns in countryfacts for merging
+```{r}
+new_countryfacts <- countryfacts %>%
+  dplyr::select(country, code)
+```
+
+## Final merge to get country names
+```{r}
+new_merged <- left_join(merged, new_countryfacts, by = "country")
+
+# Check the first rows of the result
+head(new_merged)
+
+# Check the structure of the result
+str(new_merged)
+```
+
+
+# Plots correlations
+## Plot intercepts
+```{r}
+ggplot(new_merged, aes(x = Intercept_gps, y = Intercept_wvs, label = code)) +
+  geom_point(size = 3) +
+  geom_text_repel(box.padding = 0.5, point.padding = 0.1, force = 5) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
+  labs(x = "Intercept Global Preference Study",
+       y = "Intercept World Value Survey") +
+  theme_minimal() +
+  coord_fixed()
+```
+
+## Plot gender effects
+```{r}
+ggplot(new_merged, aes(x = gender_gps, y = gender_wvs, label = code)) +
+  geom_point(size = 3) +
+  geom_text_repel(box.padding = 0.5, point.padding = 0.1, force = 5) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
+  labs(x = "Effect of Gender on Risk Taking Global Preference Study",
+       y = "Effect of Gender on Risk Taking World Value Survey") +
+  theme_minimal() +
+  xlim(-2, 2) +
+  ylim(c(-2, 2)) +
+  coord_fixed()
+```
+
+## Plot age effects
+```{r}
+ggplot(new_merged, aes(x = age_gps, y = age_wvs, label = code)) +
+  geom_point(size = 3) +
+  geom_text_repel(box.padding = 0.5, point.padding = 0.1, force = 5) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
+  labs(x = "Effect of Age on Risk Taking Global Preference Study",
+       y = "Effect of Age on Risk Taking World Value Survey") +
+  theme_minimal() +
+  xlim(-0.15, 0.15) +
+  ylim(c(-0.15, 0.15)) +
+  coord_fixed()
+```
+
+## Correlations
+```{r}
+correlation_intercept <- cor(new_merged$Intercept_gps, new_merged$Intercept_wvs)
+correlation_age <- cor(new_merged$age_gps, new_merged$age_wvs)
+correlation_gender <- cor(new_merged$gender_gps, new_merged$gender_wvs)
+
+print(correlation_intercept)
+print(correlation_age)
+print(correlation_gender)
+```
+
+
+
+
+
+
+
+
