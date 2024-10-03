@@ -288,184 +288,105 @@ print(anova_results_gps)
 ```{r}
 summary(model1_wvs)
 summary(model2_wvs)
+summary(model1_gps)
+summary(model2_gps)
+```
+
+```{r}
+# Extrahiere die Random Effects (Random Slopes und Intercepts) der Mixed Models für GPS und WVS
+gps_random_effects <- coef(model1_gps)$country
+wvs_random_effects <- coef(model1_wvs)$country
+
+# Extrahiere die Länder (Zeilen) in beiden Modellen
+gps_countries <- rownames(gps_random_effects)
+wvs_countries <- rownames(wvs_random_effects)
+
+# Finde die gemeinsamen Länder
+common_countries <- intersect(gps_countries, wvs_countries)
+
+# Filtere die Random Effects nur für die gemeinsamen Länder
+gps_filtered <- gps_random_effects[common_countries, ]
+wvs_filtered <- wvs_random_effects[common_countries, ]
+
+# Zusammenführen der Ergebnisse in einem gemeinsamen DataFrame
+new_data <- data.frame(
+  isocode = common_countries,
+  intercept_gps = gps_filtered[, "(Intercept)"],
+  slope_age_gps = gps_filtered[, "age_scale"],
+  slope_gender_gps = gps_filtered[, "gender"],
+  intercept_WVS = wvs_filtered[, "(Intercept)"],
+  slope_age_WVS = wvs_filtered[, "age_scale"],
+  slope_gender_WVS = wvs_filtered[, "gender"]
+)
+
+# Füge die Ländercodes (isocode) aus countryfacts zu new_data hinzu
+new_data <- new_data %>%
+  left_join(countryfacts %>% select(country, code), by = c("isocode" = "country"))
+
+# Überprüfe, ob die Ländercodes korrekt hinzugefügt wurden
+head(new_data)
+
+# Überprüfe die Struktur des neuen Datensatzes
+head(new_data)
+```
+
+```{r}
+head(new_data)
+summary(new_data)
+
+sum(is.na(new_data$intercept_gps))
+sum(is.na(new_data$intercept_WVS))
+
 ```
 
 
-###################################################################################################################
-
-# Correlations models
 ```{r}
-GPS_data$age_scale <- scale(GPS_data$age)
-WVS_data$age_scale <- scale(WVS_data$age)
-```
-
-# Rename columns
-```{r}
-modelcoefs_model1_wvs <- modelcoefs_model1_wvs %>%
-  dplyr::select('(Intercept)', age_scale, gender, country) %>%
-  rename(Intercept_wvs = '(Intercept)', age_wvs = age_scale, gender_wvs = gender)
-
-modelcoefs_model1_gps <- modelcoefs_model1_gps %>%
-  dplyr::select('(Intercept)', age_scale, gender, country) %>%
-  rename(Intercept_gps = '(Intercept)', age_gps = age_scale, gender_gps = gender)
-```
-
-# Common countries
-```{r}
-common_countries <- intersect(modelcoefs_model1_wvs$country, modelcoefs_model1_gps$country)
-```
-
-# Correlation between intercepts and slopes
-```{r}
-correlation_intercept <- cor(new_merged$Intercept_gps, new_merged$Intercept_wvs)
-correlation_age <- cor(new_merged$age_gps, new_merged$age_wvs)
-correlation_gender <- cor(new_merged$gender_gps, new_merged$gender_wvs)
-
-print(correlation_intercept)
-print(correlation_age)
-print(correlation_gender)
-```
-
-###############################################################
-## Create the modelcoefs data for WVS
-```{r}
-# Extract random effects
-ranef_model1_wvs <- ranef(model1_wvs)
-str(ranef_model1_wvs)
-
-# Check if random effects for 'country' are present
-if ("country" %in% names(ranef_model1_wvs)) {
-  modelcoefs_model1_wvs <- ranef_model1_wvs$country
-  modelcoefs_model1_wvs$country <- row.names(modelcoefs_model1_wvs)
-} else {
-  stop("No random effects for 'country' found in the model")
-}
-
-# Check the structure of the extracted random effects
-str(modelcoefs_model1_wvs)
-
-# Rename columns
-modelcoefs_model1_wvs <- modelcoefs_model1_wvs %>%
-  dplyr::select('(Intercept)', age_scale, gender, country) %>%
-  rename(Intercept_wvs = '(Intercept)', age_wvs = age_scale, gender_wvs = gender)
-
-# Check the structure after renaming
-str(modelcoefs_model1_wvs)
-```
-
-## Create the modelcoefs data for GPS
-```{r}
-ranef_model1_gps <- ranef(model1_gps)
-str(ranef_model1_gps)
-
-if ("country" %in% names(ranef_model1_gps)) {
-  modelcoefs_model1_gps <- ranef_model1_gps$country
-  modelcoefs_model1_gps$country <- row.names(modelcoefs_model1_gps)
-} else {
-  stop("No random effects for 'country' found in the model")
-}
-
-# Select and rename columns for GPS
-modelcoefs_model1_gps <- modelcoefs_model1_gps %>%
-  dplyr::select('(Intercept)', age_scale, gender, country) %>%
-  rename(Intercept_gps = '(Intercept)', age_gps = age_scale, gender_gps = gender)
-
-# Check the structure after renaming
-str(modelcoefs_model1_gps)
-```
-
-
-## Filter common countries
-```{r}
-common_countries <- intersect(modelcoefs_model1_wvs$country, modelcoefs_model1_gps$country)
-
-modelcoefs_model1_wvs_new <- modelcoefs_model1_wvs[modelcoefs_model1_wvs$country %in% common_countries, ]
-modelcoefs_model1_gps_new <- modelcoefs_model1_gps[modelcoefs_model1_gps$country %in% common_countries, ]
-```
-
-## Merge the datasets
-```{r}
-merged <- left_join(modelcoefs_model1_gps_new, modelcoefs_model1_wvs_new, by = "country")
-
-# Check intermediate results
-head(merged)
-str(merged)
-```
-
-## Select and rename columns in countryfacts for merging
-```{r}
-new_countryfacts <- countryfacts %>%
-  dplyr::select(country, code)
-```
-
-## Final merge to get country names
-```{r}
-new_merged <- left_join(merged, new_countryfacts, by = "country")
-
-# Check the first rows of the result
-head(new_merged)
-
-# Check the structure of the result
-str(new_merged)
-```
-
-
-# Plots correlations
-## Plot intercepts
-```{r}
-ggplot(new_merged, aes(x = Intercept_gps, y = Intercept_wvs, label = code)) +
-  geom_point(size = 3) +
-  geom_text_repel(box.padding = 0.5, point.padding = 0.1, force = 5) +
+ggplot(new_data, aes(x = intercept_gps, y = intercept_WVS, label = code)) +
+  geom_point(size = 1.5) +
+  geom_text(aes(label = code), vjust = -0.5, hjust = -0.5) +
   geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
-  labs(x = "Intercept Global Preference Study",
-       y = "Intercept World Value Survey") +
+  labs(title = "Comparison of Intercept Values",
+       x = "Intercept GPS",
+       y = "Intercept WVS") +
   theme_minimal() +
+  xlim(c(min(new_data$intercept_gps, na.rm = TRUE), max(new_data$intercept_gps, na.rm = TRUE))) +
+  ylim(c(min(new_data$intercept_WVS, na.rm = TRUE), max(new_data$intercept_WVS, na.rm = TRUE))) +
   coord_fixed()
-```
 
-## Plot gender effects
+# Berechne die Korrelation der Intercepts
+correlation_intercepts <- cor(new_data$intercept_gps, new_data$intercept_WVS)
+print(correlation_intercepts)
+```
 ```{r}
-ggplot(new_merged, aes(x = gender_gps, y = gender_wvs, label = code)) +
-  geom_point(size = 3) +
-  geom_text_repel(box.padding = 0.5, point.padding = 0.1, force = 5) +
+ggplot(new_data, aes(x = slope_age_gps, y = slope_age_WVS, label = code)) +
+  geom_point(size = 1.5) +
+  geom_text(aes(label = code), vjust = -0.5, hjust = -0.5) +
   geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
-  labs(x = "Effect of Gender on Risk Taking Global Preference Study",
-       y = "Effect of Gender on Risk Taking World Value Survey") +
+  labs(title = "Comparison of Age Slopes",
+       x = "Age Slope GPS",
+       y = "Age Slope WVS") +
   theme_minimal() +
-  xlim(-2, 2) +
-  ylim(c(-2, 2)) +
+  xlim(range(new_data$slope_age_gps, na.rm = TRUE)) +
+  ylim(range(new_data$slope_age_WVS, na.rm = TRUE)) +
   coord_fixed()
+
+correlation_intercepts <- cor(new_data$slope_age_gps, new_data$slope_age_WVS)
+print(correlation_intercepts)
 ```
 
-## Plot age effects
 ```{r}
-ggplot(new_merged, aes(x = age_gps, y = age_wvs, label = code)) +
-  geom_point(size = 3) +
-  geom_text_repel(box.padding = 0.5, point.padding = 0.1, force = 5) +
+ggplot(new_data, aes(x = slope_gender_gps, y = slope_gender_WVS, label = code)) +
+  geom_point(size = 1.5) +
+  geom_text(aes(label = code), vjust = -0.5, hjust = -0.5) +
   geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
-  labs(x = "Effect of Age on Risk Taking Global Preference Study",
-       y = "Effect of Age on Risk Taking World Value Survey") +
+  labs(title = "Comparison of Gender Slopes",
+       x = "Gender Slope GPS",
+       y = "Gender Slope WVS") +
   theme_minimal() +
-  xlim(-0.15, 0.15) +
-  ylim(c(-0.15, 0.15)) +
+  xlim(range(new_data$slope_gender_gps, na.rm = TRUE)) +
+  ylim(range(new_data$slope_gender_WVS, na.rm = TRUE)) +
   coord_fixed()
+
+correlation_intercepts <- cor(new_data$slope_gender_gps, new_data$slope_gender_WVS)
+print(correlation_intercepts)
 ```
-
-## Correlations
-```{r}
-correlation_intercept <- cor(new_merged$Intercept_gps, new_merged$Intercept_wvs)
-correlation_age <- cor(new_merged$age_gps, new_merged$age_wvs)
-correlation_gender <- cor(new_merged$gender_gps, new_merged$gender_wvs)
-
-print(correlation_intercept)
-print(correlation_age)
-print(correlation_gender)
-```
-
-
-
-
-
-
-
-
