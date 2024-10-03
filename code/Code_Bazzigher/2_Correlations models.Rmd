@@ -390,3 +390,4 @@ ggplot(new_data, aes(x = slope_gender_gps, y = slope_gender_WVS, label = code)) 
 correlation_intercepts <- cor(new_data$slope_gender_gps, new_data$slope_gender_WVS)
 print(correlation_intercepts)
 ```
+
