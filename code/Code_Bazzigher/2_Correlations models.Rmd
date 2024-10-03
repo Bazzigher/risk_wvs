@@ -294,6 +294,39 @@ summary(model2_wvs)
 ###################################################################################################################
 
 # Correlations models
+```{r}
+GPS_data$age_scale <- scale(GPS_data$age)
+WVS_data$age_scale <- scale(WVS_data$age)
+```
+
+# Rename columns
+```{r}
+modelcoefs_model1_wvs <- modelcoefs_model1_wvs %>%
+  dplyr::select('(Intercept)', age_scale, gender, country) %>%
+  rename(Intercept_wvs = '(Intercept)', age_wvs = age_scale, gender_wvs = gender)
+
+modelcoefs_model1_gps <- modelcoefs_model1_gps %>%
+  dplyr::select('(Intercept)', age_scale, gender, country) %>%
+  rename(Intercept_gps = '(Intercept)', age_gps = age_scale, gender_gps = gender)
+```
+
+# Common countries
+```{r}
+common_countries <- intersect(modelcoefs_model1_wvs$country, modelcoefs_model1_gps$country)
+```
+
+# Correlation between intercepts and slopes
+```{r}
+correlation_intercept <- cor(new_merged$Intercept_gps, new_merged$Intercept_wvs)
+correlation_age <- cor(new_merged$age_gps, new_merged$age_wvs)
+correlation_gender <- cor(new_merged$gender_gps, new_merged$gender_wvs)
+
+print(correlation_intercept)
+print(correlation_age)
+print(correlation_gender)
+```
+
+###############################################################
 ## Create the modelcoefs data for WVS
 ```{r}
 # Extract random effects
