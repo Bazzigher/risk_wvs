@@ -11,13 +11,15 @@ rm(list = ls())
 
 # Set path Laura: ONLY USE FOR LAURA 
 ```{r}
-base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+# base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
 ```
 
 # Library 
 ```{r}
 library(tidyverse)
 library(ggplot2)
+library(specr)
 remotes::install_github("masurp/specr")
 library(specr)
 library(readxl)

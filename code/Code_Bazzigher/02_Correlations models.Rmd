@@ -13,7 +13,8 @@ rm(list = ls())
 
 # Set path Laura: ONLY USE FOR LAURA
 ```{r}
-base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+# base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
 ```
 
 # library
@@ -181,6 +182,8 @@ WVS_data <- WVS_data[complete.cases(WVS_data), ]
 
 # Models 0, 1, & 2 
 model0_wvs <- lmer(risktaking ~ 1 + (1|country), data = WVS_data)
+summary_model0_wvs <- summary(model0_wvs)
+print(summary_model0_wvs)
 
 ## Model 1 wvs with age & gender
 model1_wvs <- lmer(risktaking ~ 1 + age_scale + gender + (1 + age_scale + gender | country), 
