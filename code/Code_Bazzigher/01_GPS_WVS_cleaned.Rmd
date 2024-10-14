@@ -1,0 +1,388 @@
+---
+title: "01_GPS_WVS"
+output: html_document
+date: "2024-05-08"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, results = 'hide', message = FALSE, warning = FALSE)
+rm(list = ls())
+```
+
+# Set path Laura: ONLY USE FOR LAURA 
+```{r}
+base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+```
+
+# Library 
+```{r}
+library(data.table)
+library(tidyr)
+library(maps)
+library(haven)
+library(ggplot2)
+library(dplyr)
+library(readxl)
+library(lmerTest)
+library(lme4)
+library(broom)
+library(tibble)
+library(readr)
+```
+
+
+# Data
+## Load data 
+```{r}
+# Countryfacts
+countryfacts <- read_excel(file.path(base_path, "Hardship_complete_2024_Extended.xlsx"))
+
+# Data GPS 
+gps_data <- haven::read_dta(file.path(base_path, "individual_new.dta"))
+
+# Data of Wave 5
+WV5_data <- readRDS(file.path(base_path, "F00007944-WV5_Data_R_v20180912.rds"))
+WV5_data_df <- as_tibble(WV5_data) # Convert WV5_data-object to tibble
+
+# Data of wave 6
+load(file.path(base_path, "WV6_Data_R_v20201117.rdata")) 
+WV6_data <- as_tibble(WV6_Data_R_v20201117) # Convert WV6_data-object to tibble
+
+# countrynames (to decode the dataset 5/6)
+countrynames <- read_csv(file.path(base_path, "countrynames.txt"), col_names = FALSE) %>%
+  rename(code = X1, name = X2) # Rename columns for better readability
+```
+
+# COUNTRYFACTS 
+## check countryfacts 
+```{r}
+# Plot histograms for each numeric variable
+countryfacts %>% 
+  select_if(is.numeric) %>% 
+  gather() %>% 
+  ggplot(aes(value)) + 
+  facet_wrap(~key, scales = "free") + 
+  geom_histogram(bins = 30) + 
+  theme_minimal()
+
+# Check the correlation matrix
+cor_matrix <- cor(countryfacts %>% select_if(is.numeric), use = "complete.obs")
+print(cor_matrix)
+```
+
+
+## Log Countryfacts 
+```{r}
+# Log-transform the variables using dplyr
+countryfacts <- countryfacts %>%
+  mutate(
+    homiciderate = log(homiciderate),
+    gdp = log(gdp),
+    infantmortality = log(infantmortality),
+    lifeexpectancy = log(lifeexpectancy),
+    alcusedis = log(alcusedis),
+    anxietydis= log(anxietydis),
+    adhd = log(adhd),
+    autism= log(autism),
+    bipolardis= log(bipolardis),
+    conductdis= log(conductdis),
+    depressdis= log(depressdis),
+    drugusedis= log(drugusedis),
+    eatingdis= log(eatingdis),
+    hiv_aids_sextrasinf= log(hiv_aids_sextrasinf),
+    ediopathicdevintdis= log(ediopathicdevintdis),
+    mentaldis= log(mentaldis),
+    Othermentaldis= log(Othermentaldis),
+    schizophrenia= log(schizophrenia),
+    femalemale_primedu = log(femalemale_primedu) # new - not in the original code
+  )
+
+# View the transformed data
+countryfacts
+
+# Plot histograms for each numeric variable
+countryfacts %>% 
+  select_if(is.numeric) %>% 
+  gather() %>% 
+  ggplot(aes(value)) + 
+  facet_wrap(~key, scales = "free") + 
+  geom_histogram(bins = 30) + 
+  theme_minimal()
+```
+
+
+## Reverse Coding - Standardize and create hardship_index using dplyr
+```{r}
+countryfacts <- countryfacts %>%
+  mutate(
+    homiciderate = scale(homiciderate),
+    gdp = scale(-gdp),
+    infantmortality = scale(infantmortality),
+    lifeexpectancy = scale(-lifeexpectancy),
+    gini = scale(gini),
+    femalemale_primedu = scale(-femalemale_primedu),
+    alcusedis = scale(log(alcusedis)),
+    anxietydis = scale(log(anxietydis)),
+    adhd = scale(log(adhd)),
+    autism = scale(log(autism)),
+    bipolardis = scale(log(bipolardis)),
+    conductdis = scale(log(conductdis)),
+    depressdis = scale(log(depressdis)),
+    drugusedis = scale(log(drugusedis)),
+    eatingdis = scale(log(eatingdis)),
+    hiv_aids_sextrasinf = scale(log(hiv_aids_sextrasinf)),
+    ediopathicdevintdis = scale(log(ediopathicdevintdis)),
+    mentaldis = scale(log(mentaldis)),
+    Othermentaldis = scale(log(Othermentaldis)),
+    schizophrenia = scale(log(schizophrenia)),
+    
+    hardship_index = (homiciderate + gdp + gini + lifeexpectancy + infantmortality + 
+                      femalemale_primedu + alcusedis + anxietydis + adhd + autism + 
+                      bipolardis + conductdis + depressdis + drugusedis + eatingdis + 
+                      hiv_aids_sextrasinf + ediopathicdevintdis + mentaldis + 
+                      Othermentaldis + schizophrenia) / 20
+  )
+
+countryfacts
+```
+
+## Impute missing values in the hardship indicators using the median
+```{r}
+countryfacts <- countryfacts %>%
+  mutate(across(c("homiciderate", "gdp", "infantmortality", "lifeexpectancy", "gini", "femalemale_primedu", 
+                  "alcusedis", "anxietydis", "adhd", "autism", "bipolardis", "conductdis", 
+                  "depressdis", "drugusedis", "eatingdis", "hiv_aids_sextrasinf", "ediopathicdevintdis", 
+                  "mentaldis", "Othermentaldis", "schizophrenia"),
+                ~ifelse(is.na(.), median(., na.rm = TRUE), .)))
+
+countryfacts
+
+# Use the mutate function to change the country name
+countryfacts <- countryfacts %>%
+  mutate(country = ifelse(label == "Serbia and Montenegro", "Serbia", label))
+countryfacts
+```
+
+# GPS
+## Clean GPS data by removing records with missing values
+```{r}
+gps_data <- gps_data %>%
+  drop_na(country, isocode, risktaking, gender, age)
+gps_data
+```
+
+
+## Select only the variables of interest
+```{r}
+gps_data <- gps_data %>%
+  dplyr::select(country, isocode, ison, risktaking, gender, age)
+gps_data
+```
+
+
+## Transform risk variable into T-score (mean = 50, sd = 10)
+```{r}
+gps_data <- gps_data %>%
+  mutate(risktaking = 10 * scale(risktaking, center = TRUE, scale = TRUE) + 50)
+gps_data
+```
+
+## Factor gender and scale age 
+```{r}
+gps_data <- gps_data %>%
+  mutate(
+    gender = factor(gender),
+    age_scale = scale(age)
+  )
+
+gps_data
+```
+
+## Bind counrtyfacts and GPS data
+```{r}
+gps_data <- gps_data %>%
+  left_join(countryfacts, by = "country")
+head(gps_data)
+str(gps_data)
+
+country_counts <- gps_data %>%
+  count(country)
+
+# Print the result
+print(country_counts)
+```
+
+# WVS
+## Data wave 5
+## rename and select variables of interest
+```{r}
+data5 <- WV5_data_df %>%
+  rename(gender = V235, age = V237, country_code = V2, wave = V1, risktaking = V86, children = V56, married = V55, employed = V241, education = V238)
+
+#select only the variables of interest
+data5 <- data5 %>%
+  dplyr::select(gender, age, country_code, wave, risktaking, children, married, employed, education)
+data5
+
+# Assuming WV5_data has a column named country_code
+data5$country <- countrynames$name[match(data5$country_code, countrynames$code)]
+
+# Check the frequency of each country in the new column
+table(data5$country)
+
+# Display the updated WV5_data
+head(data5)
+unique(data5$country)
+
+print(countrynames)
+
+country_counts <- data5 %>%
+  count(country)
+
+# Print the result
+print(country_counts)
+```
+
+## Data wave 6
+## rename and select variables of interest
+```{r}
+data6 <- WV6_data %>%
+  rename(wave = V1, gender = V240, age = V242,country_code = V2, risktaking = V76, children = V58, married = V57, employed = V229, education = V248)
+
+# select only the variables of interest
+data6 <- data6 %>%
+  dplyr::select(wave, gender, age, country_code,risktaking, children, married, employed, education)
+data6
+
+data6$country = countrynames$name[match(data6$country_code, countrynames$code)]
+table(data6$country)
+```
+
+## Bind data5 and data6 
+```{r}
+wvs_data = rbind(data5, data6)
+data
+
+country_counts <- wvs_data %>%
+  count(country)
+
+# Print the result
+print(country_counts)
+```
+
+
+## Remove missing variables and rename countries
+```{r}
+wvs_data = subset(wvs_data, risktaking > 0 & gender > 0 & age >0 & education > 0 & employed > 0 & married > 0 & children >= 0)
+wvs_data <- na.omit(wvs_data)
+
+wvs_data
+
+# Use the mutate function to change the country name
+wvs_data <- wvs_data %>%
+  mutate(country = ifelse(country == "Great Britain", "United Kingdom",
+                   ifelse(country == "Viet Nam", "Vietnam", country)))
+
+country_counts <- wvs_data %>%
+  count(country)
+
+print(country_counts)
+```
+
+
+## Transfrom risk item 
+```{r}
+# Transform risk item such that high values represent more risk taking
+wvs_data <- wvs_data %>%
+  mutate(risktaking = 6 - risktaking + 1)
+
+  
+# Transform risk variable into T-score (mean = 50, sd = 10)
+wvs_data <- wvs_data %>%
+  mutate(risktaking = 10 * scale(risktaking, center = TRUE, scale = TRUE) + 50)
+
+#Transform risk variable into Z score 
+
+# Factor gender
+wvs_data <- wvs_data %>%
+  mutate(gender = factor(gender))
+
+# Make a duplicate of the 'age' variable and scale it
+wvs_data <- wvs_data %>%
+  mutate(age_scale = scale(age))
+
+# Count the occurrences of each country
+country_counts <- wvs_data %>%
+  count(country)
+
+# Print the result
+print(country_counts)
+
+# Display the updated data
+head(wvs_data)
+```
+
+## Dichotomizing variables 
+```{r}
+library(dplyr)
+
+# Transformations für die Variablen
+wvs_data <- wvs_data %>%
+  mutate(
+    gender = if_else(gender == 1, 0, 1), # sex: male vs. female
+    children = if_else(children == 0, 0, 1), # children: no vs. yes
+    married = if_else(married == 1, 1, 0), # married: yes vs. no
+    employed = if_else(employed < 4, 1, 0), # employed: yes vs. no
+    education = if_else(education < 4, 0, 1) # education: no primary vs. primary+
+  )
+
+# Selektion der Variablen in countryfacts
+countryfacts <- countryfacts %>%
+  select(label, code, hardship_index)
+
+# Anzeigen der Daten
+print(wvs_data)
+print(countryfacts)
+```
+
+## Create dataset for mixed-models 
+```{r}
+countryfacts<- rename(countryfacts, country = label)
+
+countryfacts
+
+WVS_data <- left_join(wvs_data, countryfacts, by = "country")
+WVS_data
+
+unique(WVS_data$country)
+str(WVS_data)
+```
+
+```{r}
+country_counts <- WVS_data %>%
+  count(country)
+
+# Print the result
+print(country_counts)
+```
+
+# write cvs
+## write csv countryfacts
+```{r}
+write.csv(countryfacts, file = file.path(base_path, "countryfacts_cleaned.csv"), row.names = FALSE)
+```
+
+## write csv gps_data
+```{r}
+write.csv(gps_data, file = file.path(base_path, "gps_cleaned.csv"), row.names = FALSE)
+```
+## write csv
+```{r}
+write.csv(WVS_data, file = file.path(base_path, "wvs_cleaned.csv"), row.names = FALSE)
+```
+
+
+
+
+
+

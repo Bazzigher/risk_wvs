@@ -1,0 +1,290 @@
+---
+title: "3_WVS_GPS_Combined"
+output: html_document
+date: "2024-05-08"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, results = 'hide', message = FALSE, warning = FALSE)
+rm(list = ls())
+```
+
+# Set path Laura: ONLY USE FOR LAURA 
+```{r}
+base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+```
+
+# library
+```{r}
+library(ggplot2)
+library(lme4)
+library(dplyr)
+library(lmerTest)
+library(tidyverse)
+library(maps)
+library(ggrepel)
+```
+
+# Load data GPS & WVS 
+```{r}
+# Load preprocessed data
+GPS_data <- read.csv(file.path(base_path, "gps_cleaned.csv"), header=TRUE, as.is=TRUE)
+WVS_data <- read.csv(file.path(base_path, "wvs_cleaned.csv"), header=TRUE, as.is=TRUE)
+head(GPS_data)
+head(WVS_data)
+```
+
+```{r}
+str(GPS_data)
+str(WVS_data)
+```
+
+#######################################################################################################################################################
+
+# Combine data WVS and GPS
+```{r}
+# Combine data WVS and GPS
+GPS_data
+WVS_data
+
+GPS_data$source <- "gps"
+WVS_data$source <- "wvs"
+
+#select gender, age, risktaking, country, hardship_index for GPS dataset
+GPS_data<- GPS_data %>%
+  dplyr::select(country, gender, age_scale, age, hardship_index, risktaking, source)
+GPS_data
+
+#select the same variables as WVS dataset
+WVS_data<- WVS_data %>%
+  dplyr::select(country, gender, age_scale, age, hardship_index, risktaking, source)
+WVS_data
+
+
+#Combine the two datasets 
+merged_data <- rbind(GPS_data, WVS_data)
+
+# Add a new column 'worldmap' based on country presence
+merged_data$worldmap <- ifelse(merged_data$country %in% GPS_data$country & merged_data$country %in% WVS_data$country, "both",
+                               ifelse(merged_data$country %in% WVS_data$country & !merged_data$country %in% GPS_data$country, "wvs",
+                               ifelse(!merged_data$country %in% WVS_data$country & merged_data$country %in% GPS_data$country, "gps", "unknown")))
+
+# Show the updated merged_data
+merged_data
+```
+
+# Number of countries 
+```{r}
+# Anzahl der einzigartigen Länder im Datensatz ermitteln
+num_countries <- length(unique(merged_data$country))
+
+# Anzahl der Länder ausgeben
+print(num_countries)
+
+# Anzahl der Länder und ihre Quellen auflisten
+source_counts <- merged_data %>%
+  group_by(worldmap) %>%
+  summarise(num_countries = n_distinct(country))
+
+print(source_counts)
+
+# Count the number of countries in each category
+source_counts <- table(merged_data$worldmap)
+
+# Count the number of participants per source for each country
+participant_counts <- merged_data %>%
+  group_by(country, source) %>%
+  summarise(participant_count = n())
+
+# Show the participant counts
+participant_counts
+```
+
+# Worldmap of the recorded countries
+```{r}
+# Create a world map with country borders
+world_map <- map_data("world")
+
+# Create a data frame with countries and their source
+recorded_countries <- merged_data %>%
+  select(country, worldmap) %>%
+  distinct()
+
+# Merge world map data with recorded countries data
+world_map <- world_map %>%
+  left_join(recorded_countries, by = c("region" = "country"))
+
+# Define a new variable for coloring the countries
+world_map$fill_color <- case_when(
+  world_map$worldmap == "both" ~ "both",
+  world_map$worldmap == "wvs" ~ "wvs",
+  world_map$worldmap == "gps" ~ "gps",
+  TRUE ~ "none"
+)
+
+# Plot the world map with recorded countries highlighted
+ggplot(world_map, aes(x = long, y = lat, group = group, fill = fill_color)) +
+  geom_polygon(color = "white") +
+  scale_fill_manual(values = c("both" = "black", "wvs" = "darkred", "gps" = "darkblue", "none" = "lightgrey")) +
+  theme_void() +
+  labs(fill = "") +
+  theme(legend.position = "right", plot.title = element_text(hjust = 0.3))  +  # Center the title and move the legend to the bottom
+  coord_fixed(ratio = 1.1)  # Adjust aspect ratio to make the map wider
+```
+
+# Count participants per country, gender and total
+```{r}
+# Gruppieren der Daten nach Land und Geschlecht und Zählen der Teilnehmer
+participant_counts <- merged_data %>%
+  group_by(country, gender) %>%
+  summarise(participant_count = n())
+
+# Gruppieren der Daten nach Land und Zählen der Gesamtanzahl der Teilnehmer pro Land
+total_counts <- participant_counts %>%
+  group_by(country) %>%
+  summarise(total_participants = sum(participant_count))
+
+# Filtern der Daten, um nur Frauen zu zählen
+female_counts <- participant_counts %>%
+  filter(gender == 0) %>%
+  rename(female_count = participant_count) %>%
+  select(country, female_count)
+
+# Filtern der Daten, um nur Männer zu zählen
+male_counts <- participant_counts %>%
+  filter(gender == 1) %>%
+  rename(male_count = participant_count) %>%
+  select(country, male_count)
+
+# Zusammenführen der Informationen zu einer Tabelle
+participant_table <- merge(female_counts, male_counts, by = "country", all = TRUE)
+
+# Zusammenführen der Gesamtanzahl von Teilnehmern pro Land
+participant_table <- merge(participant_table, total_counts, by = "country", all = TRUE)
+
+# Benennung der Spalten
+names(participant_table) <- c("country", "female_count", "male_count", "total_participants")
+
+# Fehlende Werte mit 0 füllen
+participant_table[is.na(participant_table)] <- 0
+
+# Anzeigen der Tabelle
+print(participant_table)
+```
+
+# Scale the 'age' variable
+```{r}
+merged_data$age <- scale(merged_data$age)
+
+# Remove Variable age_scale
+merged_data <- select(merged_data, -age_scale)
+
+head(merged_data)
+```
+
+# Imputation von fehlenden Werten im hardship_index mit dem Median
+```{r}
+median_hardship_index <- median(merged_data$hardship_index, na.rm = TRUE)
+merged_data$hardship_index[is.na(merged_data$hardship_index)] <- median_hardship_index
+
+merged_data
+```
+
+#######################################################################################################################################################
+
+# Mixed-Models
+
+## Model0
+```{r}
+model0_combined <- lmer(risktaking ~ 1 + (1|country), 
+                        data = merged_data, 
+                        control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
+summary_model0_combined <- summary(model0_combined)
+print(summary_model0_combined)
+```
+
+## Model1 
+```{r}
+model1_combined <- lmer(risktaking ~ age + gender + 
+                        (1 + age + gender | country), 
+                        data = merged_data, 
+                        control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
+summary_model1_combined <- summary(model1_combined)
+print(summary_model1_combined)
+```
+
+## Model2
+```{r}
+model2_combined <- lmer(risktaking ~ age * hardship_index + 
+                        gender * hardship_index + 
+                        (1 + age | country),
+                        data = merged_data,
+                        control = lmerControl(optCtrl = list(maxfun = 100000), optimizer = "bobyqa"), REML = FALSE)
+
+summary_model2_combined <- summary(model2_combined)
+print(summary_model2_combined)
+```
+
+## ANOVA
+```{r}
+anova(model1_combined, model2_combined)
+```
+
+
+# Plot Model1
+## Plot Model1 individual countries
+```{r}
+plot <- ggplot(merged_data, aes(age, risktaking, colour = country, linetype = factor(gender))) + 
+  geom_point(aes(group = interaction(country, gender)), size = 0.5) +  
+  geom_smooth(aes(group = interaction(country, gender)), method = "lm", se = FALSE, size = 1.5, color = "red") +  
+  facet_wrap(~country, ncol = 9, scales = "free") +  
+  theme_minimal(base_size = 10) +  
+  theme(strip.text = element_text(size = 10),  
+        axis.text = element_text(size = 8),  
+        strip.background = element_blank(),  
+        panel.spacing = unit(1, "lines")) +  
+  guides(color = FALSE, linetype = guide_legend(title = "Gender")) +  
+  scale_linetype_manual(values = c("solid", "dashed"))  # Define line types for genders
+
+
+# Save the plot as an image file
+ggsave(filename = "Individual_countries_model1_in_one_plot.pdf", plot = plot, width = 40, height = 40)
+head(merged_data)
+```
+
+## Plot all participants regardless of country
+```{r}
+plot_global <- ggplot(merged_data, aes(x = age, y = risktaking, colour = factor(gender))) +
+  geom_point(size = 0.5, alpha = 0.6) +  # Use points to represent individuals
+  geom_smooth(method = "lm", se = FALSE, size = 1.5, aes(linetype = factor(gender), color = factor(gender))) +  # Add gender-specific regression lines
+  theme_minimal(base_size = 15) +  # Minimal theme for clarity
+  labs(x = "Age", y = "Risk-taking", colour = "Gender", linetype = "Gender") +  # Labels
+  theme(legend.position = "right", legend.title = element_text(size = 12), legend.text = element_text(size = 10)) +  # Adjust legend
+  scale_colour_manual(values = c("0" = "blue", "1" = "red")) +  # Set regression line for gender "0" (female) to blue and "1" (male) to black
+  scale_linetype_manual(values = c("solid", "dashed"))  # Different line types for genders
+
+# Show the plot
+print(plot_global)
+
+# Optionally, save the plot to a file
+ggsave(filename = "Global_Risktaking_vs_Age.pdf", plot = plot_global, width = 12, height = 8)
+```
+
+# Modellvergleich auf Basis von AIC/BIC
+```{r}
+# AIC-Vergleich zwischen Modell 1 und Modell 2 für kombinierte Daten
+aic_model1_combined <- AIC(model1_combined)
+aic_model2_combined <- AIC(model2_combined)
+
+print(paste("AIC for Model 1 Combined: ", aic_model1_combined))
+print(paste("AIC for Model 2 Combined: ", aic_model2_combined))
+
+# BIC-Vergleich für kombinierte Daten
+bic_model1_combined <- BIC(model1_combined)
+bic_model2_combined <- BIC(model2_combined)
+
+print(paste("BIC for Model 1 Combined: ", bic_model1_combined))
+print(paste("BIC for Model 2 Combined: ", bic_model2_combined))
+```
+
+

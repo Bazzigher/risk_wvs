@@ -1,0 +1,212 @@
+---
+title: "4_Hardship_specification_curve_v2"
+output: html_document
+date: "2024-05-08"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, results = 'hide', message = FALSE, warning = FALSE)
+rm(list = ls())
+```
+
+# Set path Laura: ONLY USE FOR LAURA 
+```{r}
+base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+```
+
+# Library 
+```{r}
+library(tidyverse)
+library(ggplot2)
+remotes::install_github("masurp/specr")
+library(specr)
+library(readxl)
+library(ggthemes)
+library(cowplot)
+```
+
+# Load all data
+```{r}
+# Countryfacts
+countryfacts <- read.csv(file.path(base_path, "countryfacts_cleaned.csv"))
+str(countryfacts)
+
+risktaking <- read.csv(file.path(base_path, "gps_cleaned.csv"), header=TRUE, as.is=TRUE)
+str(risktaking)
+```
+
+
+```{r}
+risktaking <- merge(countryfacts, risktaking, by = "code")
+str(risktaking)
+```
+
+# Remove duplicated columns and unnecessary columns
+```{r}
+risktaking <- risktaking %>%
+  select(-ends_with(".y")) %>%
+  rename_with(~ gsub("\\.x", "", .), ends_with(".x"))
+
+risktaking <- risktaking %>%
+  select(-isocode, -ison, -label, -codeWVS, -age_scale)
+str(risktaking)
+```
+# Setup for specifications
+```{r}
+# Setup for specifications
+specification <- setup(
+  data = risktaking, 
+  y = "risktaking",     # dependent variable
+  x = c("homiciderate", "gdp", "infantmortality", "lifeexpectancy", "gini", 
+        "femalemale_primedu", "alcusedis", "anxietydis", "adhd", "autism", 
+        "bipolardis", "conductdis", "depressdis", "drugusedis", "eatingdis", 
+        "hiv_aids_sextrasinf", "ediopathicdevintdis", "mentaldis", 
+        "Othermentaldis", "schizophrenia"),  
+  model = "lm"
+)
+
+summary(specification)
+```
+# run specifications
+```{r}
+specification_results <- specr(specification)
+specification_results
+
+summary(specification_results, digits = 5)
+```
+
+# summarizing the parameter distribution
+```{r}
+summary(specification_results, type = "curve")
+
+summary(specification_results, 
+        type = "curve", 
+        group = "x",           
+        stats = c("median", "mean", "min", "max"))  # Statistiken in einem Vektor auflisten
+```
+
+# Plots
+```{r}
+plot(specification_results)
+
+(a <- plot(specification_results, type = "curve", ci = F, ribbon = T) + 
+   geom_point(size = 4))
+
+
+(b <- plot(specification_results, type = "choices", choices = c("x", "y", "model", "controls")) +
+   geom_point(size = 2, shape = 4)) 
+
+(c <- plot(specification_results, type = "samplesizes") + ylim(0, 400))
+
+
+plot_grid(a, b, c, ncol = 1,
+          align = "v",
+          rel_heights = c(1.5, 2, 0.8),
+          axis = "rbl")
+
+plot(specification_results, type = "boxplot") + 
+  geom_point(alpha = .4) + 
+  scale_fill_brewer(palette = "Pastel2") +
+  labs(x = "Effect size", fill = "")
+```
+
+# Subsetting data for males 
+```{r}
+specification_males <- setup(
+  data = risktaking %>%
+           filter(gender == 1),  # Filter for males
+  y = "risktaking",
+  x = c("homiciderate", "gdp", "infantmortality", "lifeexpectancy", "gini", 
+        "femalemale_primedu", "alcusedis", "anxietydis", "adhd", "autism", 
+        "bipolardis", "conductdis", "depressdis", "drugusedis", "eatingdis", 
+        "hiv_aids_sextrasinf", "ediopathicdevintdis", "mentaldis", 
+        "Othermentaldis", "schizophrenia"),
+  model = "lm"
+)
+
+# Run the specifications for males
+specification_results_males <- specr(specification_males)
+
+# View the summary of the results
+summary(specification_results_males)
+```
+
+# Plots for male subset results
+```{r}
+plot(specification_results_males)
+
+(a_male <- plot(specification_results_males, type = "curve", ci = F, ribbon = T) + 
+   geom_point(size = 4))
+
+
+(b_male <- plot(specification_results_males, type = "choices", choices = c("x", "y", "model", "controls")) +
+   geom_point(size = 2, shape = 4)) 
+
+(c_male <- plot(specification_results_males, type = "samplesizes") + ylim(0, 400))
+
+
+plot_grid(a_male, b_male, c_male, ncol = 1,
+          align = "v",
+          rel_heights = c(1.5, 2, 0.8),
+          axis = "rbl")
+
+plot(specification_results_males, type = "boxplot") + 
+  geom_point(alpha = .4) + 
+  scale_fill_brewer(palette = "Pastel2") +
+  labs(x = "Effect size", fill = "")
+```
+
+
+# Subsetting data for females 
+```{r}
+specification_females <- setup(
+  data = risktaking %>%
+           filter(gender == 0),  # Filter for females
+  y = "risktaking",
+  x = c("homiciderate", "gdp", "infantmortality", "lifeexpectancy", "gini", 
+        "femalemale_primedu", "alcusedis", "anxietydis", "adhd", "autism", 
+        "bipolardis", "conductdis", "depressdis", "drugusedis", "eatingdis", 
+        "hiv_aids_sextrasinf", "ediopathicdevintdis", "mentaldis", 
+        "Othermentaldis", "schizophrenia"),
+  model = "lm"
+)
+
+# Run the specifications for females
+specification_results_females <- specr(specification_females)
+
+# View the summary of the results
+summary(specification_results_females)
+```
+
+# Plots for female subset results
+```{r}
+plot(specification_results_females)
+
+(a_female <- plot(specification_results_females, type = "curve", ci = F, ribbon = T) + 
+   geom_point(size = 4))
+
+
+(b_female <- plot(specification_results_females, type = "choices", choices = c("x", "y", "model", "controls")) +
+   geom_point(size = 2, shape = 4)) 
+
+(c_female <- plot(specification_results_females, type = "samplesizes") + ylim(0, 400))
+
+
+plot_grid(a_female, b_female, c_female, ncol = 1,
+          align = "v",
+          rel_heights = c(1.5, 2, 0.8),
+          axis = "rbl")
+
+plot(specification_results_females, type = "boxplot") + 
+  geom_point(alpha = .4) + 
+  scale_fill_brewer(palette = "Pastel2") +
+  labs(x = "Effect size", fill = "")
+```
+
+
+
+
+
+
+
+
