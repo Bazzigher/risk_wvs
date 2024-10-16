@@ -188,7 +188,7 @@ print(summary_model0_wvs)
 ## Model 1 wvs with age & gender
 model1_wvs <- lmer(risktaking ~ 1 + age_scale + gender + (1 + age_scale + gender | country), 
                    data = WVS_data, 
-                   control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 30000)))
+                   control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
 summary_model1_wvs <- summary(model1_wvs) 
 print(summary_model1_wvs)
 
