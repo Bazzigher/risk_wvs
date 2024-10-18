@@ -11,8 +11,8 @@ rm(list = ls())
 
 # Set path Laura: ONLY USE FOR LAURA 
 ```{r}
-# base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
-base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
+base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+# base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
 ```
 
 # Library 
@@ -33,13 +33,13 @@ library(cowplot)
 countryfacts <- read.csv(file.path(base_path, "countryfacts_cleaned.csv"))
 str(countryfacts)
 
-risktaking <- read.csv(file.path(base_path, "gps_cleaned.csv"), header=TRUE, as.is=TRUE)
+risktaking <- read.csv(file.path(base_path, "gps_wvs_combined"), header=TRUE, as.is=TRUE)
 str(risktaking)
 ```
 
 
 ```{r}
-risktaking <- merge(countryfacts, risktaking, by = "code")
+risktaking <- merge(countryfacts, risktaking, by = "country")
 str(risktaking)
 ```
 
@@ -50,7 +50,7 @@ risktaking <- risktaking %>%
   rename_with(~ gsub("\\.x", "", .), ends_with(".x"))
 
 risktaking <- risktaking %>%
-  select(-isocode, -ison, -label, -codeWVS, -age_scale)
+  select(-label, -codeWVS, -worldmap)
 str(risktaking)
 ```
 # Setup for specifications
@@ -204,11 +204,3 @@ plot(specification_results_females, type = "boxplot") +
   scale_fill_brewer(palette = "Pastel2") +
   labs(x = "Effect size", fill = "")
 ```
-
-
-
-
-
-
-
-
