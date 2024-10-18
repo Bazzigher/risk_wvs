@@ -91,7 +91,7 @@ countryfacts <- countryfacts %>%
     hiv_aids_sextrasinf= log(hiv_aids_sextrasinf),
     ediopathicdevintdis= log(ediopathicdevintdis),
     mentaldis= log(mentaldis),
-    Othermentaldis= log(Othermentaldis),
+    othermentaldis= log(othermentaldis),
     schizophrenia= log(schizophrenia),
     femalemale_primedu = log(femalemale_primedu) 
   )
@@ -132,7 +132,7 @@ countryfacts <- countryfacts %>%
     hiv_aids_sextrasinf = scale(hiv_aids_sextrasinf), 
     idiopathicdevintdis = scale(ediopathicdevintdis), 
     mentaldis = scale(mentaldis), 
-    othermentaldis = scale(Othermentaldis), 
+    othermentaldis = scale(othermentaldis), 
     schizophrenia = scale(schizophrenia), 
 
     hardship_index = (homiciderate + gdp + gini + lifeexpectancy + infantmortality + 
@@ -151,7 +151,7 @@ countryfacts <- countryfacts %>%
   mutate(across(c("homiciderate", "gdp", "infantmortality", "lifeexpectancy", "gini", "femalemale_primedu", 
                   "alcusedis", "anxietydis", "adhd", "autism", "bipolardis", "conductdis", 
                   "depressdis", "drugusedis", "eatingdis", "hiv_aids_sextrasinf", "ediopathicdevintdis", 
-                  "mentaldis", "Othermentaldis", "schizophrenia"),
+                  "mentaldis", "othermentaldis", "schizophrenia"),
                 ~ifelse(is.na(.), median(., na.rm = TRUE), .)))
 
 countryfacts
