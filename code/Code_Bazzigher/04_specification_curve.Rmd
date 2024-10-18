@@ -25,6 +25,7 @@ library(specr)
 library(readxl)
 library(ggthemes)
 library(cowplot)
+library(dplyr)
 ```
 
 # Load all data
@@ -53,6 +54,92 @@ risktaking <- risktaking %>%
   select(-label, -codeWVS, -worldmap)
 str(risktaking)
 ```
+# Calculate correlation with risktaking
+```{r}
+# Select only the numeric variables, including "risktaking"
+numeric_vars <- risktaking %>%
+  select_if(is.numeric)
+
+# Calculate the correlations between "risktaking" and all other numeric variables
+cor_matrix <- cor(numeric_vars, use = "complete.obs")
+
+# Extract only the correlations that relate to "risktaking"
+risktaking_correlations <- cor_matrix["risktaking", ]
+
+# Display the correlations
+print(risktaking_correlations)
+```
+
+```{r}
+# Install and load necessary libraries
+library(dplyr)
+library(knitr)
+library(kableExtra)
+
+# Select only the numeric variables, including "risktaking"
+numeric_vars <- risktaking %>%
+  select_if(is.numeric)
+
+# Calculate the correlations between "risktaking" and all other numeric variables
+cor_matrix <- cor(numeric_vars, use = "complete.obs")
+
+# Extract only the correlations that relate to "risktaking"
+risktaking_correlations <- cor_matrix["risktaking", ]
+
+# Create a correlation table
+cor_table <- data.frame(
+  Variable = names(risktaking_correlations),
+  Correlation = round(risktaking_correlations, 5)
+)
+
+# You can add other details like P-values, significance, or interpretation if you want to calculate them.
+
+# Display the table using knitr::kable and kableExtra for formatting
+cor_table %>%
+  kable("html", 
+        caption = "Correlations with Risktaking: Summary of Results", 
+        col.names = c("Variable", "Correlation"),
+        digits = 5,  # Rounding numbers to 3 decimals
+        align = "c") %>%  # Center-align columns
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = F) %>% 
+  column_spec(2, bold = T)  # Make the correlation column bold
+```
+
+
+```{r}
+library(Hmisc)
+
+# Select only the numeric variables, including "risktaking"
+numeric_vars <- risktaking %>%
+  select_if(is.numeric)
+
+# Calculate both the correlation matrix and the p-values using rcorr()
+cor_results <- rcorr(as.matrix(numeric_vars))
+
+# Extract the correlation matrix and p-values for 'risktaking'
+correlations <- cor_results$r["risktaking", ]  # Correlation values
+p_values <- cor_results$P["risktaking", ]      # P-values
+
+# Create a data frame with correlation values, p-values, and significance
+cor_table <- data.frame(
+  Variable = names(correlations),
+  Correlation = round(correlations, 5),
+  P_value = format(p_values, scientific = TRUE),  # Display small p-values in scientific notation
+  Significant = ifelse(p_values < 0.05, "Yes", "No")  # Flag significant results
+)
+
+# Display the table using knitr::kable and kableExtra for formatting
+cor_table %>%
+  kable("html", 
+        caption = "Correlations with Risktaking: Summary of Results", 
+        col.names = c("Variable", "Correlation", "P-value", "Significant"),
+        digits = 5,  # Rounding numbers to 5 decimals
+        align = "c") %>%  # Center-align columns
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = F) %>% 
+  column_spec(2, bold = T) %>%  # Make the correlation column bold
+  column_spec(3, background = "lightyellow")  # Highlight P-value column
+```
+
 # Setup for specifications
 ```{r}
 # Setup for specifications
