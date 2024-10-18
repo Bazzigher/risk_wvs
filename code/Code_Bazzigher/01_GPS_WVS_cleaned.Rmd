@@ -355,19 +355,12 @@ wvs_data <- wvs_data %>%
     education = if_else(education < 4, 0, 1) # education: no primary vs. primary+
   )
 
-# Selektion der Variablen in countryfacts
-countryfacts <- countryfacts %>%
-  select(label, code, hardship_index)
-
-# Anzeigen der Daten
 print(wvs_data)
 print(countryfacts)
 ```
 
 ## Create dataset for mixed-models 
 ```{r}
-countryfacts<- rename(countryfacts, country = label)
-
 countryfacts
 
 WVS_data <- left_join(wvs_data, countryfacts, by = "country")
