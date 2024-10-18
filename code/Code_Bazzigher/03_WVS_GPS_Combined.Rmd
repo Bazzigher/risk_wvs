@@ -11,8 +11,8 @@ rm(list = ls())
 
 # Set path Laura: ONLY USE FOR LAURA 
 ```{r}
-# base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
-base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
+base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+# base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
 ```
 
 # library
@@ -288,4 +288,8 @@ print(paste("BIC for Model 1 Combined: ", bic_model1_combined))
 print(paste("BIC for Model 2 Combined: ", bic_model2_combined))
 ```
 
-
+# write cvs
+## write csv combined data
+```{r}
+write.csv(merged_data, file = file.path(base_path, "gps_wvs_combined"), row.names = FALSE)
+```
