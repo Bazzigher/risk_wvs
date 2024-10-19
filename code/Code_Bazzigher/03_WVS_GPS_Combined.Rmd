@@ -291,5 +291,5 @@ print(paste("BIC for Model 2 Combined: ", bic_model2_combined))
 # write cvs
 ## write csv combined data
 ```{r}
-write.csv(merged_data, file = file.path(base_path, "gps_wvs_combined"), row.names = FALSE)
+write.csv(merged_data, file = file.path(base_path, "gps_wvs_combined.csv"), row.names = FALSE)
 ```
