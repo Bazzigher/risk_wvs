@@ -5,7 +5,6 @@ date: "2024-05-08"
 ---
 
 
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, results = 'hide', message = FALSE, warning = FALSE)
 rm(list = ls())
@@ -13,8 +12,8 @@ rm(list = ls())
 
 # Set path Laura: ONLY USE FOR LAURA 
 ```{r}
-base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
-#base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
+#base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
 ```
 
 # Library 
@@ -361,8 +360,6 @@ print(countryfacts)
 
 ## Create dataset for mixed-models 
 ```{r}
-countryfacts
-
 WVS_data <- left_join(wvs_data, countryfacts, by = "country")
 WVS_data
 
@@ -382,6 +379,7 @@ print(country_counts)
 ## write csv countryfacts
 ```{r}
 write.csv(countryfacts, file = file.path(base_path, "countryfacts_cleaned.csv"), row.names = FALSE)
+head(countryfacts)
 ```
 
 ## write csv gps_data

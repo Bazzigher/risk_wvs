@@ -621,6 +621,14 @@ bic_model2_combined &lt;- BIC(model2_combined)
 print(paste(&quot;BIC for Model 1 Combined: &quot;, bic_model1_combined))
 print(paste(&quot;BIC for Model 2 Combined: &quot;, bic_model2_combined))</code></pre>
 </div>
+<div id="write-cvs" class="section level1">
+<h1>write cvs</h1>
+<div id="write-csv-combined-data" class="section level2">
+<h2>write csv combined data</h2>
+<pre class="r"><code>write.csv(merged_data, file = file.path(base_path, &quot;gps_wvs_combined.csv&quot;), row.names = FALSE)
+head(merged_data)</code></pre>
+</div>
+</div>
 
 
 
