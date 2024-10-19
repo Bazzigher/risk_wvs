@@ -32,28 +32,46 @@ library(dplyr)
 ```{r}
 # Countryfacts
 countryfacts <- read.csv(file.path(base_path, "countryfacts_cleaned.csv"))
+countryfacts <- countryfacts %>%
+  select(-label, -codeWVS, -hardship_index)
 str(countryfacts)
-
-risktaking <- read.csv(file.path(base_path, "gps_wvs_combined"), header=TRUE, as.is=TRUE)
-str(risktaking)
 ```
-
 
 ```{r}
-risktaking <- merge(countryfacts, risktaking, by = "country")
+risktaking <- read.csv(file.path(base_path, "gps_wvs_combined.csv"), header=TRUE, as.is=TRUE)
+
+risktaking <- risktaking %>%
+  select(-hardship_index, -worldmap)
+
 str(risktaking)
+
+# Check for 'country' column in both datasets
+print("Countryfacts columns:")
+print(names(countryfacts))
+
+print("Risktaking columns:")
+print(names(risktaking))
+
 ```
+
+
+# Merge the datasets 
+```{r}
+risktaking <- merge(countryfacts, risktaking, by = "country")
+head(risktaking)
+```
+
 
 # Remove duplicated columns and unnecessary columns
 ```{r}
+print("Checking for duplicate columns...")
+print(names(risktaking))
+
 risktaking <- risktaking %>%
   select(-ends_with(".y")) %>%
   rename_with(~ gsub("\\.x", "", .), ends_with(".x"))
-
-risktaking <- risktaking %>%
-  select(-label, -codeWVS, -worldmap)
-str(risktaking)
 ```
+
 # Calculate correlation with risktaking
 ```{r}
 # Select only the numeric variables, including "risktaking"
@@ -69,6 +87,8 @@ risktaking_correlations <- cor_matrix["risktaking", ]
 # Display the correlations
 print(risktaking_correlations)
 ```
+
+
 
 ```{r}
 # Install and load necessary libraries
