@@ -11,8 +11,8 @@ rm(list = ls())
 
 # Set path Laura: ONLY USE FOR LAURA 
 ```{r}
-base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
-# base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
+# base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
 ```
 
 # Library 
@@ -20,30 +20,30 @@ base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
 library(tidyverse)
 library(ggplot2)
 library(specr)
-remotes::install_github("masurp/specr")
 library(specr)
 library(readxl)
 library(ggthemes)
 library(cowplot)
 library(dplyr)
+library(knitr)
+library(kableExtra)
+library(Hmisc)
+remotes::install_github("masurp/specr")
 ```
 
 # Load all data
 ```{r}
 # Countryfacts
 countryfacts <- read.csv(file.path(base_path, "countryfacts_cleaned.csv"))
+
 countryfacts <- countryfacts %>%
   select(-label, -codeWVS, -hardship_index)
-str(countryfacts)
-```
 
-```{r}
+# Combined GPS WVS
 risktaking <- read.csv(file.path(base_path, "gps_wvs_combined.csv"), header=TRUE, as.is=TRUE)
 
 risktaking <- risktaking %>%
   select(-hardship_index, -worldmap)
-
-str(risktaking)
 
 # Check for 'country' column in both datasets
 print("Countryfacts columns:")
@@ -51,7 +51,6 @@ print(names(countryfacts))
 
 print("Risktaking columns:")
 print(names(risktaking))
-
 ```
 
 
@@ -74,61 +73,22 @@ risktaking <- risktaking %>%
 
 # Calculate correlation with risktaking
 ```{r}
-# Select only the numeric variables, including "risktaking"
+# Select only the numeric variables
 numeric_vars <- risktaking %>%
   select_if(is.numeric)
 
-# Calculate the correlations between "risktaking" and all other numeric variables
+# Calculate the correlations 
 cor_matrix <- cor(numeric_vars, use = "complete.obs")
 
 # Extract only the correlations that relate to "risktaking"
 risktaking_correlations <- cor_matrix["risktaking", ]
 
-# Display the correlations
 print(risktaking_correlations)
 ```
 
 
-
+# Table with Correlation hardship factors and risktaking 
 ```{r}
-# Install and load necessary libraries
-library(dplyr)
-library(knitr)
-library(kableExtra)
-
-# Select only the numeric variables, including "risktaking"
-numeric_vars <- risktaking %>%
-  select_if(is.numeric)
-
-# Calculate the correlations between "risktaking" and all other numeric variables
-cor_matrix <- cor(numeric_vars, use = "complete.obs")
-
-# Extract only the correlations that relate to "risktaking"
-risktaking_correlations <- cor_matrix["risktaking", ]
-
-# Create a correlation table
-cor_table <- data.frame(
-  Variable = names(risktaking_correlations),
-  Correlation = round(risktaking_correlations, 5)
-)
-
-# You can add other details like P-values, significance, or interpretation if you want to calculate them.
-
-# Display the table using knitr::kable and kableExtra for formatting
-cor_table %>%
-  kable("html", 
-        caption = "Correlations with Risktaking: Summary of Results", 
-        col.names = c("Variable", "Correlation"),
-        digits = 5,  # Rounding numbers to 3 decimals
-        align = "c") %>%  # Center-align columns
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = F) %>% 
-  column_spec(2, bold = T)  # Make the correlation column bold
-```
-
-
-```{r}
-library(Hmisc)
-
 # Select only the numeric variables, including "risktaking"
 numeric_vars <- risktaking %>%
   select_if(is.numeric)
@@ -142,13 +102,16 @@ p_values <- cor_results$P["risktaking", ]      # P-values
 
 # Create a data frame with correlation values, p-values, and significance
 cor_table <- data.frame(
-  Variable = names(correlations),
-  Correlation = round(correlations, 5),
-  P_value = format(p_values, scientific = TRUE),  # Display small p-values in scientific notation
+  Variable = names(correlations),  # Set the variable names correctly
+  Correlation = round(correlations, 5),  # Correlation values
+  P_value = format(p_values, scientific = TRUE),  # P-values in scientific notation
   Significant = ifelse(p_values < 0.05, "Yes", "No")  # Flag significant results
 )
 
-# Display the table using knitr::kable and kableExtra for formatting
+# Ensure the rownames are not added as an extra column
+rownames(cor_table) <- NULL
+
+# Display the table without showing an extra unnamed column
 cor_table %>%
   kable("html", 
         caption = "Correlations with Risktaking: Summary of Results", 
@@ -160,6 +123,7 @@ cor_table %>%
   column_spec(3, background = "lightyellow")  # Highlight P-value column
 ```
 
+
 # Setup for specifications
 ```{r}
 # Setup for specifications
@@ -170,7 +134,7 @@ specification <- setup(
         "femalemale_primedu", "alcusedis", "anxietydis", "adhd", "autism", 
         "bipolardis", "conductdis", "depressdis", "drugusedis", "eatingdis", 
         "hiv_aids_sextrasinf", "ediopathicdevintdis", "mentaldis", 
-        "Othermentaldis", "schizophrenia"),  
+        "othermentaldis", "schizophrenia"),  
   model = "lm"
 )
 
@@ -229,7 +193,7 @@ specification_males <- setup(
         "femalemale_primedu", "alcusedis", "anxietydis", "adhd", "autism", 
         "bipolardis", "conductdis", "depressdis", "drugusedis", "eatingdis", 
         "hiv_aids_sextrasinf", "ediopathicdevintdis", "mentaldis", 
-        "Othermentaldis", "schizophrenia"),
+        "othermentaldis", "schizophrenia"),
   model = "lm"
 )
 
@@ -276,7 +240,7 @@ specification_females <- setup(
         "femalemale_primedu", "alcusedis", "anxietydis", "adhd", "autism", 
         "bipolardis", "conductdis", "depressdis", "drugusedis", "eatingdis", 
         "hiv_aids_sextrasinf", "ediopathicdevintdis", "mentaldis", 
-        "Othermentaldis", "schizophrenia"),
+        "othermentaldis", "schizophrenia"),
   model = "lm"
 )
 
