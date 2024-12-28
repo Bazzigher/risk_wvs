@@ -51,14 +51,19 @@ WVS_data
 GPS_data$source <- "gps"
 WVS_data$source <- "wvs"
 
+
+# Rename 'code' to 'isocode' in WVS_data before merging
+WVS_data <- WVS_data %>%
+  dplyr::rename(isocode = code)
+
 #select gender, age, risktaking, country, hardship_index for GPS dataset
 GPS_data<- GPS_data %>%
-  dplyr::select(country, gender, age_scale, age, hardship_index, risktaking, source)
+  dplyr::select(country, isocode, gender, age_scale, age, hardship_index, risktaking, source)
 GPS_data
 
 #select the same variables as WVS dataset
 WVS_data<- WVS_data %>%
-  dplyr::select(country, gender, age_scale, age, hardship_index, risktaking, source)
+  dplyr::select(country, isocode, gender, age_scale, age, hardship_index, risktaking, source)
 WVS_data
 
 
@@ -94,7 +99,7 @@ source_counts <- table(merged_data$worldmap)
 
 # Count the number of participants per source for each country
 participant_counts <- merged_data %>%
-  group_by(country, source) %>%
+  group_by(country, isocode, source) %>%
   summarise(participant_count = n())
 
 # Show the participant counts
@@ -132,6 +137,17 @@ ggplot(world_map, aes(x = long, y = lat, group = group, fill = fill_color)) +
   theme(legend.position = "right", plot.title = element_text(hjust = 0.3))  +  # Center the title and move the legend to the bottom
   coord_fixed(ratio = 1.1)  # Adjust aspect ratio to make the map wider
 ```
+
+```{r}
+# Erstellen einer Tabelle mit einzigartigen Kombinationen von 'country' und 'isocode'
+country_isocode_table <- merged_data %>%
+  select(country, isocode) %>%
+  distinct()
+
+# Anzeigen der Tabelle
+print(country_isocode_table)
+```
+
 
 # Count participants per country, gender and total
 ```{r}
