@@ -1,0 +1,80 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+if (!require("devtools")) install.packages("devtools")
+devtools::install_github("aphp/rgho")
+
+library(rgho)
+```
+# Liste aller verfügbaren Dimensionen
+```{r}
+dimensions <- get_gho_dimensions()
+```
+
+# Werte für die Dimension "GHO" abrufen
+```{r}
+gho_values <- get_gho_values("GHO")
+View(gho_values) # Öffnet die Werte in RStudio
+
+# Beispiel: Suche nach "SA_0000001837"
+gho_values[grepl("SA_0000001837", gho_values$Code), ]
+```
+
+
+
+# Abrufen der Daten für den spezifischen Indikatorcode
+```{r}
+data <- get_gho_data(code = "SA_0000001699")
+
+# Die Struktur der abgerufenen Daten anzeigen
+str(data)
+
+# Erste Zeilen der Daten anzeigen
+head(data)
+```
+
+```{r}
+library(dplyr)
+
+# Daten für das Jahr 2019 filtern
+filtered_data <- data %>% filter(TimeDimensionValue == "2016")
+
+# Ergebnis anzeigen
+head(filtered_data)
+```
+```{r}
+# Wichtige Spalten auswählen
+cleaned_data <- filtered_data %>% select(IndicatorCode, Value, COUNTRY, YEAR, ALCOHOLTYPE)
+
+# Ergebnis anzeigen
+View(cleaned_data)
+```
+
+
+```{r}
+if (!require("tidyverse")) install.packages("tidyverse")
+library(tidyverse)
+
+# Daten in breites Format umwandeln
+wide_data <- cleaned_data %>%
+  pivot_wider(
+    names_from = ALCOHOLTYPE,   # Werte in ALCOHOLTYPE werden zu Spaltennamen
+    values_from = Value,        # Werte in Value werden in die neuen Spalten geschrieben
+    values_fill = NA            # Fehlende Werte werden durch NA ersetzt
+  )
+
+# Ergebnis anzeigen
+View(wide_data)
+```
+S
+
+
+
+
+
+
+

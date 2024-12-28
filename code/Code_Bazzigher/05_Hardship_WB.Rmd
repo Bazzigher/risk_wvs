@@ -1,0 +1,30 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Worldbank
+```{r}
+library(wbstats)
+unemploy_inds <- wb_search("economic instab")
+View(unemploy_inds)
+```
+
+# Daten für die Gesamtbevölkerung herunterladen
+```{r}
+pop_data <- wb_data("SP.POP.TOTL", start_date = 2000, end_date = 2002)
+head(pop_data)
+```
+
+# Daten in langem Format und für bestimmte Regionen
+```{r}
+pop_gdp_long <- wb_data(c("pop" = "SP.POP.TOTL", "gdp" = "NY.GDP.MKTP.CD"),
+                        start_date = 2012, end_date = 2012, return_wide = FALSE)
+head(pop_gdp_long)
+```
+
+
+```{r}
+new_cache <- wb_cache()
+```
+

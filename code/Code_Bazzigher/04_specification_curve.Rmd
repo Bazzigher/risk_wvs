@@ -51,6 +51,7 @@ print(names(countryfacts))
 
 print("Risktaking columns:")
 print(names(risktaking))
+print(countryfacts$code)
 ```
 
 
