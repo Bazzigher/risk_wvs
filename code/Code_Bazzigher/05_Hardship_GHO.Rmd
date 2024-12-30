@@ -3,13 +3,51 @@ title: "R Notebook"
 output: html_notebook
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, results = 'hide', message = FALSE, warning = FALSE)
+rm(list = ls())
+```
 
+# Set path Laura: ONLY USE FOR LAURA 
 ```{r}
+# base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
+```
+
+# Load libraries
+```{r}
+library("dplyr")
+library("tidyverse")
+library("tidyr")
+
 if (!require("devtools")) install.packages("devtools")
 devtools::install_github("aphp/rgho")
 
 library(rgho)
 ```
+
+
+# Load dataset to create Hardship-Index
+```{r}
+risktaking <- read.csv(file.path(base_path, "gps_wvs_combined.csv"), header=TRUE, as.is=TRUE)
+```
+
+# Hardship Countrylist
+```{r}
+hardship_HS <- risktaking %>%
+  group_by(country, isocode) %>%  # Gruppierung nach Land und ISO-Code
+  summarise(
+    avg_age = mean(age, na.rm = TRUE),  # Durchschnittsalter, NA-Werte ignorieren
+    avg_hardship_index = mean(hardship_index, na.rm = TRUE),  # Durchschnittlicher Hardship-Index
+    avg_risktaking = mean(risktaking, na.rm = TRUE),  # Durchschnittliches Risikoverhalten
+  ) %>%
+  rename(COUNTRY = isocode) %>%  # Umbenennen von 'isocode' zu 'COUNTRY'
+  arrange(country)  # Sortieren der Ergebnisse nach Land
+
+# Überprüfung der Ergebnistabelle
+head(hardship_HS)
+```
+
 # Liste aller verfügbaren Dimensionen
 ```{r}
 dimensions <- get_gho_dimensions()
@@ -18,49 +56,44 @@ dimensions <- get_gho_dimensions()
 # Werte für die Dimension "GHO" abrufen
 ```{r}
 gho_values <- get_gho_values("GHO")
-View(gho_values) # Öffnet die Werte in RStudio
+# View(gho_values) # Öffnet die Werte in RStudio
 
 # Beispiel: Suche nach "SA_0000001837"
-gho_values[grepl("SA_0000001837", gho_values$Code), ]
+gho_values[grepl("SA_0000001699", gho_values$Code), ]
 ```
-
-
 
 # Abrufen der Daten für den spezifischen Indikatorcode
 ```{r}
-data <- get_gho_data(code = "SA_0000001699")
+HS_alc_agelim <- get_gho_data(code = "SA_0000001699") # Age limits off-premise sales
+HS_alc_tax <- get_gho_data(code = "SA_0000001550") # Excise tax on alcoholic beverages
+HS_alc_revtax <- get_gho_data(code = "SA_0000001475") # Annual revenues from alcohol excise tax in millions US$
 
-# Die Struktur der abgerufenen Daten anzeigen
-str(data)
 
 # Erste Zeilen der Daten anzeigen
-head(data)
+head(HS_alc_agelim)
+view(HS_alc_tax)
+view(HS_alc_revtax)
 ```
 
-```{r}
-library(dplyr)
-
-# Daten für das Jahr 2019 filtern
-filtered_data <- data %>% filter(TimeDimensionValue == "2016")
-
-# Ergebnis anzeigen
-head(filtered_data)
-```
-```{r}
 # Wichtige Spalten auswählen
-cleaned_data <- filtered_data %>% select(IndicatorCode, Value, COUNTRY, YEAR, ALCOHOLTYPE)
-
-# Ergebnis anzeigen
-View(cleaned_data)
-```
-
-
 ```{r}
-if (!require("tidyverse")) install.packages("tidyverse")
-library(tidyverse)
+HS_alc_agelim <- HS_alc_agelim %>% select(IndicatorCode, Value, COUNTRY, YEAR, ALCOHOLTYPE)
+HS_alc_tax <- HS_alc_tax %>% select(IndicatorCode, Value, COUNTRY, YEAR, ALCOHOLTYPE)
+
+head(HS_alc_agelim)
+head(HS_alc_tax)
+```
 
 # Daten in breites Format umwandeln
-wide_data <- cleaned_data %>%
+```{r}
+HS_alc_agelim <- HS_alc_agelim %>%
+  pivot_wider(
+    names_from = ALCOHOLTYPE,   # Werte in ALCOHOLTYPE werden zu Spaltennamen
+    values_from = Value,        # Werte in Value werden in die neuen Spalten geschrieben
+    values_fill = NA            # Fehlende Werte werden durch NA ersetzt
+  )
+
+HS_alc_tax <- HS_alc_tax %>%
   pivot_wider(
     names_from = ALCOHOLTYPE,   # Werte in ALCOHOLTYPE werden zu Spaltennamen
     values_from = Value,        # Werte in Value werden in die neuen Spalten geschrieben
@@ -68,13 +101,98 @@ wide_data <- cleaned_data %>%
   )
 
 # Ergebnis anzeigen
-View(wide_data)
+head(HS_alc_agelim)
+view(HS_alc_tax)
 ```
-S
+
+# HS_alc_agelim
+```{r}
+# Sicherstellen, dass YEAR als Zeichenkette formatiert ist
+HS_alc_agelim <- HS_alc_agelim %>%
+  mutate(YEAR = as.character(YEAR))
+
+# Transformieren der Daten in ein breites Format
+HS_alc_agelim_wide <- HS_alc_agelim %>%
+  pivot_wider(
+    names_from = YEAR,
+    values_from = c(SA_WINE, SA_BEER, SA_SPIRITS),
+    names_sep = "_"
+  )
+
+# Überprüfen Sie die resultierenden Spaltennamen
+print(names(HS_alc_agelim_wide))
+
+# Nur weitermachen, wenn die Spalten existieren
+if ("SA_WINE_2016" %in% names(HS_alc_agelim_wide) && "SA_WINE_2019" %in% names(HS_alc_agelim_wide)) {
+  HS_alc_agelim_selected <- HS_alc_agelim_wide %>%
+    rowwise() %>%
+    mutate(
+      final_SA_WINE = case_when(
+        SA_WINE_2016 == "No data" & !is.na(SA_WINE_2019) ~ SA_WINE_2019,
+        SA_WINE_2016 == "None" ~ "1",
+        SA_WINE_2016 == "Subnational" & !is.na(SA_WINE_2019) ~ SA_WINE_2019,
+        SA_WINE_2016 == "Total ban" ~ "99",
+        !is.na(SA_WINE_2016) ~ SA_WINE_2016,
+        TRUE ~ SA_WINE_2019
+      ),
+      final_SA_BEER = case_when(
+        SA_BEER_2016 == "No data" & !is.na(SA_BEER_2019) ~ SA_BEER_2019,
+        SA_BEER_2016 == "None" ~ "1",
+        SA_BEER_2016 == "Subnational" & !is.na(SA_BEER_2019) ~ SA_BEER_2019,
+        SA_BEER_2016 == "Total ban" ~ "99",
+        !is.na(SA_BEER_2016) ~ SA_BEER_2016,
+        TRUE ~ SA_BEER_2019
+      ),
+      final_SA_SPIRITS = case_when(
+        SA_SPIRITS_2016 == "No data" & !is.na(SA_SPIRITS_2019) ~ SA_SPIRITS_2019,
+        SA_SPIRITS_2016 == "None" ~ "1",
+        SA_SPIRITS_2016 == "Subnational" & !is.na(SA_SPIRITS_2019) ~ SA_SPIRITS_2019,
+        SA_SPIRITS_2016 == "Total ban" ~ "99",
+        !is.na(SA_SPIRITS_2016) ~ SA_SPIRITS_2016,
+        TRUE ~ SA_SPIRITS_2019
+      )
+    ) %>%
+    select(COUNTRY, final_SA_WINE, final_SA_BEER, final_SA_SPIRITS)
+
+  # Ergebnis überprüfen
+  view(HS_alc_agelim_selected)
+} else {
+  print("Erforderliche Spalten sind nicht vorhanden. Bitte überprüfen Sie die Daten.")
+}
+```
+
+## Transformation der final_SA_WINE, final_SA_BEER, und final_SA_SPIRITS Spalten
+## um die jeweils niedrigsten Werte oder spezifischen Statusinformationen zu erhalten
+```{r}
+HS_alc_agelim_selected <- HS_alc_agelim_selected %>%
+  mutate(
+    HS_alc_agelim = pmin(
+      as.character(final_SA_WINE),
+      as.character(final_SA_BEER),
+      as.character(final_SA_SPIRITS),
+      na.rm = TRUE
+    ),
+    # Behandlung von "No data" und "Subnational"
+    HS_alc_agelim = case_when(
+      HS_alc_agelim %in% c("99", "1") ~ as.character(HS_alc_agelim), # Beibehalten spezieller Werte
+      is.na(HS_alc_agelim) & any(c(final_SA_WINE, final_SA_BEER, final_SA_SPIRITS) %in% c("No data", "Subnational")) ~ 
+        ifelse(final_SA_WINE == "Subnational" | final_SA_BEER == "Subnational" | final_SA_SPIRITS == "Subnational", 
+               "Subnational", "No data"),
+      TRUE ~ as.character(HS_alc_agelim) # Default zum niedrigsten Wert oder NA
+    )
+  ) %>%
+  select(COUNTRY, HS_alc_agelim, final_SA_WINE, final_SA_BEER, final_SA_SPIRITS) # Auswählen der benötigten Spalten
+
+# Ergebnis überprüfen
+View(HS_alc_agelim_selected)
+```
 
 
+# Join Specifications to hardship_HS
+```{r}
+hardship_HS <- left_join(hardship_HS, HS_alc_agelim_selected[, c("COUNTRY", "HS_alc_agelim")], by = "COUNTRY")
 
-
-
-
+# Überprüfen des Ergebnisses
+View(hardship_HS)
+```
 
