@@ -190,6 +190,7 @@ gps_data
 ```
 
 
+
 ## Select only the variables of interest
 ```{r}
 gps_data <- gps_data %>%
