@@ -30,6 +30,9 @@ library(rgho)
 # Load dataset to create Hardship-Index
 ```{r}
 risktaking <- read.csv(file.path(base_path, "gps_wvs_combined.csv"), header=TRUE, as.is=TRUE)
+hardship_Original <- read.csv(file.path(base_path, "countryfacts_cleaned.csv"), header=TRUE, as.is=TRUE)
+view(hardship_Original)
+str(risktaking)
 ```
 
 # Hardship Countrylist
@@ -44,7 +47,13 @@ hardship_HS <- risktaking %>%
   rename(COUNTRY = isocode) %>%  # Umbenennen von 'isocode' zu 'COUNTRY'
   arrange(country)  # Sortieren der Ergebnisse nach Land
 
-# Überprüfung der Ergebnistabelle
+hardship_Original <- hardship_Original %>%
+  rename(COUNTRY = code) %>%
+  select(COUNTRY, homiciderate, gdp, infantmortality, lifeexpectancy, gini, femalemale_primedu, hardship_index)
+
+hardship_HS <- hardship_Original %>%
+  full_join(hardship_HS, by = "COUNTRY")
+
 view(hardship_HS)
 ```
 
@@ -74,11 +83,10 @@ HS_sex_gini <- get_gho_data(code = "CCO_3")  # Gender inequality index rank
 HS_sex_antiretroviral <- get_gho_data(code = "HIV_ARTCOVERAGE")  # Estimated antiretroviral therapy coverage among people living with HIV (%)
 HS_oth_obesity <- get_gho_data(code = "NCD_BMI_30A")  # Obesity prevalence
 HS_oth_cleancooking <- get_gho_data(code = "PHE_HHAIR_PROP_POP_CLEAN_FUELS")  # Proportion of population with primary reliance on clean fuels and technologies for cooking (%)
-HS_oth_pollutingcooking <- get_gho_data(code = "PHE_HHAIR_PROP_POP_POLLUTING_FUELS")  # Polluting cooking fuels
 HS_mh_mhhospit <- get_gho_data(code = "MH_18")  # Mental health units in general hospitals
 
 # Erste Zeilen der Daten anzeigen
-#head(HS_alc_agelim)
+#view(HS_sex_HIV)
 ```
 
 # Select important rows 
@@ -93,7 +101,6 @@ HS_sex_gini <- HS_sex_gini %>% select(IndicatorCode, NumericValue, COUNTRY, YEAR
 HS_sex_antiretroviral <- HS_sex_antiretroviral %>% select(IndicatorCode, NumericValue, COUNTRY, YEAR)
 HS_oth_obesity <- HS_oth_obesity %>% select(IndicatorCode, NumericValue, COUNTRY, YEAR, SEX)
 HS_oth_cleancooking <- HS_oth_cleancooking %>% select(IndicatorCode, NumericValue, COUNTRY, YEAR, RESIDENCEAREATYPE)
-HS_oth_pollutingcooking <- HS_oth_pollutingcooking %>% select(IndicatorCode, NumericValue, COUNTRY, YEAR, RESIDENCEAREATYPE)
 HS_mh_mhhospit <- HS_mh_mhhospit %>% select(IndicatorCode, NumericValue, COUNTRY, YEAR)
 
 # head(HS_alc_agelim)
@@ -301,7 +308,6 @@ HS_drg_treatment <- HS_drg_treatment %>%
 
 # Überprüfen der umgeformten Daten
 #view(HS_drg_treatment)
-str(HS_drg_treatment)
 ```
 
 ```{r}
@@ -319,6 +325,9 @@ HS_drg_treatment <- HS_drg_treatment %>%
       ALTERNATIVE == "No data" & ADDITION == "No" ~ "No",
       TRUE ~ "No data" # Diese Zeile deckt alle anderen Fälle ab, die nicht spezifiziert wurden
     )
+  ) %>%
+  mutate(
+    HS_drg_treatment = na_if(HS_drg_treatment, "No data") # Ersetzt "No data" durch NA
   )
 
 # Überprüfen der aktualisierten Daten
@@ -424,7 +433,7 @@ HS_sex_antiretroviral <- HS_sex_antiretroviral %>%
 
 HS_sex_antiretroviral <- HS_sex_antiretroviral %>% select(IndicatorCode, COUNTRY, Year_2005, Year_2006, Year_2007, Year_2008, Year_2009, Year_2010, Year_2012, Year_2013, Year_2014)
 
-view(HS_sex_antiretroviral)
+#view(HS_sex_antiretroviral)
 ```
 
 ```{r}
@@ -525,11 +534,6 @@ HS_oth_obesity <- HS_oth_obesity %>%
 HS_oth_cleancooking <- HS_oth_cleancooking %>%
   filter(YEAR >= 2005 & YEAR <= 2016)
 
-# Überprüfung des gefilterten Datensatzes
-# view(HS_oth_cleancooking)
-```
-
-```{r}
 # Tabelle in ein weites Format umwandeln
 HS_oth_cleancooking <- HS_oth_cleancooking %>%
   filter(RESIDENCEAREATYPE == "TOTL") %>%  # Nur "total"-Werte berücksichtigen
@@ -538,26 +542,9 @@ HS_oth_cleancooking <- HS_oth_cleancooking %>%
     values_from = NumericValue   # Werte für die neuen Spalten
   )
 
-# Überprüfung des weiten Formats
-#view(HS_oth_cleancooking)
-```
-
-```{r}
-# Struktur der Tabelle und der Jahreswert-Spalten prüfen
-#str(HS_oth_cleancooking)
-
-# Identifizieren von problematischen Zellen (Listen oder nicht atomare Werte)
-HS_oth_cleancooking %>%
-  filter(if_any(starts_with("20"), ~ !is.atomic(.))) %>%
-  view()
-
-# Listen oder nicht-numerische Werte auf den ersten Eintrag reduzieren
+# Problematische Werte (z.B. Listen) auflösen
 HS_oth_cleancooking <- HS_oth_cleancooking %>%
   mutate(across(starts_with("20"), ~ as.numeric(unlist(lapply(., `[`, 1)))))
-
-# Zeilen mit nicht-atomaren Werten in Jahreswert-Spalten entfernen
-HS_oth_cleancooking <- HS_oth_cleancooking %>%
-  filter(if_all(starts_with("20"), ~ is.atomic(.) && !is.list(.)))
 
 # Jahreswerte in numerische Werte umwandeln
 HS_oth_cleancooking <- HS_oth_cleancooking %>%
@@ -568,75 +555,59 @@ HS_oth_cleancooking <- HS_oth_cleancooking %>%
   rowwise() %>%
   mutate(
     HS_oth_cleancooking = mean(c_across(starts_with("20")), na.rm = TRUE)
-  )
+  ) %>%
+  ungroup()
+
+# Ergänzen oder Aktualisieren der manuell hinzugefügten Werte
+manual_values_cleancooking <- tibble(
+  COUNTRY = c("LBN", "BGR", "LBY", "PSE", "TWN"),
+  HS_oth_cleancooking_manual = c(97.5, 100, 99.8, 99.9, NA) # Werte von der World Bank
+)
+
+# Hinzufügen der manuellen Werte und sicherstellen, dass diese bevorzugt werden
+HS_oth_cleancooking <- HS_oth_cleancooking %>%
+  full_join(manual_values_cleancooking, by = "COUNTRY") %>% # Ergänzen der manuellen Werte
+  mutate(
+    HS_oth_cleancooking = coalesce(HS_oth_cleancooking_manual, HS_oth_cleancooking) # Manuelle Werte bevorzugen
+  ) %>%
+  select(COUNTRY, HS_oth_cleancooking) # Entfernen überflüssiger Spalten
 
 # Ergebnis überprüfen
 #view(HS_oth_cleancooking)
-```
 
-# HS_oth_pollutingcooking
-```{r}
-# Einschränken des Datensatzes auf die Jahre 2005 bis 2016
-HS_oth_pollutingcooking <- HS_oth_pollutingcooking %>%
-  filter(YEAR >= 2005 & YEAR <= 2016)
-
-# Überprüfung des gefilterten Datensatzes
-# view(HS_oth_pollutingcooking)
-```
-
-```{r}
-# Tabelle in ein weites Format umwandeln
-HS_oth_pollutingcooking <- HS_oth_pollutingcooking %>%
-  filter(RESIDENCEAREATYPE == "TOTL") %>%  # Nur "total"-Werte berücksichtigen
-  pivot_wider(
-    names_from = YEAR,           # Jahre werden zu Spalten
-    values_from = NumericValue   # Werte für die neuen Spalten
-  )
-
-# Überprüfung des weiten Formats
-#view(HS_oth_pollutingcooking)
-```
-
-```{r}
-# Struktur der Tabelle und der Jahreswert-Spalten prüfen
-#str(HS_oth_pollutingcooking)
-
-# Identifizieren von problematischen Zellen (Listen oder nicht atomare Werte)
-HS_oth_pollutingcooking %>%
-  filter(if_any(starts_with("20"), ~ !is.atomic(.))) %>%
-  view()
-
-# Listen oder nicht-numerische Werte auf den ersten Eintrag reduzieren
-HS_oth_pollutingcooking <- HS_oth_pollutingcooking %>%
-  mutate(across(starts_with("20"), ~ as.numeric(unlist(lapply(., `[`, 1)))))
-
-# Zeilen mit nicht-atomaren Werten in Jahreswert-Spalten entfernen
-HS_oth_pollutingcooking <- HS_oth_pollutingcooking %>%
-  filter(if_all(starts_with("20"), ~ is.atomic(.) && !is.list(.)))
-
-# Jahreswerte in numerische Werte umwandeln
-HS_oth_pollutingcooking <- HS_oth_pollutingcooking %>%
-  mutate(across(starts_with("20"), ~ as.numeric(.)))
-
-# Durchschnitt über die Jahre pro Land berechnen
-HS_oth_pollutingcooking <- HS_oth_pollutingcooking %>%
-  rowwise() %>%
-  mutate(
-    HS_oth_pollutingcooking = mean(c_across(starts_with("20")), na.rm = TRUE)
-  )
-
-# Ergebnis überprüfen
-#view(HS_oth_pollutingcooking)
 ```
 
 # HS_mh_mhhospit 
 ## Rename HS_mh_mhhospit
 ```{r}
+# Rename HS_mh_mhhospit
 HS_mh_mhhospit <- HS_mh_mhhospit %>%
   rename(HS_mh_mhhospit = NumericValue)
 
-# Überprüfung der Tabelle nach Umbenennung
-#view(HS_mh_mhhospit)
+# Manuell ergänzte Werte für psychiatrische Einheiten in allgemeinen Krankenhäusern
+manual_mh_mhhospit <- tibble(
+  COUNTRY = c("AND", "CMR", "CHN", "EGY", "FRA", "KAZ", "KWT", "LBY", "MWI", 
+              "NLD", "NGA", "PSE", "RUS", "SUR", "SWE", "TWN", "TTO", "TUN", 
+              "GBR", "VEN"), # ISO-Codes für die Länder
+  HS_mh_mhhospit = c(NA, 0.01, 0.17, 0.04, 0.04, 0.02, 0.02, 0.01, 0.00, 
+                     0.03, 0.02, 0.01, 0.13, 0.00, 0.03, NA, 0.01, 0.01, 
+                     0.40, NA) # Ergänze den fehlenden Wert
+)
+
+# Ergänzen oder Aktualisieren der bestehenden Tabelle mit manuellen Werten
+HS_mh_mhhospit <- HS_mh_mhhospit %>%
+  full_join(manual_mh_mhhospit, by = "COUNTRY") %>%
+  mutate(
+    # Konvertiere beide Spalten in denselben Typ (numeric)
+    HS_mh_mhhospit.x = as.numeric(HS_mh_mhhospit.x),
+    HS_mh_mhhospit.y = as.numeric(HS_mh_mhhospit.y),
+    # Manuelle Werte bevorzugen
+    HS_mh_mhhospit = coalesce(HS_mh_mhhospit.y, HS_mh_mhhospit.x)
+  ) %>%
+  select(COUNTRY, HS_mh_mhhospit) # Entfernen überflüssiger Spalten
+
+# Ergebnis überprüfen
+# view(HS_mh_mhhospit)
 ```
 
 # HS_mh_policy
@@ -676,10 +647,280 @@ hardship_HS <- left_join(hardship_HS, HS_sex_gini[, c("COUNTRY", "HS_sex_gini")]
 hardship_HS <- left_join(hardship_HS, HS_sex_antiretroviral[, c("COUNTRY", "HS_sex_antiretroviral")], by = "COUNTRY")
 hardship_HS <- left_join(hardship_HS, HS_oth_obesity[, c("COUNTRY", "HS_oth_obesity")], by = "COUNTRY")
 hardship_HS <- left_join(hardship_HS, HS_oth_cleancooking[, c("COUNTRY", "HS_oth_cleancooking")], by = "COUNTRY")
-hardship_HS <- left_join(hardship_HS, HS_oth_pollutingcooking[, c("COUNTRY", "HS_oth_pollutingcooking")], by = "COUNTRY")
 hardship_HS <- left_join(hardship_HS, HS_mh_mhhospit[, c("COUNTRY", "HS_mh_mhhospit")], by = "COUNTRY")
 
-# Überprüfen des Ergebnisses
-View(hardship_HS)
+# Entfernen von Zeilen, wo der COUNTRY-Code fehlt (NA)
+hardship_HS <- hardship_HS %>%
+  filter(!is.na(COUNTRY))
+
+#View(hardship_HS)
 ```
 
+```{r}
+# Überprüfung der aggregierten Daten für RWA
+hardship_HS %>% filter(COUNTRY == "RWA")
+
+# Länder HKG, RAW und TWN aus dem Datensatz entfernen
+hardship_HS <- hardship_HS %>%
+  filter(!COUNTRY %in% c("HKG", "TWN", "PSE", "RAW"))
+
+# Endgültigen Datensatz anzeigen
+#View(hardship_HS)
+```
+
+
+# Standardisieren der Variablen
+```{r}
+library(dplyr)
+
+# Transformation der Spalte mit dem korrekten Spaltennamen
+hardship_HS <- hardship_HS %>%
+  mutate(HS_alc_tax_wine = case_when(
+    HS_alc_tax_wine == "Total ban" ~ 2,
+    HS_alc_tax_wine == "Yes" ~ 1,
+    HS_alc_tax_wine == "No" ~ 0,
+    TRUE ~ NA_real_  # für den Fall, dass andere Werte vorhanden sind
+  ))
+
+
+# Annahme, dass wvs_data Ihr Datenrahmen ist
+hardship_HS <- hardship_HS %>%
+  mutate(HS_drg_treatment = case_when(
+    HS_drg_treatment == "No" ~ 2,
+    HS_drg_treatment == "Yes" ~ 1,
+    HS_drg_treatment == "Mixed" ~ 0,
+    TRUE ~ NA_real_  # für den Fall, dass andere Werte vorhanden sind
+  ))
+
+# Binäre Transformation
+hardship_HS <- hardship_HS %>%
+  mutate(HS_mh_policy = case_when(
+    HS_mh_policy == "No" ~ 0,
+    HS_mh_policy == "Yes" ~ 1,
+    TRUE ~ NA_real_  # für den Fall, dass andere Werte vorhanden sind
+  ))
+view(hardship_HS)
+```
+
+# select variable of hardship_HS
+```{r}
+hardship_HS <- hardship_HS %>% select(COUNTRY, country, avg_risktaking, homiciderate, gdp, infantmortality, lifeexpectancy, lifeexpectancy, gini, femalemale_primedu, HS_alc_agelim, HS_alc_tax_wine, HS_alc_roaddeath, HS_drg_treatment, HS_nic_affordability, HS_mh_policy, HS_sex_gini, HS_oth_obesity, HS_oth_cleancooking, HS_mh_mhhospit, HS_sex_antiretroviral)
+str(hardship_HS)
+```
+
+```{r}
+# Ensure all relevant variables are numeric and handle NA values appropriately
+hardship_HS <- hardship_HS %>%
+  mutate(
+    HS_alc_agelim = as.numeric(HS_alc_agelim),
+    HS_alc_roaddeath = as.numeric(HS_alc_roaddeath),
+    HS_alc_tax_wine = as.numeric(HS_alc_tax_wine), 
+    HS_drg_treatment = as.numeric(HS_drg_treatment), 
+    HS_mh_policy = as.numeric(HS_mh_policy)
+  )
+
+str(hardship_HS)
+```
+
+# Missing values
+```{r}
+library(mice)
+
+library(VIM)
+aggr_plot <- aggr(hardship_HS, col = c('navyblue', 'red'), numbers = TRUE, sortVars = TRUE, 
+                  labels = names(hardship_HS), cex.axis = 0.7, gap = 3, ylab = c("Missing Data", "Pattern"))
+```
+
+```{r}
+# Multiple Imputation mit Predictive Mean Matching (PMM)
+selected_vars <- hardship_HS %>%
+  select(HS_alc_agelim, HS_alc_tax_wine, HS_alc_roaddeath, HS_drg_treatment, 
+         HS_nic_affordability, HS_mh_policy, HS_sex_gini, HS_oth_obesity, 
+         HS_oth_cleancooking, HS_mh_mhhospit, HS_sex_antiretroviral)
+
+# Imputation mit Predictive Mean Matching (PMM)
+imputed_data <- mice(selected_vars, m = 5, method = 'pmm', maxit = 50, seed = 123)
+
+# Zusammenfassung der Imputation
+summary(imputed_data)
+```
+```{r}
+imputed_data$imp$HS_alc_agelim  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_alc_tax_wine  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_alc_roaddeath  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_drg_treatment  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_nic_affordability  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_mh_policy  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_sex_gini  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_oth_obesity  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_oth_cleancooking  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_mh_mhhospit  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_sex_antiretroviral
+
+# visualisierung
+stripplot(imputed_data, pch = 20, cex = 1.2)  # Verteilung der imputierten Werte
+densityplot(imputed_data)  # Dichte der imputierten Werte
+
+# Imputierte Daten extrahieren
+completed_data <- complete(imputed_data, action = 1)
+```
+
+```{r}
+original_mean <- mean(hardship_HS$HS_drg_treatment, na.rm = TRUE)
+imputed_mean <- mean(completed_data$HS_drg_treatment)
+original_mean
+imputed_mean
+
+original_median <- median(hardship_HS$HS_drg_treatment, na.rm = TRUE)
+imputed_median <- median(completed_data$HS_drg_treatment)
+
+original_sd <- sd(hardship_HS$HS_drg_treatment, na.rm = TRUE)
+imputed_sd <- sd(completed_data$HS_drg_treatment)
+
+list(
+  original_median = original_median,
+  imputed_median = imputed_median,
+  original_sd = original_sd,
+  imputed_sd = imputed_sd
+)
+
+original_mean <- mean(hardship_HS$HS_sex_antiretroviral, na.rm = TRUE)
+imputed_mean <- mean(completed_data$HS_sex_antiretroviral)
+original_mean
+imputed_mean
+
+original_median <- median(hardship_HS$HS_sex_antiretroviral, na.rm = TRUE)
+imputed_median <- median(completed_data$HS_sex_antiretroviral)
+
+original_sd <- sd(hardship_HS$HS_sex_antiretroviral, na.rm = TRUE)
+imputed_sd <- sd(completed_data$HS_sex_antiretroviral)
+
+list(
+  original_median = original_median,
+  imputed_median = imputed_median,
+  original_sd = original_sd,
+  imputed_sd = imputed_sd
+)
+```
+
+
+# Füge die imputierten Variablen zurück in den ursprünglichen Datensatz ein:
+```{r}
+hardship_HS <- hardship_HS %>%
+  mutate(
+    HS_alc_agelim = completed_data$HS_alc_agelim,
+    HS_alc_tax_wine = completed_data$HS_alc_tax_wine,
+    HS_alc_roaddeath = completed_data$HS_alc_roaddeath,
+    HS_drg_treatment = completed_data$HS_drg_treatment,
+    HS_nic_affordability = completed_data$HS_nic_affordability,
+    HS_mh_policy = completed_data$HS_mh_policy,
+    HS_sex_gini = completed_data$HS_sex_gini,
+    HS_oth_obesity = completed_data$HS_oth_obesity,
+    HS_oth_cleancooking = completed_data$HS_oth_cleancooking,
+    HS_mh_mhhospit = completed_data$HS_mh_mhhospit, 
+    HS_sex_antiretroviral = completed_data$HS_sex_antiretroviral
+  )
+str(hardship_HS)
+```
+
+```{r}
+sum(is.na(hardship_HS$HS_alc_agelim))  # Soll 0 ergeben
+sum(is.na(hardship_HS$HS_alc_roaddeath))  # Soll 0 ergeben
+head(hardship_HS)
+```
+
+```{r}
+# Anpassung der Daten vor dem Logarithmieren, Ersetzen von Null oder negativen Werten durch einen kleinen positiven Wert
+hardship_HS <- hardship_HS %>%
+  mutate(
+    HS_mh_mhhospit = ifelse(HS_mh_mhhospit <= 0, 0.1, HS_mh_mhhospit),
+    HS_sex_antiretroviral = ifelse(HS_sex_antiretroviral <= 0, 0.1, HS_sex_antiretroviral)
+  )
+
+# Anwendung der Logarithmus-Transformation mit log1p
+hardship_HS <- hardship_HS %>%
+  mutate(
+    HS_mh_mhhospit = log1p(HS_mh_mhhospit),
+    HS_sex_antiretroviral = log1p(HS_sex_antiretroviral)
+  )
+
+# Überprüfung der Daten nach der Logarithmus-Transformation
+summary(hardship_HS$HS_mh_mhhospit)
+summary(hardship_HS$HS_sex_antiretroviral)
+
+```
+
+
+## check countryfacts 
+```{r}
+# Plot histograms for each numeric variable
+hardship_HS %>% 
+  select_if(is.numeric) %>% 
+  gather() %>% 
+  ggplot(aes(value)) + 
+  facet_wrap(~key, scales = "free") + 
+  geom_histogram(bins = 30) + 
+  theme_minimal()
+```
+
+## Log Countryfacts 
+```{r}
+# Log-transform the variables using dplyr
+hardship_HS <- hardship_HS %>%
+  mutate(
+    HS_mh_mhhospit = log(HS_mh_mhhospit),
+    HS_nic_affordability = log(HS_nic_affordability),
+    HS_oth_cleancooking = log(HS_oth_cleancooking),
+    HS_oth_obesity = log(HS_oth_obesity),
+    HS_sex_antiretroviral = log(HS_sex_antiretroviral), 
+  )
+
+head(hardship_HS)
+
+# Plot histograms for each numeric variable
+hardship_HS %>% 
+  select_if(is.numeric) %>% 
+  gather() %>% 
+  ggplot(aes(value)) + 
+  facet_wrap(~key, scales = "free") + 
+  geom_histogram(bins = 30) + 
+  theme_minimal()
+```
+
+
+```{r}
+str(hardship_HS)
+```
+
+
+## Reverse Coding - Standardize and create hardship_HS
+```{r}
+library(dplyr)
+
+# Now apply the scale function after confirming all variables are numeric
+hardship_HS <- hardship_HS %>%
+  mutate(
+    HS_alc_agelim = scale(-HS_alc_agelim), # reverse coding
+    HS_sex_antiretroviral = scale(-as.numeric(HS_sex_antiretroviral)), # reverse coding 
+    HS_oth_cleancooking = scale(-as.numeric(HS_oth_cleancooking)), # reverse coding
+    HS_mh_mhhospit = scale(-as.numeric(HS_mh_mhhospit)), # reverse coding
+    HS_alc_tax_wine = scale(HS_alc_tax_wine),
+    HS_alc_roaddeath = scale(HS_alc_roaddeath),
+    HS_nic_affordability = scale(HS_nic_affordability),
+    HS_sex_gini = scale(HS_sex_gini), 
+    HS_drg_treatment = scale(HS_drg_treatment), 
+    HS_oth_obesity = scale(HS_oth_obesity)
+  ) %>%
+  rowwise() %>%
+  mutate(
+    hardship_HS = mean(c(HS_alc_agelim, HS_sex_antiretroviral, HS_oth_cleancooking, HS_mh_mhhospit, HS_alc_tax_wine, HS_alc_roaddeath, HS_nic_affordability, HS_sex_gini, HS_drg_treatment, HS_mh_policy, HS_oth_obesity), na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+# View the updated hardship_HS data frame
+view(hardship_HS)
+```
+
+```{r}
+write.csv(hardship_HS, file = file.path(base_path, "hardship_HS.csv"), row.names = FALSE)
+```

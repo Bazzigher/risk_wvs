@@ -37,7 +37,7 @@ library(readr)
 ## Load data 
 ```{r}
 # Countryfacts
-countryfacts <- read_excel(file.path(base_path, "Hardship_complete_2024_Extended.xlsx"))
+countryfacts <- read_excel(file.path(base_path, "Hardship_complete_2024.xlsx"))
 
 # Data GPS 
 gps_data <- haven::read_dta(file.path(base_path, "individual_new.dta"))
@@ -78,20 +78,6 @@ countryfacts <- countryfacts %>%
     gdp = log(gdp),
     infantmortality = log(infantmortality),
     lifeexpectancy = log(lifeexpectancy),
-    alcusedis = log(alcusedis),
-    anxietydis= log(anxietydis),
-    adhd = log(adhd),
-    autism= log(autism),
-    bipolardis= log(bipolardis),
-    conductdis= log(conductdis),
-    depressdis= log(depressdis),
-    drugusedis= log(drugusedis),
-    eatingdis= log(eatingdis),
-    hiv_aids_sextrasinf= log(hiv_aids_sextrasinf),
-    ediopathicdevintdis= log(ediopathicdevintdis),
-    mentaldis= log(mentaldis),
-    othermentaldis= log(othermentaldis),
-    schizophrenia= log(schizophrenia),
     femalemale_primedu = log(femalemale_primedu) 
   )
 
@@ -119,26 +105,9 @@ countryfacts <- countryfacts %>%
     lifeexpectancy = scale(-lifeexpectancy), # reverse coding
     gini = scale(gini),
     femalemale_primedu = scale(-femalemale_primedu), # reverse coding
-    alcusedis = scale(alcusedis), 
-    anxietydis = scale(anxietydis), 
-    adhd = scale(adhd), 
-    autism = scale(autism), 
-    bipolardis = scale(bipolardis), 
-    conductdis = scale(conductdis), 
-    depressdis = scale(depressdis),
-    drugusedis = scale(drugusedis), 
-    eatingdis = scale(eatingdis), 
-    hiv_aids_sextrasinf = scale(hiv_aids_sextrasinf), 
-    idiopathicdevintdis = scale(ediopathicdevintdis), 
-    mentaldis = scale(mentaldis), 
-    othermentaldis = scale(othermentaldis), 
-    schizophrenia = scale(schizophrenia), 
 
     hardship_index = (homiciderate + gdp + gini + lifeexpectancy + infantmortality + 
-                      femalemale_primedu + alcusedis + anxietydis + adhd + autism + 
-                      bipolardis + conductdis + depressdis + drugusedis + eatingdis + 
-                      hiv_aids_sextrasinf + idiopathicdevintdis + mentaldis + 
-                      othermentaldis + schizophrenia) / 20
+                      femalemale_primedu) / 6
   )
 
 countryfacts
@@ -147,10 +116,7 @@ countryfacts
 ## Impute missing values in the hardship indicators using the median
 ```{r}
 countryfacts <- countryfacts %>%
-  mutate(across(c("homiciderate", "gdp", "infantmortality", "lifeexpectancy", "gini", "femalemale_primedu", 
-                  "alcusedis", "anxietydis", "adhd", "autism", "bipolardis", "conductdis", 
-                  "depressdis", "drugusedis", "eatingdis", "hiv_aids_sextrasinf", "ediopathicdevintdis", 
-                  "mentaldis", "othermentaldis", "schizophrenia"),
+  mutate(across(c("homiciderate", "gdp", "infantmortality", "lifeexpectancy", "gini", "femalemale_primedu"),
                 ~ifelse(is.na(.), median(., na.rm = TRUE), .)))
 
 countryfacts
@@ -376,11 +342,12 @@ country_counts <- WVS_data %>%
 print(country_counts)
 ```
 
+
 # write cvs
 ## write csv countryfacts
 ```{r}
 write.csv(countryfacts, file = file.path(base_path, "countryfacts_cleaned.csv"), row.names = FALSE)
-head(countryfacts)
+view(countryfacts)
 ```
 
 ## write csv gps_data
