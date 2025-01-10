@@ -334,6 +334,18 @@ unique(WVS_data$country)
 str(WVS_data)
 ```
 
+# Change wrong isocode (change 10.01.2025)
+```{r}
+library(dplyr)
+
+# RAW in RWA in der Spalte code umwandeln
+WVS_data <- WVS_data %>%
+  mutate(code = ifelse(code == "RAW", "RWA", code))
+
+# Überprüfen, ob die Umwandlung erfolgreich war
+unique(WVS_data$code)
+```
+
 ```{r}
 country_counts <- WVS_data %>%
   count(country)
