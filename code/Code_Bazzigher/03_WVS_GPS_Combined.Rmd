@@ -108,11 +108,59 @@ participant_counts
 
 # Worldmap of the recorded countries
 ```{r}
+library(dplyr)
+library(maps)
+
+# Daten der Weltkarte laden
+world_map <- map_data("world")
+
+# Liste aller eindeutigen Länder in der Weltkarte
+world_map_countries <- world_map %>%
+  select(region) %>%
+  distinct() %>%
+  arrange(region)  # Sortiert die Länder alphabetisch
+
+# Zeige die Liste der Länder
+print(world_map_countries)
+
+library(dplyr)
+
+# Länder aus `world_map` extrahieren
+world_map_countries <- unique(world_map$region)
+
+# Länder aus `merged_data` extrahieren
+merged_data_countries <- unique(merged_data$country)
+
+# Länder in `merged_data`, die nicht in `world_map` sind
+countries_not_in_world_map <- setdiff(merged_data_countries, world_map_countries)
+
+# Länder in `world_map`, die nicht in `merged_data` sind
+countries_not_in_merged_data <- setdiff(world_map_countries, merged_data_countries)
+
+
+library(dplyr)
+
+# Länder umbenennen, damit sie mit der world_map übereinstimmen
+merged_data_world_map <- merged_data %>%
+  mutate(country = recode(country,
+                          "United States" = "USA",
+                          "United Kingdom" = "UK",
+                          "Cyprus (G)" = "Cyprus",
+                          "Bosnia Herzegovina" = "Bosnia and Herzegovina",
+                          "Serbia and Montenegro" = "Serbia", # oder "Montenegro", je nach Daten
+                          "Trinidad and Tobago" = "Trinidad"))
+
+# Überprüfe, welche Länder jetzt nicht mehr übereinstimmen
+countries_not_in_world_map <- setdiff(unique(merged_data_world_map$country), unique(world_map$region))
+print(countries_not_in_world_map)
+```
+
+```{r}
 # Create a world map with country borders
 world_map <- map_data("world")
 
 # Create a data frame with countries and their source
-recorded_countries <- merged_data %>%
+recorded_countries <- merged_data_world_map %>%
   select(country, worldmap) %>%
   distinct()
 
