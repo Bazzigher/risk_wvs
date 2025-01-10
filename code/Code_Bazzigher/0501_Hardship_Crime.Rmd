@@ -1,0 +1,733 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, results = 'hide', message = FALSE, warning = FALSE)
+rm(list = ls())
+```
+
+# Set path Laura: ONLY USE FOR LAURA 
+```{r}
+base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+#base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
+```
+
+# Load libraries
+```{r}
+library("dplyr")
+library("tidyverse")
+library("tidyr")
+
+if (!require("devtools")) install.packages("devtools")
+devtools::install_github("aphp/rgho")
+
+library(rgho)
+```
+
+
+# Load dataset to create Hardship-Index
+```{r}
+risktaking <- read.csv(file.path(base_path, "gps_wvs_combined.csv"), header=TRUE, as.is=TRUE)
+hardship_Original <- read.csv(file.path(base_path, "countryfacts_cleaned.csv"), header=TRUE, as.is=TRUE)
+#view(risktaking)
+str(risktaking)
+```
+
+# Hardship Countrylist
+```{r}
+hardship_Crime <- risktaking %>%
+  group_by(country, isocode) %>%  # Gruppierung nach Land und ISO-Code
+  summarise(
+    avg_age = mean(age, na.rm = TRUE),  # Durchschnittsalter, NA-Werte ignorieren
+    avg_hardship_index = mean(hardship_index, na.rm = TRUE),  # Durchschnittlicher Hardship-Index
+    avg_risktaking = mean(risktaking, na.rm = TRUE),  # Durchschnittliches Risikoverhalten
+  ) %>%
+  rename(COUNTRY = isocode) %>%  # Umbenennen von 'isocode' zu 'COUNTRY'
+  arrange(country)  # Sortieren der Ergebnisse nach Land
+
+hardship_Original <- hardship_Original %>%
+  rename(COUNTRY = code) %>%
+  select(COUNTRY, homiciderate, gdp, infantmortality, lifeexpectancy, gini, femalemale_primedu, hardship_index)
+
+hardship_Crime <- hardship_Original %>%
+  full_join(hardship_Crime, by = "COUNTRY")
+
+#view(hardship_HS)
+```
+
+# Liste aller verfügbaren Dimensionen
+```{r}
+dimensions <- get_gho_dimensions()
+```
+
+# Werte für die Dimension "GHO" abrufen
+```{r}
+gho_values <- get_gho_values("GHO")
+# View(gho_values) # Öffnet die Werte in RStudio
+
+# Beispiel: Suche nach "SA_0000001837"
+gho_values[grepl("SA_0000001699", gho_values$Code), ]
+```
+
+
+```{r}
+# Extrahieren der einzigartigen ISO-Codes aus der risktaking Datenbasis
+unique_isocodes <- unique(hardship_Crime$COUNTRY)
+
+# Anzeigen der ISO-Codes als Vektor
+print(unique_isocodes)
+```
+
+
+```{r}
+if (!require("devtools")) install.packages("devtools")
+devtools::install_github("aphp/rgho")
+
+library(rgho)
+```
+
+# Liste aller verfügbaren Dimensionen
+```{r}
+dimensions <- get_gho_dimensions()
+```
+
+# Werte für die Dimension "GHO" abrufen
+```{r}
+gho_values <- get_gho_values("GHO")
+#View(gho_values) 
+
+# Beispiel: Suche nach "SA_0000001837"
+gho_values[grepl("SA_0000001837", gho_values$Code), ]
+#view(gho_values)
+```
+# Naming: 
+# Hardship: 
+# - Health / Safety (HS), Crime (C), Financial (F), Environmental (E)
+
+# Factor: 
+# - HS: Alcohol (alc), Drugs (drg), Nicotine (nic), Mental Health (mh), Sex (sex), Other (oth)
+# - C: Bodily harm (bh), Antisocial (anti), Theft/ fraud (theft), Other (oth)
+# - F: Gambling (gam), Investment (inv), Other (oth)
+# - E: Exposure (exp), Socioeconomic (ses), Other (oth)
+
+
+
+# Abrufen der Daten für den spezifischen Indikatorcode
+```{r}
+c_bh_homicide <- get_gho_data(code = "VIOLENCE_HOMICIDERATE") # Estimates of rates of homicides per 100 000 population
+c_bh_childmalt <- get_gho_data(code = "VIOLENCE_EXTENTIMP_CHILDHOMEVISIT")  # Child maltreatment: Extent of implementation of home-visiting programmes
+c_bh_parviolenceprog <- get_gho_data(code = "VIOLENCE_EXTENTIMP_PARTNERVIOLPREVENTION")  # Intimate partner violence: Extent of implementation  of dating violence prevention programmes
+c_bh_elderabuse <- get_gho_data(code = "VIOLENCE_EXTENTIMP_ELDERCAREGIVER")  #Elder abuse: Extent of implementation  of caregiver-support programmes
+c_bh_violextchildprot <- get_gho_data(code = "VIOLENCE_EXTENTIMP_CHILDPROTECTION")  # Extent of implementation of child protection services
+
+# Erste Zeilen der Daten anzeigen
+# view(c_bh_homicide)
+# view(c_bh_childmalt)
+# view(c_bh_parviolenceprog)
+# view(c_bh_elderabuse)
+# view(c_bh_violextchildprot)
+```
+
+# Select important rows 
+```{r}
+c_bh_homicide <- c_bh_homicide %>% select(IndicatorCode, NumericValue, COUNTRY, YEAR, SEX)
+c_bh_childmalt <- c_bh_childmalt %>% select(IndicatorCode, Value, COUNTRY)
+c_bh_parviolenceprog <- c_bh_parviolenceprog %>% select(IndicatorCode, Value, COUNTRY)
+c_bh_elderabuse <- c_bh_elderabuse %>% select(IndicatorCode, Value, COUNTRY)
+c_bh_violextchildprot <- c_bh_violextchildprot %>% select(IndicatorCode, Value, COUNTRY)
+
+head(c_bh_childmalt)
+```
+
+# c_bh_homicide
+```{r}
+library(dplyr)
+library(tidyr)
+
+# Sicherstellen, dass NumericValue numerisch ist
+c_bh_homicide <- c_bh_homicide %>%
+  mutate(NumericValue = as.numeric(NumericValue))
+
+# Filtere die Jahre zwischen 2005 und 2012
+c_bh_homicide <- c_bh_homicide %>%
+  filter(as.numeric(YEAR) >= 2005 & as.numeric(YEAR) <= 2012)
+
+# Aggregiere Werte, um Mehrfachzuweisungen zu vermeiden
+c_bh_homicide <- c_bh_homicide %>%
+  group_by(COUNTRY, YEAR) %>%
+  summarise(NumericValue = mean(NumericValue, na.rm = TRUE), .groups = "drop")
+
+# Transformiere die Daten: Jahre als Spalten
+c_bh_homicide <- c_bh_homicide %>%
+  pivot_wider(names_from = YEAR, values_from = NumericValue, names_prefix = "Year_")
+
+# Neue Spalte mit Durchschnitt aller Jahre pro Land hinzufügen
+c_bh_homicide <- c_bh_homicide %>%
+  rowwise() %>%
+  mutate(c_bh_homicide = mean(c_across(starts_with("Year_")), na.rm = TRUE)) %>%
+  ungroup()
+
+# Ergebnis ansehen
+head(c_bh_homicide)
+```
+
+# c_bh_childmalt
+```{r}
+library(dplyr)
+
+# Zuordnung der Werte zu numerischen Kategorien und Umbenennen der Spalte
+c_bh_childmalt <- c_bh_childmalt %>%
+  mutate(c_bh_childmalt = case_when(
+    Value == "None" ~ 2,         # Schlechtester Wert
+    Value == "Limited" ~ 1,      # Mittlerer Wert
+    Value == "Larger scale" ~ 0, # Bester Wert
+    TRUE ~ NA_real_              # Falls ein anderer Wert auftaucht
+  )) %>%
+  select(-Value)  # Entfernt die ursprüngliche Spalte "Value"
+
+# Ergebnis ansehen
+#view(c_bh_childmalt)
+```
+
+
+# c_bh_violextchildprot
+```{r}
+library(dplyr)
+
+# Zuordnung der Werte zu numerischen Kategorien und Umbenennen der Spalte
+c_bh_violextchildprot <- c_bh_violextchildprot %>%
+  mutate(c_bh_violextchildprot = case_when(
+    Value == "None" ~ 2,         # Schlechtester Wert
+    Value == "Limited" ~ 1,      # Mittlerer Wert
+    Value == "Larger scale" ~ 0, # Bester Wert
+    TRUE ~ NA_real_              # Falls ein anderer Wert auftaucht
+  )) %>%
+  select(-Value)  # Entfernt die ursprüngliche Spalte "Value"
+
+# Ergebnis ansehen
+#view(c_bh_violextchildprot)
+```
+
+
+# c_bh_parviolenceprog
+```{r}
+library(dplyr)
+
+# Zuordnung der Werte zu numerischen Kategorien und Umbenennen der Spalte
+c_bh_parviolenceprog <- c_bh_parviolenceprog %>%
+  mutate(c_bh_parviolenceprog = case_when(
+    Value == "None" ~ 2,         # Schlechtester Wert
+    Value == "Limited" ~ 1,      # Mittlerer Wert
+    Value == "Larger scale" ~ 0, # Bester Wert
+    Value == "Don't know" ~ NA_real_, # "Don't know" wird zu NA
+    TRUE ~ NA_real_              # Falls ein anderer Wert auftaucht
+  )) %>%
+  select(-Value)  # Entfernt die ursprüngliche Spalte "Value"
+
+# Ergebnis ansehen
+#view(c_bh_parviolenceprog)
+```
+
+
+# c_bh_elderabuse
+```{r}
+library(dplyr)
+
+# Zuordnung der Werte zu numerischen Kategorien und Umbenennen der Spalte
+c_bh_elderabuse <- c_bh_elderabuse %>%
+  mutate(c_bh_elderabuse = case_when(
+    Value == "None" ~ 2,         # Schlechtester Wert
+    Value == "Limited" ~ 1,      # Mittlerer Wert
+    Value == "Larger scale" ~ 0, # Bester Wert
+    Value == "Don't know" ~ NA_real_, # "Don't know" wird zu NA
+    TRUE ~ NA_real_              # Falls ein anderer Wert auftaucht
+  )) %>%
+  select(-Value)  # Entfernt die ursprüngliche Spalte "Value"
+
+# Ergebnis ansehen
+#view(c_bh_elderabuse)
+```
+
+
+```{r}
+library(WDI)
+# Suche nach Indikatoren, die das Wort "unemployment" enthalten
+search_results <- WDIsearch(string = "Rule of Law", field = "name")
+
+# Anzeigen der Suchergebnisse
+print(search_results)
+```
+
+# c_bh_inthomicide
+```{r}
+library(WDI)
+library(dplyr)
+library(tidyr)
+
+# Setzen der Länder und Indikatoren
+countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RAW", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")  
+indicators <- c("VC.IHR.PSRC.P5") 
+
+# Daten abrufen
+c_bh_inthomicide <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+
+# Spalten umbenennen
+c_bh_inthomicide <- c_bh_inthomicide %>%
+  rename(c_bh_inthomicide = VC.IHR.PSRC.P5) # Intentional homicides (per 100,000 people)
+
+# 0.0000000 in NA umwandeln
+c_bh_inthomicide <- c_bh_inthomicide %>%
+  mutate(across(where(is.numeric), ~ ifelse(. == 0.0000000, NA, .)))
+
+# Daten transformieren: Jahre als Spalten darstellen
+c_bh_inthomicide <- c_bh_inthomicide %>%
+  pivot_wider(names_from = year, values_from = c_bh_inthomicide)
+
+# Durchschnitt über alle Jahre berechnen und neue Spalte hinzufügen
+c_bh_inthomicide <- c_bh_inthomicide %>%
+  mutate(c_bh_inthomicide = rowMeans(select(., starts_with("20")), na.rm = TRUE))
+
+# Rename iso3c to COUNTRY
+c_bh_inthomicide <- c_bh_inthomicide %>%
+  rename(COUNTRY = iso3c)
+
+# Zeige die ersten Zeilen der transformierten Daten
+#view(c_bh_inthomicide)
+```
+
+
+# c_theft_estcorruption
+```{r}
+library(WDI)
+library(dplyr)
+library(tidyr)
+
+# Setzen der Länder und Indikatoren
+countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RAW", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")  
+indicators <- c("CC.EST") 
+
+# Daten abrufen
+c_theft_estcorruption <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+
+# Spalten umbenennen
+c_theft_estcorruption <- c_theft_estcorruption %>%
+  rename(c_theft_estcorruption = CC.EST) # Control of Corruption: Estimate
+
+# Daten transformieren: Jahre als Spalten darstellen
+c_theft_estcorruption <- c_theft_estcorruption %>%
+  pivot_wider(names_from = year, values_from = c_theft_estcorruption)
+
+# Durchschnitt über alle Jahre berechnen und neue Spalte hinzufügen
+c_theft_estcorruption <- c_theft_estcorruption %>%
+  mutate(c_theft_estcorruption = rowMeans(select(., starts_with("20")), na.rm = TRUE))
+
+# Rename iso3c to COUNTRY
+c_theft_estcorruption <- c_theft_estcorruption %>%
+  rename(COUNTRY = iso3c)
+
+# Zeige die ersten Zeilen der transformierten Daten
+#view(c_theft_estcorruption)
+```
+
+
+# c_oth_polstab - Political Stability and Absence of Violence/Terrorism: Estimate(PV.EST) 
+## Political Stability and Absence of Violence/Terrorism measures perceptions of the likelihood of political instability and/or politically-motivated violence, including terrorism. Estimate gives the country's score on the aggregate indicator, in units of a standard normal distribution, i.e. ranging from approximately -2.5 to 2.5.
+```{r}
+countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RAW", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")  
+indicators <- c("PV.EST") 
+
+# Daten abrufen
+c_oth_polstab <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+
+# Spalten umbenennen
+c_oth_polstab <- c_oth_polstab %>%
+  rename(c_oth_polstab = PV.EST) # Control of Corruption (estimate)
+
+# Daten transformieren: Jahre als Spalten darstellen
+c_oth_polstab <- c_oth_polstab %>%
+  pivot_wider(names_from = year, values_from = c_oth_polstab)
+
+# Durchschnitt über alle Jahre berechnen und neue Spalte hinzufügen
+c_oth_polstab <- c_oth_polstab %>%
+  mutate(c_oth_polstab = rowMeans(select(., starts_with("20")), na.rm = TRUE))
+
+# Rename iso3c to COUNTRY
+c_oth_polstab <- c_oth_polstab %>%
+  rename(COUNTRY = iso3c)
+
+# Zeige die ersten Zeilen der transformierten Daten
+#view(c_oth_polstab)
+```
+
+# Join Specifications to hardship_HS
+```{r}
+hardship_Crime <- left_join(hardship_Crime, c_bh_homicide[, c("COUNTRY", "c_bh_homicide")], by = "COUNTRY")
+hardship_Crime <- left_join(hardship_Crime, c_bh_childmalt[, c("COUNTRY", "c_bh_childmalt")], by = "COUNTRY")
+hardship_Crime <- left_join(hardship_Crime, c_bh_violextchildprot[, c("COUNTRY", "c_bh_violextchildprot")], by = "COUNTRY")
+hardship_Crime <- left_join(hardship_Crime, c_bh_parviolenceprog[, c("COUNTRY", "c_bh_parviolenceprog")], by = "COUNTRY")
+hardship_Crime <- left_join(hardship_Crime, c_bh_elderabuse[, c("COUNTRY", "c_bh_elderabuse")], by = "COUNTRY")
+hardship_Crime <- left_join(hardship_Crime, c_bh_inthomicide[, c("COUNTRY", "c_bh_inthomicide")], by = "COUNTRY")
+hardship_Crime <- left_join(hardship_Crime, c_theft_estcorruption[, c("COUNTRY", "c_theft_estcorruption")], by = "COUNTRY")
+hardship_Crime <- left_join(hardship_Crime, c_oth_polstab[, c("COUNTRY", "c_oth_polstab")], by = "COUNTRY")
+
+View(hardship_Crime)
+```
+
+
+```{r}
+# Länder HKG, RAW und TWN aus dem Datensatz entfernen
+hardship_Crime <- hardship_Crime %>%
+  filter(!COUNTRY %in% c("HKG", "TWN", "PSE", "ADO"))
+
+#view(hardship_Crime)
+```
+
+
+
+# select variable of hardship_HS
+```{r}
+hardship_Crime <- hardship_HS %>% select(COUNTRY, country, avg_risktaking, homiciderate, gdp, infantmortality, lifeexpectancy, gini, femalemale_primedu, c_bh_homicide, c_bh_childmalt, c_bh_violextchildprot, c_bh_parviolenceprog, c_bh_elderabuse, c_bh_inthomicide, c_theft_estcorruption, c_oth_polstab)
+str(hardship_Crime)
+```
+
+###################################################################
+```{r}
+# Ensure all relevant variables are numeric and handle NA values appropriately
+hardship_Crime <- hardship_Crime %>%
+  mutate(
+    HS_alc_agelim = as.numeric(HS_alc_agelim),
+    HS_alc_roaddeath = as.numeric(HS_alc_roaddeath),
+    HS_alc_tax_wine = as.numeric(HS_alc_tax_wine), 
+    HS_drg_treatment = as.numeric(HS_drg_treatment), 
+    HS_mh_policy = as.numeric(HS_mh_policy)
+  )
+
+str(hardship_HS)
+```
+
+# Missing values
+
+# Prüfung auf den Mechanismus des Fehlens von Daten
+```{r}
+# Laden des Pakets
+library(mice)
+```
+
+```{r}
+# Little's MCAR-Test durchführen
+mcar_test <- mice::md.pattern(hardship_HS, plot = TRUE)
+
+# Ausgabe des Testergebnisses
+print(mcar_test)
+```
+
+
+```{r}
+# Installieren des naniar Pakets, falls noch nicht geschehen
+if (!require("naniar")) install.packages("naniar")
+
+# Laden des Pakets
+library(naniar)
+
+# Durchführung von Little's MCAR-Test (ähnlich)
+mcar_test <- naniar::mcar_test(hardship_HS)
+
+# Ausgabe des Testergebnisses
+print(mcar_test)
+```
+
+
+```{r}
+library(mice)
+
+library(VIM)
+aggr_plot <- aggr(hardship_HS, col = c('navyblue', 'red'), numbers = TRUE, sortVars = TRUE, 
+                  labels = names(hardship_HS), cex.axis = 0.7, gap = 3, ylab = c("Missing Data", "Pattern"))
+```
+
+
+```{r}
+# Berechnung des Anteils fehlender Werte für jede Variable
+missing_percentages <- sapply(hardship_HS, function(x) {
+  sum(is.na(x)) / length(x) * 100
+})
+
+# Ausgabe der Ergebnisse
+missing_percentages
+
+# Darstellung der Ergebnisse in einem Dataframe
+missing_summary <- data.frame(
+  Variable = names(missing_percentages),
+  MissingPercentage = missing_percentages
+)
+
+# Sortiere die Variablen nach dem Prozentsatz der fehlenden Werte
+missing_summary <- missing_summary[order(-missing_summary$MissingPercentage), ]
+
+# Ausgabe der Tabelle
+print(missing_summary)
+
+```
+
+
+```{r}
+hardship_HS$HS_alc_tax_wine <- as.numeric(as.character(hardship_HS$HS_alc_tax_wine))
+
+
+hardship_HS <- hardship_HS %>%
+  mutate(
+    HS_alc_agelim = as.numeric(HS_alc_agelim),
+    HS_alc_tax_wine = as.numeric(HS_alc_tax_wine), 
+    HS_alc_roaddeath = as.numeric(HS_alc_roaddeath),
+    HS_drg_treatment = as.numeric(HS_drg_treatment),
+    HS_nic_affordability = as.numeric(HS_nic_affordability),
+    HS_mh_policy = as.numeric(HS_mh_policy),
+    HS_sex_gini = as.numeric(HS_sex_gini),
+    HS_oth_obesity = as.numeric(HS_oth_obesity),
+    HS_oth_cleancooking = as.numeric(HS_oth_cleancooking),
+    HS_mh_mhhospit = as.numeric(HS_mh_mhhospit),
+    HS_sex_antiretroviral = as.numeric(HS_sex_antiretroviral)
+  )
+
+# Überprüfe, ob alle Variablen tatsächlich numerisch sind
+sapply(hardship_HS, function(x) all(is.numeric(x)))
+
+# Erstelle einen Methoden-Vektor
+methods <- rep("none", ncol(hardship_HS))
+names(methods) <- colnames(hardship_HS)
+
+# Weisen den relevanten Spalten Imputationsmethoden zu
+methods["avg_risktaking"] <- "pmm"           # Numerisch
+methods["homiciderate"] <- "pmm"             # Numerisch
+methods["gdp"] <- "pmm"                      # Numerisch
+methods["infantmortality"] <- "pmm"          # Numerisch
+methods["lifeexpectancy"] <- "pmm"           # Numerisch
+methods["gini"] <- "pmm"                     # Numerisch
+methods["femalemale_primedu"] <- "pmm"       # Numerisch
+methods["HS_alc_agelim"] <- "pmm"            # Numerisch
+methods["HS_alc_tax_wine"] <- "polr"         # Ordinal (0, 1, 2)
+methods["HS_alc_roaddeath"] <- "pmm"         # Numerisch
+methods["HS_drg_treatment"] <- "polr"        # Ordinal (0, 1, 2)
+methods["HS_nic_affordability"] <- "pmm"     # Numerisch
+methods["HS_mh_policy"] <- "logreg"          # Binär (0, 1)
+methods["HS_sex_gini"] <- "pmm"              # Numerisch
+methods["HS_oth_obesity"] <- "pmm"           # Numerisch
+methods["HS_oth_cleancooking"] <- "pmm"      # Numerisch
+methods["HS_mh_mhhospit"] <- "pmm"           # Numerisch
+methods["HS_sex_antiretroviral"] <- "pmm"    # Numerisch
+```
+
+
+```{r}
+# Auswahl nur der numerischen Spalten
+hardship_HS_numeric <- hardship_HS %>%
+  select(where(is.numeric))
+
+# Überprüfe die Struktur der numerischen Spalten
+str(hardship_HS_numeric)
+
+# Durchführung der Imputation nur für die numerischen Spalten
+library(mice)
+imputed_data <- mice(
+  hardship_HS_numeric,
+  m = 20,            # 5 vollständige Datensätze erzeugen
+  maxit = 50,       # Maximale Iterationen
+  seed = 123        # Reproduzierbarkeit
+)
+
+# Zusammenfassung der Imputationsergebnisse
+summary(imputed_data)
+
+# Zugriff auf den ersten vollständig imputierten Datensatz
+completed_data <- complete(imputed_data, 1)
+
+# Überprüfung der Struktur des vollständigen Datensatzes
+str(completed_data)
+```
+
+
+```{r}
+imputed_data$imp$HS_alc_agelim  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_alc_tax_wine  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_alc_roaddeath  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_drg_treatment  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_nic_affordability  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_mh_policy  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_sex_gini  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_oth_obesity  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_oth_cleancooking  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_mh_mhhospit  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_sex_antiretroviral
+
+# visualisierung
+stripplot(imputed_data, pch = 20, cex = 1.2)  # Verteilung der imputierten Werte
+densityplot(imputed_data)  # Dichte der imputierten Werte
+
+# Imputierte Daten extrahieren
+completed_data <- complete(imputed_data, action = 1)
+```
+
+
+```{r}
+original_mean <- mean(hardship_HS$HS_drg_treatment, na.rm = TRUE)
+imputed_mean <- mean(completed_data$HS_drg_treatment)
+
+original_median <- median(hardship_HS$HS_drg_treatment, na.rm = TRUE)
+imputed_median <- median(completed_data$HS_drg_treatment)
+
+original_sd <- sd(hardship_HS$HS_drg_treatment, na.rm = TRUE)
+imputed_sd <- sd(completed_data$HS_drg_treatment)
+
+list(
+  original_mean = original_mean, 
+  imputed_mean = imputed_mean, 
+  original_median = original_median,
+  imputed_median = imputed_median,
+  original_sd = original_sd,
+  imputed_sd = imputed_sd
+)
+
+original_mean <- mean(hardship_HS$HS_sex_antiretroviral, na.rm = TRUE)
+imputed_mean <- mean(completed_data$HS_sex_antiretroviral)
+
+original_median <- median(hardship_HS$HS_sex_antiretroviral, na.rm = TRUE)
+imputed_median <- median(completed_data$HS_sex_antiretroviral)
+
+original_sd <- sd(hardship_HS$HS_sex_antiretroviral, na.rm = TRUE)
+imputed_sd <- sd(completed_data$HS_sex_antiretroviral)
+
+list(
+  original_mean = original_mean, 
+  imputed_mean = imputed_mean, 
+  original_median = original_median,
+  imputed_median = imputed_median,
+  original_sd = original_sd,
+  imputed_sd = imputed_sd
+)
+```
+
+
+# Füge die imputierten Variablen zurück in den ursprünglichen Datensatz ein:
+```{r}
+hardship_HS <- hardship_HS %>%
+  mutate(
+    HS_alc_agelim = completed_data$HS_alc_agelim,
+    HS_alc_tax_wine = completed_data$HS_alc_tax_wine,
+    HS_alc_roaddeath = completed_data$HS_alc_roaddeath,
+    HS_drg_treatment = completed_data$HS_drg_treatment,
+    HS_nic_affordability = completed_data$HS_nic_affordability,
+    HS_mh_policy = completed_data$HS_mh_policy,
+    HS_sex_gini = completed_data$HS_sex_gini,
+    HS_oth_obesity = completed_data$HS_oth_obesity,
+    HS_oth_cleancooking = completed_data$HS_oth_cleancooking,
+    HS_mh_mhhospit = completed_data$HS_mh_mhhospit, 
+    HS_sex_antiretroviral = completed_data$HS_sex_antiretroviral
+  )
+str(hardship_HS)
+```
+
+
+```{r}
+sum(is.na(hardship_HS$HS_alc_agelim))  # Soll 0 ergeben
+sum(is.na(hardship_HS$HS_alc_roaddeath))  # Soll 0 ergeben
+head(hardship_HS)
+```
+
+
+```{r}
+# Anpassung der Daten vor dem Logarithmieren, Ersetzen von Null oder negativen Werten durch einen kleinen positiven Wert
+hardship_HS <- hardship_HS %>%
+  mutate(
+    HS_mh_mhhospit = ifelse(HS_mh_mhhospit <= 0, 0.1, HS_mh_mhhospit),
+    HS_sex_antiretroviral = ifelse(HS_sex_antiretroviral <= 0, 0.1, HS_sex_antiretroviral)
+  )
+
+# Anwendung der Logarithmus-Transformation mit log1p
+hardship_HS <- hardship_HS %>%
+  mutate(
+    HS_mh_mhhospit = log1p(HS_mh_mhhospit),
+    HS_sex_antiretroviral = log1p(HS_sex_antiretroviral)
+  )
+
+# Überprüfung der Daten nach der Logarithmus-Transformation
+summary(hardship_HS$HS_mh_mhhospit)
+summary(hardship_HS$HS_sex_antiretroviral)
+
+```
+
+## check countryfacts 
+```{r}
+# Plot histograms for each numeric variable
+hardship_HS %>% 
+  select_if(is.numeric) %>% 
+  gather() %>% 
+  ggplot(aes(value)) + 
+  facet_wrap(~key, scales = "free") + 
+  geom_histogram(bins = 30) + 
+  theme_minimal()
+```
+
+## Log Countryfacts 
+```{r}
+# Log-transform the variables using dplyr
+hardship_HS <- hardship_HS %>%
+  mutate(
+    HS_mh_mhhospit = log(HS_mh_mhhospit),
+    HS_nic_affordability = log(HS_nic_affordability),
+    HS_oth_cleancooking = log(HS_oth_cleancooking),
+    HS_oth_obesity = log(HS_oth_obesity),
+    HS_sex_antiretroviral = log(HS_sex_antiretroviral), 
+  )
+
+head(hardship_HS)
+
+# Plot histograms for each numeric variable
+hardship_HS %>% 
+  select_if(is.numeric) %>% 
+  gather() %>% 
+  ggplot(aes(value)) + 
+  facet_wrap(~key, scales = "free") + 
+  geom_histogram(bins = 30) + 
+  theme_minimal()
+```
+
+## Reverse Coding - Standardize and create hardship_HS
+```{r}
+library(dplyr)
+
+# Now apply the scale function after confirming all variables are numeric
+hardship_HS <- hardship_HS %>%
+  mutate(
+    HS_alc_agelim = scale(-HS_alc_agelim), # reverse coding
+    HS_sex_antiretroviral = scale(-as.numeric(HS_sex_antiretroviral)), # reverse coding 
+    HS_oth_cleancooking = scale(-as.numeric(HS_oth_cleancooking)), # reverse coding
+    HS_mh_mhhospit = scale(-as.numeric(HS_mh_mhhospit)), # reverse coding
+    HS_alc_tax_wine = scale(HS_alc_tax_wine),
+    HS_alc_roaddeath = scale(HS_alc_roaddeath),
+    HS_nic_affordability = scale(HS_nic_affordability),
+    HS_sex_gini = scale(HS_sex_gini), 
+    HS_drg_treatment = scale(HS_drg_treatment), 
+    HS_oth_obesity = scale(HS_oth_obesity)
+  ) %>%
+  rowwise() %>%
+  mutate(
+    hardship_HS = mean(c(HS_alc_agelim, HS_sex_antiretroviral, HS_oth_cleancooking, HS_mh_mhhospit, HS_alc_tax_wine, HS_alc_roaddeath, HS_nic_affordability, HS_sex_gini, HS_drg_treatment, HS_mh_policy, HS_oth_obesity), na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+# View the updated hardship_HS data frame
+view(hardship_HS)
+```
+
+```{r}
+write.csv(hardship_HS, file = file.path(base_path, "hardship_HS.csv"), row.names = FALSE)
+```
+
+
+
+
+
+
+
