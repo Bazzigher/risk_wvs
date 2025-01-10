@@ -255,7 +255,6 @@ HS_alc_tax <- HS_alc_tax %>%
 # Anzeigen der ersten Zeilen der Daten, um die Struktur zu überprüfen
 head(HS_alc_roaddeath)
 
-# Falls du eine spezifische Auswahl oder Transformation benötigst, hier ein Beispiel:
 HS_alc_roaddeath <- HS_alc_roaddeath %>%
   select(IndicatorCode, NumericValue, COUNTRY, YEAR, SEX, AGEGROUP) %>%
   mutate(
@@ -701,7 +700,7 @@ hardship_HS <- hardship_HS %>%
 
 # select variable of hardship_HS
 ```{r}
-hardship_HS <- hardship_HS %>% select(COUNTRY, country, avg_risktaking, homiciderate, gdp, infantmortality, lifeexpectancy, lifeexpectancy, gini, femalemale_primedu, HS_alc_agelim, HS_alc_tax_wine, HS_alc_roaddeath, HS_drg_treatment, HS_nic_affordability, HS_mh_policy, HS_sex_gini, HS_oth_obesity, HS_oth_cleancooking, HS_mh_mhhospit, HS_sex_antiretroviral)
+hardship_HS <- hardship_HS %>% select(COUNTRY, country, avg_risktaking, homiciderate, gdp, infantmortality, lifeexpectancy, gini, femalemale_primedu, HS_alc_agelim, HS_alc_tax_wine, HS_alc_roaddeath, HS_drg_treatment, HS_nic_affordability, HS_mh_policy, HS_sex_gini, HS_oth_obesity, HS_oth_cleancooking, HS_mh_mhhospit, HS_sex_antiretroviral)
 str(hardship_HS)
 ```
 
@@ -841,7 +840,7 @@ str(hardship_HS_numeric)
 library(mice)
 imputed_data <- mice(
   hardship_HS_numeric,
-  m = 20,            # 5 vollständige Datensätze erzeugen
+  m = 20,            # 20 vollständige Datensätze erzeugen
   maxit = 50,       # Maximale Iterationen
   seed = 123        # Reproduzierbarkeit
 )
