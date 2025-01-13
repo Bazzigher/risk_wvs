@@ -10,8 +10,8 @@ rm(list = ls())
 
 # Set path Laura: ONLY USE FOR LAURA 
 ```{r}
-base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
-#base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
+#base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
 ```
 
 # Load libraries
@@ -31,7 +31,7 @@ library(rgho)
 ```{r}
 risktaking <- read.csv(file.path(base_path, "gps_wvs_combined.csv"), header=TRUE, as.is=TRUE)
 hardship_Original <- read.csv(file.path(base_path, "countryfacts_cleaned.csv"), header=TRUE, as.is=TRUE)
-#view(hardship_Original)
+#view(risktaking)
 str(risktaking)
 ```
 
@@ -938,7 +938,6 @@ str(hardship_HS)
 ```{r}
 sum(is.na(hardship_HS$HS_alc_agelim))  # Soll 0 ergeben
 sum(is.na(hardship_HS$HS_alc_roaddeath))  # Soll 0 ergeben
-head(hardship_HS)
 ```
 
 ```{r}
@@ -1000,10 +999,6 @@ hardship_HS %>%
 ```
 
 
-```{r}
-head(hardship_HS)
-```
-
 
 ## Reverse Coding - Standardize and create hardship_HS
 ```{r}
@@ -1030,7 +1025,7 @@ hardship_HS <- hardship_HS %>%
   ungroup()
 
 # View the updated hardship_HS data frame
-view(hardship_HS)
+#view(hardship_HS)
 ```
 
 ```{r}

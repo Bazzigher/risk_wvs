@@ -1,0 +1,824 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, results = 'hide', message = FALSE, warning = FALSE)
+rm(list = ls())
+```
+
+# Set path Laura: ONLY USE FOR LAURA 
+```{r}
+#base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
+```
+
+# Load libraries
+```{r}
+library("dplyr")
+library("tidyverse")
+library("tidyr")
+library("WDI")
+
+if (!require("devtools")) install.packages("devtools")
+devtools::install_github("aphp/rgho")
+
+library(rgho)
+```
+
+
+# Load dataset to create Hardship-Index
+```{r}
+risktaking <- read.csv(file.path(base_path, "gps_wvs_combined.csv"), header=TRUE, as.is=TRUE)
+hardship_Original <- read.csv(file.path(base_path, "countryfacts_cleaned.csv"), header=TRUE, as.is=TRUE)
+#view(risktaking)
+str(risktaking)
+```
+
+# Hardship Countrylist
+```{r}
+hardship_Crime <- risktaking %>%
+  group_by(country, isocode) %>%  # Gruppierung nach Land und ISO-Code
+  summarise(
+    avg_age = mean(age, na.rm = TRUE),  # Durchschnittsalter, NA-Werte ignorieren
+    avg_hardship_index = mean(hardship_index, na.rm = TRUE),  # Durchschnittlicher Hardship-Index
+    avg_risktaking = mean(risktaking, na.rm = TRUE),  # Durchschnittliches Risikoverhalten
+  ) %>%
+  rename(COUNTRY = isocode) %>%  # Umbenennen von 'isocode' zu 'COUNTRY'
+  arrange(country)  # Sortieren der Ergebnisse nach Land
+
+hardship_Original <- hardship_Original %>%
+  rename(COUNTRY = code) %>%
+  select(COUNTRY, homiciderate, gdp, infantmortality, lifeexpectancy, gini, femalemale_primedu, hardship_index)
+
+hardship_Crime <- hardship_Original %>%
+  full_join(hardship_Crime, by = "COUNTRY")
+
+# Löschen aller Einträge zu "Serbia and Montenegro"
+risktaking <- risktaking %>%
+  filter(country != "Serbia and Montenegro")
+
+hardship_Crime <- hardship_Crime %>%
+  filter(COUNTRY != "Serbia and Montenegro")
+
+#view(hardship_Crime)
+```
+
+# Naming: 
+# Hardship: 
+# - Health / Safety (HS), Crime (C), Financial (F), Environmental (E)
+
+# Factor: 
+# - HS: Alcohol (alc), Drugs (drg), Nicotine (nic), Mental Health (mh), Sex (sex), Other (oth)
+# - C: Bodily harm (bh), Antisocial (anti), Theft/ fraud (theft), Other (oth)
+# - F: Gambling (gam), Investment (inv), Other (oth)
+# - E: Exposure (exp), Socioeconomic (ses), Other (oth)
+
+
+
+```{r}
+# Setzen der Länder und Indikatoren
+countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")  
+indicators <- c("SH.UHC.OOPC.10.ZS") 
+
+# Daten abrufen
+control <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+
+# Daten transformieren: Jahre als Spalten darstellen
+control <- control %>%
+  pivot_wider(names_from = year, values_from = SH.UHC.OOPC.10.ZS)
+
+# Durchschnitt über alle Jahre berechnen und neue Spalte hinzufügen
+control <- control %>%
+  mutate(control = rowMeans(select(., starts_with("20")), na.rm = TRUE))
+
+# Prüfen, welche Länder keine Werte in der 'control' Spalte haben
+missing_values <- control %>%
+  filter(is.na(control)) %>%
+  select(country)  # Auswahl nur der Länderspalte
+
+# Anzahl der Länder ohne Werte
+num_missing <- nrow(missing_values)
+
+# Ausgabe der Länder ohne Werte und der Anzahl
+print(missing_values)
+print(paste("Anzahl der Länder ohne Werte: ", num_missing))
+```
+
+```{r}
+library("WDI")
+# Suche nach Indikatoren, die das Wort "unemployment" enthalten
+search_results <- WDIsearch(string = "Proportion of population pushed below the 50", field = "name")
+
+# Anzeigen der Suchergebnisse
+print(search_results)
+```
+
+
+#f_inv_acctownership_primaryedu - Account ownership at a financial institution or with a mobile-money-service provider, primary education or less (% of population ages 15+)
+## Account denotes the percentage of respondents who report having an account (by themselves or together with someone else) at a bank or another type of financial institution or report personally using a mobile money service in the past 12 months (primary education or less, % of population ages 15+).
+```{r}
+countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
+indicators <- c("FX.OWN.TOTL.PL.ZS") 
+
+# Daten abrufen
+f_inv_acctownership_primaryedu <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+
+# Spalten umbenennen
+f_inv_acctownership_primaryedu <- f_inv_acctownership_primaryedu %>%
+  rename(f_inv_acctownership_primaryedu = FX.OWN.TOTL.PL.ZS) # Control of Corruption (estimate)
+
+# Daten transformieren: Jahre als Spalten darstellen
+f_inv_acctownership_primaryedu <- f_inv_acctownership_primaryedu %>%
+  pivot_wider(names_from = year, values_from = f_inv_acctownership_primaryedu)
+
+# Durchschnitt über alle Jahre berechnen und neue Spalte hinzufügen
+f_inv_acctownership_primaryedu <- f_inv_acctownership_primaryedu %>%
+  mutate(f_inv_acctownership_primaryedu = rowMeans(select(., starts_with("20")), na.rm = TRUE))
+
+# Rename iso3c to COUNTRY
+f_inv_acctownership_primaryedu <- f_inv_acctownership_primaryedu %>%
+  rename(COUNTRY = iso3c)
+
+# Zeige die ersten Zeilen der transformierten Daten
+head(f_inv_acctownership_primaryedu)
+```
+
+# f_oth_insfinsvcs_exp - Insurance and financial services (% of service exports, BoP)
+## Insurance and financial services cover various types of insurance provided to nonresidents by resident insurance enterprises and vice versa, and financial intermediary and auxiliary services (except those of insurance enterprises and pension funds) exchanged between residents and nonresidents.
+```{r}
+countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
+indicators <- c("BX.GSR.INSF.ZS") 
+
+# Daten abrufen
+f_oth_insfinsvcs_exp <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+
+# Spalten umbenennen
+f_oth_insfinsvcs_exp <- f_oth_insfinsvcs_exp %>%
+  rename(f_oth_insfinsvcs_exp = BX.GSR.INSF.ZS) # Control of Corruption (estimate)
+
+# Daten transformieren: Jahre als Spalten darstellen
+f_oth_insfinsvcs_exp <- f_oth_insfinsvcs_exp %>%
+  pivot_wider(names_from = year, values_from = f_oth_insfinsvcs_exp)
+
+# Durchschnitt über alle Jahre berechnen und neue Spalte hinzufügen
+f_oth_insfinsvcs_exp <- f_oth_insfinsvcs_exp %>%
+  mutate(f_oth_insfinsvcs_exp = rowMeans(select(., starts_with("20")), na.rm = TRUE))
+
+# Rename iso3c to COUNTRY
+f_oth_insfinsvcs_exp <- f_oth_insfinsvcs_exp %>%
+  rename(COUNTRY = iso3c)
+
+# Zeige die ersten Zeilen der transformierten Daten
+head(f_oth_insfinsvcs_exp)
+```
+
+
+# f_oth_insfinsvcs_int - Insurance and financial services (% of service imports, BoP)
+## Insurance and financial services cover various types of insurance provided to nonresidents by resident insurance enterprises and vice versa, and financial intermediary and auxiliary services (except those of insurance enterprises and pension funds) exchanged between residents and nonresidents.
+```{r}
+countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
+indicators <- c("BM.GSR.INSF.ZS") 
+
+# Daten abrufen
+f_oth_insfinsvcs_int <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+
+# Spalten umbenennen
+f_oth_insfinsvcs_int <- f_oth_insfinsvcs_int %>%
+  rename(f_oth_insfinsvcs_int = BM.GSR.INSF.ZS) # Control of Corruption (estimate)
+
+# Daten transformieren: Jahre als Spalten darstellen
+f_oth_insfinsvcs_int <- f_oth_insfinsvcs_int %>%
+  pivot_wider(names_from = year, values_from = f_oth_insfinsvcs_int)
+
+# Durchschnitt über alle Jahre berechnen und neue Spalte hinzufügen
+f_oth_insfinsvcs_int <- f_oth_insfinsvcs_int %>%
+  mutate(f_oth_insfinsvcs_int = rowMeans(select(., starts_with("20")), na.rm = TRUE))
+
+# Rename iso3c to COUNTRY
+f_oth_insfinsvcs_int <- f_oth_insfinsvcs_int %>%
+  rename(COUNTRY = iso3c)
+
+# Zeige die ersten Zeilen der transformierten Daten
+head(f_oth_insfinsvcs_int)
+```
+
+#f_inv_bankfin_invest - Firms using banks to finance investment (% of firms)
+## 	Firms using banks to finance investment are the percentage of firms using banks to finance investments.
+```{r}
+countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
+indicators <- c("IC.FRM.BNKS.ZS") 
+
+# Daten abrufen
+f_inv_bankfin_invest <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+
+# Spalten umbenennen
+f_inv_bankfin_invest <- f_inv_bankfin_invest %>%
+  rename(f_inv_bankfin_invest = IC.FRM.BNKS.ZS) # Control of Corruption (estimate)
+
+# Daten transformieren: Jahre als Spalten darstellen
+f_inv_bankfin_invest <- f_inv_bankfin_invest %>%
+  pivot_wider(names_from = year, values_from = f_inv_bankfin_invest)
+
+# Durchschnitt über alle Jahre berechnen und neue Spalte hinzufügen
+f_inv_bankfin_invest <- f_inv_bankfin_invest %>%
+  mutate(f_inv_bankfin_invest = rowMeans(select(., starts_with("20")), na.rm = TRUE))
+
+# Rename iso3c to COUNTRY
+f_inv_bankfin_invest <- f_inv_bankfin_invest %>%
+  rename(COUNTRY = iso3c)
+
+# Zeige die ersten Zeilen der transformierten Daten
+head(f_inv_bankfin_invest)
+```
+
+
+# f_inv_bankfin_workcap - Firms using banks to finance working capital (% of firms)
+## 	Firms using banks to finance working capital are the percentage of firms using bank loans to finance working capital.
+```{r}
+countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
+indicators <- c("IC.FRM.BKWC.ZS") 
+
+# Daten abrufen
+f_inv_bankfin_workcap <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+
+# Spalten umbenennen
+f_inv_bankfin_workcap <- f_inv_bankfin_workcap %>%
+  rename(f_inv_bankfin_workcap = IC.FRM.BKWC.ZS) # Control of Corruption (estimate)
+
+# Daten transformieren: Jahre als Spalten darstellen
+f_inv_bankfin_workcap <- f_inv_bankfin_workcap %>%
+  pivot_wider(names_from = year, values_from = f_inv_bankfin_workcap)
+
+# Durchschnitt über alle Jahre berechnen und neue Spalte hinzufügen
+f_inv_bankfin_workcap <- f_inv_bankfin_workcap %>%
+  mutate(f_inv_bankfin_workcap = rowMeans(select(., starts_with("20")), na.rm = TRUE))
+
+# Rename iso3c to COUNTRY
+f_inv_bankfin_workcap <- f_inv_bankfin_workcap %>%
+  rename(COUNTRY = iso3c)
+
+# Zeige die ersten Zeilen der transformierten Daten
+head(f_inv_bankfin_workcap)
+```
+
+
+# f_gov_finconsgdp - General Government Final Consumption Expenditure (% of GDP)
+## General government final consumption expenditure (formerly general government consumption) includes all government current expenditures for purchases of goods and services (including compensation of employees). It also includes most expenditures on national defense and security, but excludes government military expenditures that are part of government capital formation.
+```{r}
+countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
+indicators <- c("NE.CON.GOVT.ZS") 
+
+# Daten abrufen
+f_gov_finconsgdp <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+
+# Spalten umbenennen
+f_gov_finconsgdp <- f_gov_finconsgdp %>%
+  rename(f_gov_finconsgdp = NE.CON.GOVT.ZS) # Control of Corruption (estimate)
+
+# Daten transformieren: Jahre als Spalten darstellen
+f_gov_finconsgdp <- f_gov_finconsgdp %>%
+  pivot_wider(names_from = year, values_from = f_gov_finconsgdp)
+
+# Durchschnitt über alle Jahre berechnen und neue Spalte hinzufügen
+f_gov_finconsgdp <- f_gov_finconsgdp %>%
+  mutate(f_gov_finconsgdp = rowMeans(select(., starts_with("20")), na.rm = TRUE))
+
+# Rename iso3c to COUNTRY
+f_gov_finconsgdp <- f_gov_finconsgdp %>%
+  rename(COUNTRY = iso3c)
+
+# Zeige die ersten Zeilen der transformierten Daten
+head(f_gov_finconsgdp)
+```
+
+
+# f_bofp_netfinacct - Net Financial Account (BoP, current US$) 
+## The net financial account shows net acquisition and disposal of financial assets and liabilities. It measures how net lending to or borrowing from nonresidents is financed, and is conceptually equal to the sum of the balances on the current and capital accounts. Data are in current U.S. dollars.
+```{r}
+countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
+indicators <- c("BN.FIN.TOTL.CD") 
+
+# Daten abrufen
+f_bofp_netfinacct <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+
+# Spalten umbenennen
+f_bofp_netfinacct <- f_bofp_netfinacct %>%
+  rename(f_bofp_netfinacct = BN.FIN.TOTL.CD) # Control of Corruption (estimate)
+
+# Daten transformieren: Jahre als Spalten darstellen
+f_bofp_netfinacct <- f_bofp_netfinacct %>%
+  pivot_wider(names_from = year, values_from = f_bofp_netfinacct)
+
+# Durchschnitt über alle Jahre berechnen und neue Spalte hinzufügen
+f_bofp_netfinacct <- f_bofp_netfinacct %>%
+  mutate(f_bofp_netfinacct = rowMeans(select(., starts_with("20")), na.rm = TRUE))
+
+# Rename iso3c to COUNTRY
+f_bofp_netfinacct <- f_bofp_netfinacct %>%
+  rename(COUNTRY = iso3c)
+
+# Zeige die ersten Zeilen der transformierten Daten
+head(f_bofp_netfinacct)
+```
+
+# f_hs_oopexp10 - Proportion of Population Spending More Than 10% of Household Consumption or Income on Out-of-Pocket Health Care Expenditure (%)
+## Proportion of population spending more than 10% of household consumption or income on out-of-pocket health care expenditure. Out-of-pocket health expenditure is defined as any spending incurred by a household when any member uses a health good or service to receive any type of care (preventive, curative, rehabilitative, long-term or palliative care); provided by any type of provider; for any type of disease, illness or health condition; in any type of setting (outpatient, inpatient, at home).
+```{r}
+countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
+indicators <- c("SH.UHC.OOPC.10.ZS") 
+
+# Daten abrufen
+f_hs_oopexp10 <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+
+# Spalten umbenennen
+f_hs_oopexp10 <- f_hs_oopexp10 %>%
+  rename(f_hs_oopexp10 = SH.UHC.OOPC.10.ZS) # Control of Corruption (estimate)
+
+# Daten transformieren: Jahre als Spalten darstellen
+f_hs_oopexp10 <- f_hs_oopexp10 %>%
+  pivot_wider(names_from = year, values_from = f_hs_oopexp10)
+
+# Durchschnitt über alle Jahre berechnen und neue Spalte hinzufügen
+f_hs_oopexp10 <- f_hs_oopexp10 %>%
+  mutate(f_hs_oopexp10 = rowMeans(select(., starts_with("20")), na.rm = TRUE))
+
+# Rename iso3c to COUNTRY
+f_hs_oopexp10 <- f_hs_oopexp10 %>%
+  rename(COUNTRY = iso3c)
+
+# Zeige die ersten Zeilen der transformierten Daten
+head(f_hs_oopexp10)
+```
+
+# f_eco_gdpdefl - Inflation, GDP deflator (annual %)
+## 	Inflation as measured by the annual growth rate of the GDP implicit deflator shows the rate of price change in the economy as a whole. The GDP implicit deflator is the ratio of GDP in current local currency to GDP in constant local currency.
+```{r}
+countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
+indicators <- c("NY.GDP.DEFL.KD.ZG") 
+
+# Daten abrufen
+f_eco_gdpdefl <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+
+# Spalten umbenennen
+f_eco_gdpdefl <- f_eco_gdpdefl %>%
+  rename(f_eco_gdpdefl = NY.GDP.DEFL.KD.ZG) # Control of Corruption (estimate)
+
+# Daten transformieren: Jahre als Spalten darstellen
+f_eco_gdpdefl <- f_eco_gdpdefl %>%
+  pivot_wider(names_from = year, values_from = f_eco_gdpdefl)
+
+# Durchschnitt über alle Jahre berechnen und neue Spalte hinzufügen
+f_eco_gdpdefl <- f_eco_gdpdefl %>%
+  mutate(f_eco_gdpdefl = rowMeans(select(., starts_with("20")), na.rm = TRUE))
+
+# Rename iso3c to COUNTRY
+f_eco_gdpdefl <- f_eco_gdpdefl %>%
+  rename(COUNTRY = iso3c)
+
+# Zeige die ersten Zeilen der transformierten Daten
+head(f_eco_gdpdefl)
+```
+
+# f_eco_gdpdefl_linked - Inflation, GDP deflator: linked series (annual %)
+## Inflation as measured by the annual growth rate of the GDP implicit deflator shows the rate of price change in the economy as a whole. This series has been linked to produce a consistent time series to counteract breaks in series over time due to changes in base years, source data and methodologies. Thus, it may not be comparable with other national accounts series in the database for historical years.
+```{r}
+countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
+indicators <- c("NY.GDP.DEFL.KD.ZG.AD") 
+
+# Daten abrufen
+f_eco_gdpdefl_linked <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+
+# Spalten umbenennen
+f_eco_gdpdefl_linked <- f_eco_gdpdefl_linked %>%
+  rename(f_eco_gdpdefl_linked = NY.GDP.DEFL.KD.ZG.AD) # Control of Corruption (estimate)
+
+# Daten transformieren: Jahre als Spalten darstellen
+f_eco_gdpdefl_linked <- f_eco_gdpdefl_linked %>%
+  pivot_wider(names_from = year, values_from = f_eco_gdpdefl_linked)
+
+# Durchschnitt über alle Jahre berechnen und neue Spalte hinzufügen
+f_eco_gdpdefl_linked <- f_eco_gdpdefl_linked %>%
+  mutate(f_eco_gdpdefl_linked = rowMeans(select(., starts_with("20")), na.rm = TRUE))
+
+# Rename iso3c to COUNTRY
+f_eco_gdpdefl_linked <- f_eco_gdpdefl_linked %>%
+  rename(COUNTRY = iso3c)
+
+# Zeige die ersten Zeilen der transformierten Daten
+head(f_eco_gdpdefl_linked)
+```
+
+# f_hs_oopexp10pc - Proportion of population spending more than 10% of household consumption or income on out-of-pocket health care expenditure (%)
+## Proportion of population spending more than 10% of household consumption or income on out-of-pocket health care expenditure. Out-of-pocket health expenditure is defined as any spending incurred by a household when any member uses a health good or service to receive any type of care (preventive, curative, rehabilitative, long-term or palliative care); provided by any type of provider; for any type of disease, illness or health condition; in any type of setting (outpatient, inpatient, at home).
+```{r}
+# Setzen der Länder und Indikatoren
+countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")  
+indicators <- c("SH.UHC.OOPC.10.ZS") 
+
+# Daten abrufen
+f_hs_oopexp10pc <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+
+# Spalten umbenennen
+f_hs_oopexp10pc <- f_hs_oopexp10pc %>%
+  rename(f_hs_oopexp10pc = SH.UHC.OOPC.10.ZS) # Intentional homicides (per 100,000 people)
+
+# Daten transformieren: Jahre als Spalten darstellen
+f_hs_oopexp10pc <- f_hs_oopexp10pc %>%
+  pivot_wider(names_from = year, values_from = f_hs_oopexp10pc)
+
+# Durchschnitt über alle Jahre berechnen und neue Spalte hinzufügen
+f_hs_oopexp10pc <- f_hs_oopexp10pc %>%
+  mutate(f_hs_oopexp10pc = rowMeans(select(., starts_with("20")), na.rm = TRUE))
+
+# Rename iso3c to COUNTRY
+f_hs_oopexp10pc <- f_hs_oopexp10pc %>%
+  rename(COUNTRY = iso3c)
+
+# Zeige die ersten Zeilen der transformierten Daten
+view(f_hs_oopexp10pc)
+```
+
+# f_hs_oopexp_pov215 - Proportion of population pushed below the $2.15 ($ 2017 PPP) poverty line by out-of-pocket health care expenditure (%)
+## This indicator shows the fraction of a country’s population experiencing out-of-pocket health impoverishing expenditures, defined as expenditures without which the household they live in would have been above the $ 2.15 poverty line, but because of the expenditures is below the poverty line. Out-of-pocket health expenditure is defined as any spending incurred by a household when any member uses a health good or service to receive any type of care (preventive, curative, rehabilitative, long-term or palliative care); provided by any type of provider; for any type of disease, illness or health condition; in any type of setting (outpatient, inpatient, at home).
+```{r}
+# Setzen der Länder und Indikatoren
+countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")  
+indicators <- c("SH.UHC.NOP1.ZS") 
+
+# Daten abrufen
+f_hs_oopexp_pov215 <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+
+# Spalten umbenennen
+f_hs_oopexp_pov215 <- f_hs_oopexp_pov215 %>%
+  rename(f_hs_oopexp_pov215 = SH.UHC.NOP1.ZS) # Control of Corruption: Estimate
+
+# Daten transformieren: Jahre als Spalten darstellen
+f_hs_oopexp_pov215 <- f_hs_oopexp_pov215 %>%
+  pivot_wider(names_from = year, values_from = f_hs_oopexp_pov215)
+
+# Durchschnitt über alle Jahre berechnen und neue Spalte hinzufügen
+f_hs_oopexp_pov215 <- f_hs_oopexp_pov215 %>%
+  mutate(f_hs_oopexp_pov215 = rowMeans(select(., starts_with("20")), na.rm = TRUE))
+
+# Rename iso3c to COUNTRY
+f_hs_oopexp_pov215 <- f_hs_oopexp_pov215 %>%
+  rename(COUNTRY = iso3c)
+
+# Zeige die ersten Zeilen der transformierten Daten
+head(f_hs_oopexp_pov215)
+```
+
+# f_eco_cpi - Inflation, consumer prices (annual %)
+## Inflation as measured by the consumer price index reflects the annual percentage change in the cost to the average consumer of acquiring a basket of goods and services that may be fixed or changed at specified intervals, such as yearly. The Laspeyres formula is generally used.
+```{r}
+countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
+indicators <- c("FP.CPI.TOTL.ZG") 
+
+# Daten abrufen
+f_eco_cpi <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+
+# Spalten umbenennen
+f_eco_cpi <- f_eco_cpi %>%
+  rename(f_eco_cpi = FP.CPI.TOTL.ZG) # Control of Corruption (estimate)
+
+# Daten transformieren: Jahre als Spalten darstellen
+f_eco_cpi <- f_eco_cpi %>%
+  pivot_wider(names_from = year, values_from = f_eco_cpi)
+
+# Durchschnitt über alle Jahre berechnen und neue Spalte hinzufügen
+f_eco_cpi <- f_eco_cpi %>%
+  mutate(f_eco_cpi = rowMeans(select(., starts_with("20")), na.rm = TRUE))
+
+# Rename iso3c to COUNTRY
+f_eco_cpi <- f_eco_cpi %>%
+  rename(COUNTRY = iso3c)
+
+# Zeige die ersten Zeilen der transformierten Daten
+head(f_eco_cpi)
+```
+
+# Join Specifications to hardship_HS
+```{r}
+hardship_Crime <- left_join(hardship_Crime, c_bh_homicide[, c("COUNTRY", "c_bh_homicide")], by = "COUNTRY")
+hardship_Crime <- left_join(hardship_Crime, c_bh_childmalt[, c("COUNTRY", "c_bh_childmalt")], by = "COUNTRY")
+hardship_Crime <- left_join(hardship_Crime, c_bh_violextchildprot[, c("COUNTRY", "c_bh_violextchildprot")], by = "COUNTRY")
+hardship_Crime <- left_join(hardship_Crime, c_bh_parviolenceprog[, c("COUNTRY", "c_bh_parviolenceprog")], by = "COUNTRY")
+hardship_Crime <- left_join(hardship_Crime, c_bh_elderabuse[, c("COUNTRY", "c_bh_elderabuse")], by = "COUNTRY")
+hardship_Crime <- left_join(hardship_Crime, c_bh_inthomicide[, c("COUNTRY", "c_bh_inthomicide")], by = "COUNTRY")
+hardship_Crime <- left_join(hardship_Crime, c_theft_estcorruption[, c("COUNTRY", "c_theft_estcorruption")], by = "COUNTRY")
+hardship_Crime <- left_join(hardship_Crime, c_oth_polstab[, c("COUNTRY", "c_oth_polstab")], by = "COUNTRY")
+
+# View(hardship_Crime)
+```
+
+
+```{r}
+# Länder HKG, RAW und TWN aus dem Datensatz entfernen
+hardship_Crime <- hardship_Crime %>%
+  filter(!COUNTRY %in% c("HKG"))
+
+#view(hardship_Crime)
+```
+
+
+
+# select variable of hardship_HS
+```{r}
+hardship_Crime <- hardship_Crime %>% select(COUNTRY, country, avg_risktaking, homiciderate, gdp, infantmortality, lifeexpectancy, gini, femalemale_primedu, c_bh_homicide, c_bh_childmalt, c_bh_violextchildprot, c_bh_parviolenceprog, c_bh_elderabuse, c_bh_inthomicide, c_theft_estcorruption, c_oth_polstab)
+str(hardship_Crime)
+```
+
+###################################################################
+
+# Missing values
+# Prüfung auf den Mechanismus des Fehlens von Daten
+```{r}
+# Laden des Pakets
+library(mice)
+```
+
+```{r}
+# Little's MCAR-Test durchführen
+mcar_test <- mice::md.pattern(hardship_Crime, plot = TRUE)
+
+# Ausgabe des Testergebnisses
+print(mcar_test)
+```
+
+
+```{r}
+# Installieren des naniar Pakets, falls noch nicht geschehen
+if (!require("naniar")) install.packages("naniar")
+
+# Laden des Pakets
+library(naniar)
+
+# Durchführung von Little's MCAR-Test (ähnlich)
+mcar_test <- naniar::mcar_test(hardship_Crime)
+
+# Ausgabe des Testergebnisses
+print(mcar_test)
+```
+
+
+```{r}
+library(mice)
+
+library(VIM)
+aggr_plot <- aggr(hardship_Crime, col = c('navyblue', 'red'), numbers = TRUE, sortVars = TRUE, 
+                  labels = names(hardship_Crime), cex.axis = 0.7, gap = 3, ylab = c("Missing Data", "Pattern"))
+```
+
+
+```{r}
+# Berechnung des Anteils fehlender Werte für jede Variable
+missing_percentages <- sapply(hardship_Crime, function(x) {
+  sum(is.na(x)) / length(x) * 100
+})
+
+# Ausgabe der Ergebnisse
+missing_percentages
+
+# Darstellung der Ergebnisse in einem Dataframe
+missing_summary <- data.frame(
+  Variable = names(missing_percentages),
+  MissingPercentage = missing_percentages
+)
+
+# Sortiere die Variablen nach dem Prozentsatz der fehlenden Werte
+missing_summary <- missing_summary[order(-missing_summary$MissingPercentage), ]
+
+# Ausgabe der Tabelle
+print(missing_summary)
+
+```
+
+
+```{r}
+hardship_Crime <- hardship_Crime %>%
+  mutate(
+    c_bh_elderabuse = as.numeric(c_bh_elderabuse),
+    c_bh_parviolenceprog = as.numeric(c_bh_parviolenceprog), 
+    c_bh_childmalt = as.numeric(c_bh_childmalt),
+    c_bh_violextchildprot = as.numeric(c_bh_violextchildprot),
+    c_bh_inthomicide = as.numeric(c_bh_inthomicide),
+    c_bh_homicide = as.numeric(c_bh_homicide),
+    c_theft_estcorruption = as.numeric(c_theft_estcorruption),
+    c_oth_polstab = as.numeric(c_oth_polstab)
+  )
+
+# Überprüfe, ob alle Variablen tatsächlich numerisch sind
+sapply(hardship_Crime, function(x) all(is.numeric(x)))
+
+# Erstelle einen Methoden-Vektor
+methods <- rep("none", ncol(hardship_Crime))
+names(methods) <- colnames(hardship_Crime)
+
+# Weisen den relevanten Spalten Imputationsmethoden zu
+methods["avg_risktaking"] <- "pmm"           # Numerisch
+methods["homiciderate"] <- "pmm"             # Numerisch
+methods["gdp"] <- "pmm"                      # Numerisch
+methods["infantmortality"] <- "pmm"          # Numerisch
+methods["lifeexpectancy"] <- "pmm"           # Numerisch
+methods["gini"] <- "pmm"                     # Numerisch
+methods["femalemale_primedu"] <- "pmm"       # Numerisch
+methods["c_bh_homicide"] <- "pmm"           # Numerisch
+methods["c_bh_childmalt"] <- "polr"         # Ordinal (0, 1, 2)
+methods["c_bh_parviolenceprog"] <- "polr"   # Ordinal (0, 1, 2)
+methods["c_bh_elderabuse"] <- "polr"        # Ordinal (0, 1, 2)
+methods["c_bh_violextchildprot"] <- "polr"        # Ordinal (0, 1, 2)
+methods["c_bh_inthomicide"] <- "pmm"     # Numerisch
+methods["c_theft_estcorruption"] <- "pmm"              # Numerisch
+methods["c_oth_polstab"] <- "pmm"           # Numerisch
+```
+
+
+```{r}
+# Auswahl nur der numerischen Spalten
+hardship_Crime <- hardship_Crime %>%
+  select(where(is.numeric))
+
+# Überprüfe die Struktur der numerischen Spalten
+str(hardship_Crime)
+
+# Durchführung der Imputation nur für die numerischen Spalten
+library(mice)
+imputed_data <- mice(
+  hardship_Crime,
+  m = 20,            # 5 vollständige Datensätze erzeugen
+  maxit = 50,       # Maximale Iterationen
+  seed = 123        # Reproduzierbarkeit
+)
+
+# Zusammenfassung der Imputationsergebnisse
+summary(imputed_data)
+
+# Zugriff auf den ersten vollständig imputierten Datensatz
+completed_data <- complete(imputed_data, 1)
+
+# Überprüfung der Struktur des vollständigen Datensatzes
+str(completed_data)
+```
+
+
+```{r}
+imputed_data$imp$c_bh_homicide  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$c_bh_childmalt  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$c_bh_violextchildprot  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$c_bh_parviolenceprog  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$c_bh_elderabuse  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$c_bh_inthomicide  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$c_theft_estcorruption  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$c_oth_polstab  # Zeigt die imputierten Werte für diese Variable
+
+# visualisierung
+stripplot(imputed_data, pch = 20, cex = 1.2)  # Verteilung der imputierten Werte
+densityplot(imputed_data)  # Dichte der imputierten Werte
+
+# Imputierte Daten extrahieren
+completed_data <- complete(imputed_data, action = 1)
+```
+
+
+```{r}
+# Berechnung der Mittelwerte vor der Imputation
+mean_values_pre_imputation <- sapply(hardship_Crime, function(x) mean(x, na.rm = TRUE))
+
+# Ausgabe der Mittelwerte
+print(mean_values_pre_imputation)
+
+
+# Berechnung der Mittelwerte nach der Imputation
+mean_values_post_imputation <- sapply(completed_data, mean, na.rm = TRUE)
+
+# Ausgabe der Mittelwerte
+print(mean_values_post_imputation)
+
+# Vergleich der Mittelwerte vor und nach der Imputation
+comparison_data <- data.frame(
+  Variable = names(mean_values_pre_imputation),
+  PreImputation = mean_values_pre_imputation,
+  PostImputation = mean_values_post_imputation
+)
+
+# Plotten der Mittelwerte vor und nach der Imputation
+library(ggplot2)
+ggplot(comparison_data, aes(x = Variable)) +
+  geom_bar(aes(y = PreImputation), stat = "identity", fill = "blue", alpha = 0.7) +
+  geom_bar(aes(y = PostImputation), stat = "identity", fill = "red", alpha = 0.5) +
+  theme_minimal() +
+  labs(title = "Vergleich der Mittelwerte vor und nach der Imputation",
+       y = "Mittelwert",
+       fill = "Legende") +
+  scale_fill_manual(values = c("Pre-Imputation" = "blue", "Post-Imputation" = "red"))
+
+```
+
+# Füge die imputierten Variablen zurück in den ursprünglichen Datensatz ein:
+```{r}
+# Angenommen, 'hardship_Crime' ist dein Hauptdatensatz und 'completed_data' enthält die imputierten Daten
+hardship_Crime <- hardship_Crime %>%
+  mutate(
+    c_bh_homicide = completed_data$c_bh_homicide,
+    c_bh_childmalt = completed_data$c_bh_childmalt,
+    c_bh_violextchildprot = completed_data$c_bh_violextchildprot,
+    c_bh_parviolenceprog = completed_data$c_bh_parviolenceprog,
+    c_bh_elderabuse = completed_data$c_bh_elderabuse,
+    c_bh_inthomicide = completed_data$c_bh_inthomicide,
+    c_theft_estcorruption = completed_data$c_theft_estcorruption,
+    c_oth_polstab = completed_data$c_oth_polstab
+  )
+
+# Überprüfung der Struktur des aktualisierten Datensatzes
+head(hardship_Crime)
+```
+
+
+```{r}
+sum(is.na(hardship_Crime$c_bh_homicide))  # Soll 0 ergeben
+sum(is.na(hardship_Crime$c_bh_childmalt))  # Soll 0 ergeben
+sum(is.na(hardship_Crime$c_bh_violextchildprot))  # Soll 0 ergeben
+sum(is.na(hardship_Crime$c_bh_parviolenceprog))  # Soll 0 ergeben
+sum(is.na(hardship_Crime$c_bh_elderabuse))  # Soll 0 ergeben
+sum(is.na(hardship_Crime$c_bh_inthomicide))  # Soll 0 ergeben
+sum(is.na(hardship_Crime$c_theft_estcorruption))  # Soll 0 ergeben
+sum(is.na(hardship_Crime$c_oth_polstab))  # Soll 0 ergeben
+```
+
+## check countryfacts 
+```{r}
+# Plot histograms for each numeric variable
+hardship_Crime %>% 
+  select_if(is.numeric) %>% 
+  gather() %>% 
+  ggplot(aes(value)) + 
+  facet_wrap(~key, scales = "free") + 
+  geom_histogram(bins = 30) + 
+  theme_minimal()
+```
+
+## Log Countryfacts 
+```{r}
+# Log-transform the variables using dplyr
+hardship_Crime <- hardship_Crime %>%
+  mutate(
+    c_bh_homicide = log(c_bh_homicide),
+    c_bh_inthomicide = log(c_bh_inthomicide),
+  )
+
+head(hardship_Crime)
+
+# Plot histograms for each numeric variable
+hardship_Crime %>% 
+  select_if(is.numeric) %>% 
+  gather() %>% 
+  ggplot(aes(value)) + 
+  facet_wrap(~key, scales = "free") + 
+  geom_histogram(bins = 30) + 
+  theme_minimal()
+```
+
+
+```{r}
+head(hardship_Crime)
+```
+
+
+## Reverse Coding - Standardize and create hardship_HS
+```{r}
+library(dplyr)
+
+# Now apply the scale function after confirming all variables are numeric
+hardship_Crime <- hardship_Crime %>%
+  mutate(
+    c_bh_homicide = scale(c_bh_homicide),
+    c_bh_childmalt = scale(c_bh_childmalt), 
+    c_bh_parviolenceprog = scale(c_bh_parviolenceprog), 
+    c_bh_elderabuse = scale(c_bh_elderabuse), 
+    c_bh_violextchildprot = scale(-c_bh_violextchildprot),
+    c_bh_inthomicide = scale(c_bh_inthomicide),
+    c_theft_estcorruption = scale(-c_theft_estcorruption), # reverse coding
+    c_oth_polstab = scale(-c_oth_polstab) # reverse coding
+  ) %>%
+  rowwise() %>%
+  mutate(
+    hardship_Crime_index = mean(c(c_bh_homicide, c_bh_childmalt, c_bh_parviolenceprog, c_bh_elderabuse, c_bh_violextchildprot, c_bh_inthomicide, c_theft_estcorruption, c_theft_estcorruption, c_oth_polstab), na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+# View the updated hardship_Crime data frame
+#view(hardship_Crime)
+```
+
+```{r}
+write.csv(hardship_Crime, file = file.path(base_path, "hardship_crime.csv"), row.names = FALSE)
+```
+
+
+
+
+
+
+

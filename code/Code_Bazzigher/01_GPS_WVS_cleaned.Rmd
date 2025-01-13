@@ -253,8 +253,8 @@ country_counts <- wvs_data %>%
 
 # Print the result
 print(country_counts)
-```
 
+```
 
 ## Remove missing variables and rename countries
 ```{r}
@@ -268,10 +268,13 @@ wvs_data <- wvs_data %>%
   mutate(country = ifelse(country == "Great Britain", "United Kingdom",
                    ifelse(country == "Viet Nam", "Vietnam", country)))
 
+head(wvs_data)
+
 country_counts <- wvs_data %>%
   count(country)
 
 print(country_counts)
+
 ```
 
 
@@ -305,6 +308,7 @@ print(country_counts)
 
 # Display the updated data
 head(wvs_data)
+#view(wvs_data)
 ```
 
 ## Dichotomizing variables 
@@ -323,43 +327,33 @@ wvs_data <- wvs_data %>%
 
 print(wvs_data)
 print(countryfacts)
+#view(wvs_data)
 ```
 
 ## Create dataset for mixed-models 
 ```{r}
-WVS_data <- left_join(wvs_data, countryfacts, by = "country")
-WVS_data
+view(countryfacts)
+view(wvs_data)
 
-unique(WVS_data$country)
-str(WVS_data)
-```
+wvs_data <- left_join(wvs_data, countryfacts, by = "country")
+wvs_data
 
-# Change wrong isocode (change 10.01.2025)
-```{r}
-library(dplyr)
-
-# RAW in RWA in der Spalte code umwandeln
-WVS_data <- WVS_data %>%
-  mutate(code = ifelse(code == "RAW", "RWA", code))
-
-# Überprüfen, ob die Umwandlung erfolgreich war
-unique(WVS_data$code)
+unique(wvs_data$country)
+str(wvs_data)
 ```
 
 ```{r}
-country_counts <- WVS_data %>%
+country_counts <- wvs_data %>%
   count(country)
 
 # Print the result
 print(country_counts)
 ```
 
-
 # write cvs
 ## write csv countryfacts
 ```{r}
 write.csv(countryfacts, file = file.path(base_path, "countryfacts_cleaned.csv"), row.names = FALSE)
-view(countryfacts)
 ```
 
 ## write csv gps_data
@@ -368,5 +362,5 @@ write.csv(gps_data, file = file.path(base_path, "gps_cleaned.csv"), row.names = 
 ```
 ## write csv
 ```{r}
-write.csv(WVS_data, file = file.path(base_path, "wvs_cleaned.csv"), row.names = FALSE)
+write.csv(wvs_data, file = file.path(base_path, "wvs_cleaned.csv"), row.names = FALSE)
 ```
