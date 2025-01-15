@@ -10,8 +10,8 @@ rm(list = ls())
 
 # Set path Laura: ONLY USE FOR LAURA 
 ```{r}
-#base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
-base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
+base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+#base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
 ```
 
 # Load libraries
@@ -38,7 +38,7 @@ str(risktaking)
 
 # Hardship Countrylist
 ```{r}
-hardship_Crime <- risktaking %>%
+hardship_Finance <- risktaking %>%
   group_by(country, isocode) %>%  # Gruppierung nach Land und ISO-Code
   summarise(
     avg_age = mean(age, na.rm = TRUE),  # Durchschnittsalter, NA-Werte ignorieren
@@ -52,17 +52,17 @@ hardship_Original <- hardship_Original %>%
   rename(COUNTRY = code) %>%
   select(COUNTRY, homiciderate, gdp, infantmortality, lifeexpectancy, gini, femalemale_primedu, hardship_index)
 
-hardship_Crime <- hardship_Original %>%
-  full_join(hardship_Crime, by = "COUNTRY")
+hardship_Finance <- hardship_Original %>%
+  full_join(hardship_Finance, by = "COUNTRY")
 
 # Löschen aller Einträge zu "Serbia and Montenegro"
 risktaking <- risktaking %>%
   filter(country != "Serbia and Montenegro")
 
-hardship_Crime <- hardship_Crime %>%
+hardship_Finance <- hardship_Finance %>%
   filter(COUNTRY != "Serbia and Montenegro")
 
-#view(hardship_Crime)
+#view(hardship_Finance)
 ```
 
 # Naming: 
@@ -116,7 +116,7 @@ print(search_results)
 ```
 
 
-#f_inv_acctownership_primaryedu - Account ownership at a financial institution or with a mobile-money-service provider, primary education or less (% of population ages 15+)
+# f_inv_acctownership_primaryedu - Account ownership at a financial institution or with a mobile-money-service provider, primary education or less (% of population ages 15+)
 ## Account denotes the percentage of respondents who report having an account (by themselves or together with someone else) at a bank or another type of financial institution or report personally using a mobile money service in the past 12 months (primary education or less, % of population ages 15+).
 ```{r}
 countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
@@ -141,8 +141,16 @@ f_inv_acctownership_primaryedu <- f_inv_acctownership_primaryedu %>%
 f_inv_acctownership_primaryedu <- f_inv_acctownership_primaryedu %>%
   rename(COUNTRY = iso3c)
 
+# Werte mit 0 oder NaN durch NA ersetzen
+f_inv_acctownership_primaryedu <- f_inv_acctownership_primaryedu %>%
+  mutate(f_inv_acctownership_primaryedu = case_when(
+    is.nan(f_inv_acctownership_primaryedu) ~ NA_real_,
+    f_inv_acctownership_primaryedu == 0 ~ NA_real_,
+    TRUE ~ f_inv_acctownership_primaryedu
+  ))
+
 # Zeige die ersten Zeilen der transformierten Daten
-head(f_inv_acctownership_primaryedu)
+#view(f_inv_acctownership_primaryedu)
 ```
 
 # f_oth_insfinsvcs_exp - Insurance and financial services (% of service exports, BoP)
@@ -170,8 +178,16 @@ f_oth_insfinsvcs_exp <- f_oth_insfinsvcs_exp %>%
 f_oth_insfinsvcs_exp <- f_oth_insfinsvcs_exp %>%
   rename(COUNTRY = iso3c)
 
+# Werte mit 0 oder NaN durch NA ersetzen
+f_oth_insfinsvcs_exp <- f_oth_insfinsvcs_exp %>%
+  mutate(f_oth_insfinsvcs_exp = case_when(
+    is.nan(f_oth_insfinsvcs_exp) ~ NA_real_,
+    f_oth_insfinsvcs_exp == 0 ~ NA_real_,
+    TRUE ~ f_oth_insfinsvcs_exp
+  ))
+
 # Zeige die ersten Zeilen der transformierten Daten
-head(f_oth_insfinsvcs_exp)
+#view(f_oth_insfinsvcs_exp)
 ```
 
 
@@ -200,11 +216,19 @@ f_oth_insfinsvcs_int <- f_oth_insfinsvcs_int %>%
 f_oth_insfinsvcs_int <- f_oth_insfinsvcs_int %>%
   rename(COUNTRY = iso3c)
 
+# Werte mit 0 oder NaN durch NA ersetzen
+f_oth_insfinsvcs_int <- f_oth_insfinsvcs_int %>%
+  mutate(f_oth_insfinsvcs_int = case_when(
+    is.nan(f_oth_insfinsvcs_int) ~ NA_real_,
+    f_oth_insfinsvcs_int == 0 ~ NA_real_,
+    TRUE ~ f_oth_insfinsvcs_int
+  ))
+
 # Zeige die ersten Zeilen der transformierten Daten
-head(f_oth_insfinsvcs_int)
+#view(f_oth_insfinsvcs_int)
 ```
 
-#f_inv_bankfin_invest - Firms using banks to finance investment (% of firms)
+# f_inv_bankfin_invest - Firms using banks to finance investment (% of firms)
 ## 	Firms using banks to finance investment are the percentage of firms using banks to finance investments.
 ```{r}
 countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
@@ -229,8 +253,16 @@ f_inv_bankfin_invest <- f_inv_bankfin_invest %>%
 f_inv_bankfin_invest <- f_inv_bankfin_invest %>%
   rename(COUNTRY = iso3c)
 
+# Werte mit 0 oder NaN durch NA ersetzen
+f_inv_bankfin_invest <- f_inv_bankfin_invest %>%
+  mutate(f_inv_bankfin_invest = case_when(
+    is.nan(f_inv_bankfin_invest) ~ NA_real_,
+    f_inv_bankfin_invest == 0 ~ NA_real_,
+    TRUE ~ f_inv_bankfin_invest
+  ))
+
 # Zeige die ersten Zeilen der transformierten Daten
-head(f_inv_bankfin_invest)
+#view(f_inv_bankfin_invest)
 ```
 
 
@@ -259,14 +291,21 @@ f_inv_bankfin_workcap <- f_inv_bankfin_workcap %>%
 f_inv_bankfin_workcap <- f_inv_bankfin_workcap %>%
   rename(COUNTRY = iso3c)
 
+# Werte mit 0 oder NaN durch NA ersetzen
+f_inv_bankfin_workcap <- f_inv_bankfin_workcap %>%
+  mutate(f_inv_bankfin_workcap = case_when(
+    is.nan(f_inv_bankfin_workcap) ~ NA_real_,
+    f_inv_bankfin_workcap == 0 ~ NA_real_,
+    TRUE ~ f_inv_bankfin_workcap
+  ))
+
 # Zeige die ersten Zeilen der transformierten Daten
-head(f_inv_bankfin_workcap)
+#view(f_inv_bankfin_workcap)
 ```
 
 
 # f_gov_finconsgdp - General Government Final Consumption Expenditure (% of GDP)
 ## General government final consumption expenditure (formerly general government consumption) includes all government current expenditures for purchases of goods and services (including compensation of employees). It also includes most expenditures on national defense and security, but excludes government military expenditures that are part of government capital formation.
-```{r}
 countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
 indicators <- c("NE.CON.GOVT.ZS") 
 
@@ -289,14 +328,20 @@ f_gov_finconsgdp <- f_gov_finconsgdp %>%
 f_gov_finconsgdp <- f_gov_finconsgdp %>%
   rename(COUNTRY = iso3c)
 
+# Werte mit 0 oder NaN durch NA ersetzen
+f_gov_finconsgdp <- f_gov_finconsgdp %>%
+  mutate(f_gov_finconsgdp = case_when(
+    is.nan(f_gov_finconsgdp) ~ NA_real_,
+    f_gov_finconsgdp == 0 ~ NA_real_,
+    TRUE ~ f_gov_finconsgdp
+  ))
+
 # Zeige die ersten Zeilen der transformierten Daten
-head(f_gov_finconsgdp)
-```
+#view(f_gov_finconsgdp)
 
 
 # f_bofp_netfinacct - Net Financial Account (BoP, current US$) 
 ## The net financial account shows net acquisition and disposal of financial assets and liabilities. It measures how net lending to or borrowing from nonresidents is financed, and is conceptually equal to the sum of the balances on the current and capital accounts. Data are in current U.S. dollars.
-```{r}
 countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
 indicators <- c("BN.FIN.TOTL.CD") 
 
@@ -319,9 +364,17 @@ f_bofp_netfinacct <- f_bofp_netfinacct %>%
 f_bofp_netfinacct <- f_bofp_netfinacct %>%
   rename(COUNTRY = iso3c)
 
+# Werte mit 0 oder NaN durch NA ersetzen
+f_bofp_netfinacct <- f_bofp_netfinacct %>%
+  mutate(f_bofp_netfinacct = case_when(
+    is.nan(f_bofp_netfinacct) ~ NA_real_,
+    f_bofp_netfinacct == 0 ~ NA_real_,
+    TRUE ~ f_bofp_netfinacct
+  ))
+
 # Zeige die ersten Zeilen der transformierten Daten
-head(f_bofp_netfinacct)
-```
+#view(f_bofp_netfinacct)
+
 
 # f_hs_oopexp10 - Proportion of Population Spending More Than 10% of Household Consumption or Income on Out-of-Pocket Health Care Expenditure (%)
 ## Proportion of population spending more than 10% of household consumption or income on out-of-pocket health care expenditure. Out-of-pocket health expenditure is defined as any spending incurred by a household when any member uses a health good or service to receive any type of care (preventive, curative, rehabilitative, long-term or palliative care); provided by any type of provider; for any type of disease, illness or health condition; in any type of setting (outpatient, inpatient, at home).
@@ -348,8 +401,16 @@ f_hs_oopexp10 <- f_hs_oopexp10 %>%
 f_hs_oopexp10 <- f_hs_oopexp10 %>%
   rename(COUNTRY = iso3c)
 
+# Werte mit 0 oder NaN durch NA ersetzen
+f_hs_oopexp10 <- f_hs_oopexp10 %>%
+  mutate(f_hs_oopexp10 = case_when(
+    is.nan(f_hs_oopexp10) ~ NA_real_,
+    f_hs_oopexp10 == 0 ~ NA_real_,
+    TRUE ~ f_hs_oopexp10
+  ))
+
 # Zeige die ersten Zeilen der transformierten Daten
-head(f_hs_oopexp10)
+#view(f_hs_oopexp10)
 ```
 
 # f_eco_gdpdefl - Inflation, GDP deflator (annual %)
@@ -378,7 +439,7 @@ f_eco_gdpdefl <- f_eco_gdpdefl %>%
   rename(COUNTRY = iso3c)
 
 # Zeige die ersten Zeilen der transformierten Daten
-head(f_eco_gdpdefl)
+#view(f_eco_gdpdefl)
 ```
 
 # f_eco_gdpdefl_linked - Inflation, GDP deflator: linked series (annual %)
@@ -407,7 +468,7 @@ f_eco_gdpdefl_linked <- f_eco_gdpdefl_linked %>%
   rename(COUNTRY = iso3c)
 
 # Zeige die ersten Zeilen der transformierten Daten
-head(f_eco_gdpdefl_linked)
+#view(f_eco_gdpdefl_linked)
 ```
 
 # f_hs_oopexp10pc - Proportion of population spending more than 10% of household consumption or income on out-of-pocket health care expenditure (%)
@@ -436,14 +497,22 @@ f_hs_oopexp10pc <- f_hs_oopexp10pc %>%
 f_hs_oopexp10pc <- f_hs_oopexp10pc %>%
   rename(COUNTRY = iso3c)
 
+# Werte mit 0 oder NaN durch NA ersetzen
+f_hs_oopexp10pc <- f_hs_oopexp10pc %>%
+  mutate(f_hs_oopexp10pc = case_when(
+    is.nan(f_hs_oopexp10pc) ~ NA_real_,
+    f_hs_oopexp10pc == 0 ~ NA_real_,
+    TRUE ~ f_hs_oopexp10pc
+  ))
+
 # Zeige die ersten Zeilen der transformierten Daten
-view(f_hs_oopexp10pc)
+#view(f_hs_oopexp10pc)
 ```
 
 # f_hs_oopexp_pov215 - Proportion of population pushed below the $2.15 ($ 2017 PPP) poverty line by out-of-pocket health care expenditure (%)
 ## This indicator shows the fraction of a country’s population experiencing out-of-pocket health impoverishing expenditures, defined as expenditures without which the household they live in would have been above the $ 2.15 poverty line, but because of the expenditures is below the poverty line. Out-of-pocket health expenditure is defined as any spending incurred by a household when any member uses a health good or service to receive any type of care (preventive, curative, rehabilitative, long-term or palliative care); provided by any type of provider; for any type of disease, illness or health condition; in any type of setting (outpatient, inpatient, at home).
-```{r}
 # Setzen der Länder und Indikatoren
+```{r}
 countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")  
 indicators <- c("SH.UHC.NOP1.ZS") 
 
@@ -466,8 +535,12 @@ f_hs_oopexp_pov215 <- f_hs_oopexp_pov215 %>%
 f_hs_oopexp_pov215 <- f_hs_oopexp_pov215 %>%
   rename(COUNTRY = iso3c)
 
+# Nur NaN-Werte in NA umwandeln
+f_hs_oopexp_pov215 <- f_hs_oopexp_pov215 %>%
+  mutate(across(everything(), ~ ifelse(is.nan(.), NA, .)))
+
 # Zeige die ersten Zeilen der transformierten Daten
-head(f_hs_oopexp_pov215)
+#view(f_hs_oopexp_pov215)
 ```
 
 # f_eco_cpi - Inflation, consumer prices (annual %)
@@ -495,126 +568,120 @@ f_eco_cpi <- f_eco_cpi %>%
 f_eco_cpi <- f_eco_cpi %>%
   rename(COUNTRY = iso3c)
 
+# Nur NaN-Werte in NA umwandeln
+f_eco_cpi <- f_eco_cpi %>%
+  mutate(across(everything(), ~ ifelse(is.nan(.), NA, .)))
+
 # Zeige die ersten Zeilen der transformierten Daten
-head(f_eco_cpi)
+# view(f_eco_cpi)
 ```
 
 # Join Specifications to hardship_HS
 ```{r}
-hardship_Crime <- left_join(hardship_Crime, c_bh_homicide[, c("COUNTRY", "c_bh_homicide")], by = "COUNTRY")
-hardship_Crime <- left_join(hardship_Crime, c_bh_childmalt[, c("COUNTRY", "c_bh_childmalt")], by = "COUNTRY")
-hardship_Crime <- left_join(hardship_Crime, c_bh_violextchildprot[, c("COUNTRY", "c_bh_violextchildprot")], by = "COUNTRY")
-hardship_Crime <- left_join(hardship_Crime, c_bh_parviolenceprog[, c("COUNTRY", "c_bh_parviolenceprog")], by = "COUNTRY")
-hardship_Crime <- left_join(hardship_Crime, c_bh_elderabuse[, c("COUNTRY", "c_bh_elderabuse")], by = "COUNTRY")
-hardship_Crime <- left_join(hardship_Crime, c_bh_inthomicide[, c("COUNTRY", "c_bh_inthomicide")], by = "COUNTRY")
-hardship_Crime <- left_join(hardship_Crime, c_theft_estcorruption[, c("COUNTRY", "c_theft_estcorruption")], by = "COUNTRY")
-hardship_Crime <- left_join(hardship_Crime, c_oth_polstab[, c("COUNTRY", "c_oth_polstab")], by = "COUNTRY")
+hardship_Finance <- left_join(hardship_Finance, f_inv_acctownership_primaryedu[, c("COUNTRY", "f_inv_acctownership_primaryedu")], by = "COUNTRY")
+hardship_Finance <- left_join(hardship_Finance, f_oth_insfinsvcs_int[, c("COUNTRY", "f_oth_insfinsvcs_int")], by = "COUNTRY")
+hardship_Finance <- left_join(hardship_Finance, f_inv_bankfin_invest[, c("COUNTRY", "f_inv_bankfin_invest")], by = "COUNTRY")
+hardship_Finance <- left_join(hardship_Finance, f_inv_bankfin_workcap[, c("COUNTRY", "f_inv_bankfin_workcap")], by = "COUNTRY")
+hardship_Finance <- left_join(hardship_Finance, f_hs_oopexp10[, c("COUNTRY", "f_hs_oopexp10")], by = "COUNTRY")
+hardship_Finance <- left_join(hardship_Finance, f_eco_gdpdefl_linked[, c("COUNTRY", "f_eco_gdpdefl_linked")], by = "COUNTRY")
+hardship_Finance <- left_join(hardship_Finance, f_hs_oopexp_pov215[, c("COUNTRY", "f_hs_oopexp_pov215")], by = "COUNTRY")
+hardship_Finance <- left_join(hardship_Finance, f_eco_cpi[, c("COUNTRY", "f_eco_cpi")], by = "COUNTRY")
 
-# View(hardship_Crime)
+# View(hardship_Finance)
 ```
 
 
 ```{r}
 # Länder HKG, RAW und TWN aus dem Datensatz entfernen
-hardship_Crime <- hardship_Crime %>%
-  filter(!COUNTRY %in% c("HKG"))
+hardship_Finance <- hardship_Finance %>%
+  filter(!COUNTRY %in% c("HKG", "ADO"))
 
-#view(hardship_Crime)
+#str(hardship_Finance)
 ```
 
 
 
 # select variable of hardship_HS
 ```{r}
-hardship_Crime <- hardship_Crime %>% select(COUNTRY, country, avg_risktaking, homiciderate, gdp, infantmortality, lifeexpectancy, gini, femalemale_primedu, c_bh_homicide, c_bh_childmalt, c_bh_violextchildprot, c_bh_parviolenceprog, c_bh_elderabuse, c_bh_inthomicide, c_theft_estcorruption, c_oth_polstab)
-str(hardship_Crime)
+hardship_Finance <- hardship_Finance %>% select(COUNTRY, country, avg_risktaking, homiciderate, gdp, infantmortality, lifeexpectancy, gini, femalemale_primedu, f_inv_acctownership_primaryedu,  f_oth_insfinsvcs_int, f_inv_bankfin_invest, f_inv_bankfin_workcap, f_hs_oopexp10, f_eco_gdpdefl_linked, f_hs_oopexp_pov215, f_eco_cpi)
+str(hardship_Finance)
 ```
+
+```{r}
+library(corrplot)
+numeric_vars <- hardship_Finance %>% select(where(is.numeric))
+corr_matrix <- cor(numeric_vars, use = "pairwise.complete.obs")
+corrplot(corr_matrix, method = "circle")
+```
+
 
 ###################################################################
 
 # Missing values
-# Prüfung auf den Mechanismus des Fehlens von Daten
-```{r}
-# Laden des Pakets
-library(mice)
-```
-
-```{r}
-# Little's MCAR-Test durchführen
-mcar_test <- mice::md.pattern(hardship_Crime, plot = TRUE)
-
-# Ausgabe des Testergebnisses
-print(mcar_test)
-```
+if (!require("finalfit")) {
+  install.packages("finalfit")
+}
+library(finalfit)
 
 
-```{r}
-# Installieren des naniar Pakets, falls noch nicht geschehen
-if (!require("naniar")) install.packages("naniar")
+# Überblick über fehlende Werte in deinem Datensatz
+hardship_Finance %>%
+  ff_glimpse()
 
-# Laden des Pakets
-library(naniar)
+head(hardship_Finance)
 
-# Durchführung von Little's MCAR-Test (ähnlich)
-mcar_test <- naniar::mcar_test(hardship_Crime)
+# Visualisierung der fehlenden Werte
+hardship_Finance %>%
+  missing_plot()
 
-# Ausgabe des Testergebnisses
-print(mcar_test)
-```
+# Fehlende Werte nach Gruppen analysieren
+hardship_Finance %>%
+  missing_pattern()
 
 
 ```{r}
-library(mice)
-
 library(VIM)
-aggr_plot <- aggr(hardship_Crime, col = c('navyblue', 'red'), numbers = TRUE, sortVars = TRUE, 
-                  labels = names(hardship_Crime), cex.axis = 0.7, gap = 3, ylab = c("Missing Data", "Pattern"))
+
+# Aggregierte Missingness-Visualisierung
+aggr_plot <- aggr(hardship_Finance, col = c('navyblue', 'red'), numbers = TRUE, sortVars = TRUE, 
+                  labels = names(hardship_Finance), cex.axis = 0.7, gap = 3, ylab = c("Missing Data", "Pattern"))
 ```
 
-
 ```{r}
-# Berechnung des Anteils fehlender Werte für jede Variable
-missing_percentages <- sapply(hardship_Crime, function(x) {
+# Fehlende Werte berechnen
+missing_percentages <- sapply(hardship_Finance, function(x) {
   sum(is.na(x)) / length(x) * 100
 })
 
-# Ausgabe der Ergebnisse
-missing_percentages
-
-# Darstellung der Ergebnisse in einem Dataframe
+# Ergebnisse in DataFrame umwandeln
 missing_summary <- data.frame(
   Variable = names(missing_percentages),
   MissingPercentage = missing_percentages
 )
 
-# Sortiere die Variablen nach dem Prozentsatz der fehlenden Werte
+# Nach Prozent sortieren
 missing_summary <- missing_summary[order(-missing_summary$MissingPercentage), ]
 
 # Ausgabe der Tabelle
 print(missing_summary)
-
 ```
 
 
-```{r}
-hardship_Crime <- hardship_Crime %>%
-  mutate(
-    c_bh_elderabuse = as.numeric(c_bh_elderabuse),
-    c_bh_parviolenceprog = as.numeric(c_bh_parviolenceprog), 
-    c_bh_childmalt = as.numeric(c_bh_childmalt),
-    c_bh_violextchildprot = as.numeric(c_bh_violextchildprot),
-    c_bh_inthomicide = as.numeric(c_bh_inthomicide),
-    c_bh_homicide = as.numeric(c_bh_homicide),
-    c_theft_estcorruption = as.numeric(c_theft_estcorruption),
-    c_oth_polstab = as.numeric(c_oth_polstab)
-  )
 
+# Plot Missingness 
+# Beispiel: Missingness von f_hs_oopexp10 in Bezug auf avg_risktaking
+ggplot(hardship_Finance, aes(x = avg_risktaking, y = is.na(f_hs_oopexp10))) +
+  geom_jitter() +
+  labs(title = "Missingness in f_hs_oopexp10 vs avg_risktaking")
+
+
+```{r}
 # Überprüfe, ob alle Variablen tatsächlich numerisch sind
-sapply(hardship_Crime, function(x) all(is.numeric(x)))
+sapply(hardship_Finance, function(x) all(is.numeric(x)))
 
 # Erstelle einen Methoden-Vektor
-methods <- rep("none", ncol(hardship_Crime))
-names(methods) <- colnames(hardship_Crime)
+methods <- rep("none", ncol(hardship_Finance))
+names(methods) <- colnames(hardship_Finance)
 
 # Weisen den relevanten Spalten Imputationsmethoden zu
 methods["avg_risktaking"] <- "pmm"           # Numerisch
@@ -624,33 +691,40 @@ methods["infantmortality"] <- "pmm"          # Numerisch
 methods["lifeexpectancy"] <- "pmm"           # Numerisch
 methods["gini"] <- "pmm"                     # Numerisch
 methods["femalemale_primedu"] <- "pmm"       # Numerisch
-methods["c_bh_homicide"] <- "pmm"           # Numerisch
-methods["c_bh_childmalt"] <- "polr"         # Ordinal (0, 1, 2)
-methods["c_bh_parviolenceprog"] <- "polr"   # Ordinal (0, 1, 2)
-methods["c_bh_elderabuse"] <- "polr"        # Ordinal (0, 1, 2)
-methods["c_bh_violextchildprot"] <- "polr"        # Ordinal (0, 1, 2)
-methods["c_bh_inthomicide"] <- "pmm"     # Numerisch
-methods["c_theft_estcorruption"] <- "pmm"              # Numerisch
-methods["c_oth_polstab"] <- "pmm"           # Numerisch
+methods["f_inv_acctownership_primaryedu"] <- "pmm"           # Numerisch
+methods["f_oth_insfinsvcs_int"] <- "pmm"   # Numerisch
+methods["f_hs_oopexp10"] <- "pmm"              # Numerisch
+methods["f_eco_gdpdefl_linked"] <- "pmm"           # Numerisch
+methods["f_bofp_netfinacct"] <- "pmm"           # Numerisch
 ```
 
 
+
+
 ```{r}
+library(mice)
 # Auswahl nur der numerischen Spalten
-hardship_Crime <- hardship_Crime %>%
+hardship_Finance <- hardship_Finance %>%
   select(where(is.numeric))
 
-# Überprüfe die Struktur der numerischen Spalten
-str(hardship_Crime)
+# Entfernen von f_hs_oopexp10
+#hardship_Finance <- hardship_Finance %>% select(-f_hs_oopexp10)
+hardship_Finance <- hardship_Finance %>% select(-f_inv_bankfin_invest)
+hardship_Finance <- hardship_Finance %>% select(-f_inv_bankfin_workcap)
+hardship_Finance <- hardship_Finance %>% select(-f_hs_oopexp_pov215)
 
-# Durchführung der Imputation nur für die numerischen Spalten
-library(mice)
+
+# Erneute Imputation durchführen
 imputed_data <- mice(
-  hardship_Crime,
-  m = 20,            # 5 vollständige Datensätze erzeugen
-  maxit = 50,       # Maximale Iterationen
-  seed = 123        # Reproduzierbarkeit
+  hardship_Finance,
+  m = 20,
+  maxit = 50,
+  method = "pmm",
+  seed = 123
 )
+
+completed_data <- complete(imputed_data, 1)
+
 
 # Zusammenfassung der Imputationsergebnisse
 summary(imputed_data)
@@ -664,14 +738,23 @@ str(completed_data)
 
 
 ```{r}
-imputed_data$imp$c_bh_homicide  # Zeigt die imputierten Werte für diese Variable
-imputed_data$imp$c_bh_childmalt  # Zeigt die imputierten Werte für diese Variable
-imputed_data$imp$c_bh_violextchildprot  # Zeigt die imputierten Werte für diese Variable
-imputed_data$imp$c_bh_parviolenceprog  # Zeigt die imputierten Werte für diese Variable
-imputed_data$imp$c_bh_elderabuse  # Zeigt die imputierten Werte für diese Variable
-imputed_data$imp$c_bh_inthomicide  # Zeigt die imputierten Werte für diese Variable
-imputed_data$imp$c_theft_estcorruption  # Zeigt die imputierten Werte für diese Variable
-imputed_data$imp$c_oth_polstab  # Zeigt die imputierten Werte für diese Variable
+sapply(hardship_Finance, function(x) all(x == x[1], na.rm = TRUE))
+
+cor_matrix <- cor(hardship_Finance, use = "pairwise.complete.obs")
+high_cor <- which(abs(cor_matrix) > 0.99 & abs(cor_matrix) < 1, arr.ind = TRUE)
+print(high_cor)
+
+sum(complete.cases(hardship_Finance))
+
+```
+
+
+```{r}
+imputed_data$imp$f_inv_acctownership_primaryedu  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$f_oth_insfinsvcs_int  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$f_hs_oopexp10  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$f_eco_gdpdefl_linked  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$f_eco_cpi  # Zeigt die imputierten Werte für diese Variable
 
 # visualisierung
 stripplot(imputed_data, pch = 20, cex = 1.2)  # Verteilung der imputierten Werte
@@ -684,7 +767,7 @@ completed_data <- complete(imputed_data, action = 1)
 
 ```{r}
 # Berechnung der Mittelwerte vor der Imputation
-mean_values_pre_imputation <- sapply(hardship_Crime, function(x) mean(x, na.rm = TRUE))
+mean_values_pre_imputation <- sapply(hardship_Finance, function(x) mean(x, na.rm = TRUE))
 
 # Ausgabe der Mittelwerte
 print(mean_values_pre_imputation)
@@ -716,41 +799,36 @@ ggplot(comparison_data, aes(x = Variable)) +
 
 ```
 
+
 # Füge die imputierten Variablen zurück in den ursprünglichen Datensatz ein:
 ```{r}
-# Angenommen, 'hardship_Crime' ist dein Hauptdatensatz und 'completed_data' enthält die imputierten Daten
-hardship_Crime <- hardship_Crime %>%
+hardship_Finance <- hardship_Finance %>%
   mutate(
-    c_bh_homicide = completed_data$c_bh_homicide,
-    c_bh_childmalt = completed_data$c_bh_childmalt,
-    c_bh_violextchildprot = completed_data$c_bh_violextchildprot,
-    c_bh_parviolenceprog = completed_data$c_bh_parviolenceprog,
-    c_bh_elderabuse = completed_data$c_bh_elderabuse,
-    c_bh_inthomicide = completed_data$c_bh_inthomicide,
-    c_theft_estcorruption = completed_data$c_theft_estcorruption,
-    c_oth_polstab = completed_data$c_oth_polstab
+    f_inv_acctownership_primaryedu = completed_data$f_inv_acctownership_primaryedu,
+    f_oth_insfinsvcs_int = completed_data$f_oth_insfinsvcs_int,
+    f_hs_oopexp10 = completed_data$f_hs_oopexp10,
+    f_eco_gdpdefl_linked = completed_data$f_eco_gdpdefl_linked,
+    f_eco_cpi = completed_data$f_eco_cpi
   )
 
 # Überprüfung der Struktur des aktualisierten Datensatzes
-head(hardship_Crime)
+head(hardship_Finance)
 ```
 
 
 ```{r}
-sum(is.na(hardship_Crime$c_bh_homicide))  # Soll 0 ergeben
-sum(is.na(hardship_Crime$c_bh_childmalt))  # Soll 0 ergeben
-sum(is.na(hardship_Crime$c_bh_violextchildprot))  # Soll 0 ergeben
-sum(is.na(hardship_Crime$c_bh_parviolenceprog))  # Soll 0 ergeben
-sum(is.na(hardship_Crime$c_bh_elderabuse))  # Soll 0 ergeben
-sum(is.na(hardship_Crime$c_bh_inthomicide))  # Soll 0 ergeben
-sum(is.na(hardship_Crime$c_theft_estcorruption))  # Soll 0 ergeben
-sum(is.na(hardship_Crime$c_oth_polstab))  # Soll 0 ergeben
+# Überprüfe, ob es noch fehlende Werte in den relevanten Variablen gibt
+sum(is.na(hardship_Finance$f_inv_acctownership_primaryedu))  # Soll 0 ergeben
+sum(is.na(hardship_Finance$f_oth_insfinsvcs_int))  # Soll 0 ergeben
+sum(is.na(hardship_Finance$f_hs_oopexp10))  # Soll 0 ergeben
+sum(is.na(hardship_Finance$f_eco_gdpdefl_linked))  # Soll 0 ergeben
+sum(is.na(hardship_Finance$f_eco_cpi))  # Soll 0 ergeben
 ```
 
 ## check countryfacts 
 ```{r}
 # Plot histograms for each numeric variable
-hardship_Crime %>% 
+hardship_Finance %>% 
   select_if(is.numeric) %>% 
   gather() %>% 
   ggplot(aes(value)) + 
@@ -762,16 +840,20 @@ hardship_Crime %>%
 ## Log Countryfacts 
 ```{r}
 # Log-transform the variables using dplyr
-hardship_Crime <- hardship_Crime %>%
+hardship_Finance <- hardship_Finance %>%
   mutate(
-    c_bh_homicide = log(c_bh_homicide),
-    c_bh_inthomicide = log(c_bh_inthomicide),
+    f_inv_acctownership_primaryedu = log(f_inv_acctownership_primaryedu),
+    f_oth_insfinsvcs_int = log(f_oth_insfinsvcs_int),
+    f_hs_oopexp10 = log(f_hs_oopexp10),
+    f_eco_gdpdefl_linked = log(f_eco_gdpdefl_linked),
+    f_eco_cpi = log(f_eco_cpi),
+
   )
 
-head(hardship_Crime)
+head(hardship_Finance)
 
 # Plot histograms for each numeric variable
-hardship_Crime %>% 
+hardship_Finance %>% 
   select_if(is.numeric) %>% 
   gather() %>% 
   ggplot(aes(value)) + 
@@ -782,7 +864,7 @@ hardship_Crime %>%
 
 
 ```{r}
-head(hardship_Crime)
+head(hardship_Finance)
 ```
 
 
@@ -790,31 +872,31 @@ head(hardship_Crime)
 ```{r}
 library(dplyr)
 
-# Now apply the scale function after confirming all variables are numeric
-hardship_Crime <- hardship_Crime %>%
+# Skalieren und ggf. Invertieren der Variablen
+hardship_Finance <- hardship_Finance %>%
   mutate(
-    c_bh_homicide = scale(c_bh_homicide),
-    c_bh_childmalt = scale(c_bh_childmalt), 
-    c_bh_parviolenceprog = scale(c_bh_parviolenceprog), 
-    c_bh_elderabuse = scale(c_bh_elderabuse), 
-    c_bh_violextchildprot = scale(-c_bh_violextchildprot),
-    c_bh_inthomicide = scale(c_bh_inthomicide),
-    c_theft_estcorruption = scale(-c_theft_estcorruption), # reverse coding
-    c_oth_polstab = scale(-c_oth_polstab) # reverse coding
+    f_inv_acctownership_primaryedu = scale(-f_inv_acctownership_primaryedu), # reverse coding
+    f_oth_insfinsvcs_int = scale(-f_oth_insfinsvcs_int), # reverse coding
+    f_hs_oopexp10 = scale(f_hs_oopexp10), # keine Umkehrung
+    f_eco_gdpdefl_linked = scale(f_eco_gdpdefl_linked), # keine Umkehrung
+    f_eco_cpi = scale(f_eco_cpi) # keine Umkehrung
   ) %>%
   rowwise() %>%
   mutate(
-    hardship_Crime_index = mean(c(c_bh_homicide, c_bh_childmalt, c_bh_parviolenceprog, c_bh_elderabuse, c_bh_violextchildprot, c_bh_inthomicide, c_theft_estcorruption, c_theft_estcorruption, c_oth_polstab), na.rm = TRUE)
+    hardship_Finance_index = mean(c(f_inv_acctownership_primaryedu, f_oth_insfinsvcs_int, f_hs_oopexp10, f_eco_gdpdefl_linked, f_eco_cpi), na.rm = TRUE)
   ) %>%
   ungroup()
 
-# View the updated hardship_Crime data frame
-#view(hardship_Crime)
+# Überprüfung des aktualisierten Datensatzes
+# View the updated hardship_Finance data frame
+# view(hardship_Finance)
 ```
 
 ```{r}
-write.csv(hardship_Crime, file = file.path(base_path, "hardship_crime.csv"), row.names = FALSE)
+write.csv(hardship_Finance, file = file.path(base_path, "hardship_finance.csv"), row.names = FALSE)
 ```
+
+
 
 
 
