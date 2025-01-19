@@ -1,0 +1,843 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, results = 'hide', message = FALSE, warning = FALSE)
+rm(list = ls())
+```
+
+# Set path Laura: ONLY USE FOR LAURA 
+```{r}
+base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+#base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
+```
+
+# Load libraries
+```{r}
+library("dplyr")
+library("tidyverse")
+library("tidyr")
+library(readxl)
+
+
+if (!require("devtools")) install.packages("devtools")
+devtools::install_github("aphp/rgho")
+
+library(rgho)
+```
+
+
+# Load dataset to create Hardship-Index
+```{r}
+risktaking <- read.csv(file.path(base_path, "gps_wvs_combined.csv"), header=TRUE, as.is=TRUE)
+hardship_Original <- read.csv(file.path(base_path, "countryfacts_cleaned.csv"), header=TRUE, as.is=TRUE)
+firearms <- read_excel(file.path(base_path, "Hardship_complete_2024_Environment.xlsx"))
+#view(risktaking)
+str(firearms)
+```
+
+# Hardship Countrylist
+```{r}
+hardship_environment <- risktaking %>%
+  group_by(country, isocode) %>%  # Gruppierung nach Land und ISO-Code
+  summarise(
+    avg_age = mean(age, na.rm = TRUE),  # Durchschnittsalter, NA-Werte ignorieren
+    avg_hardship_index = mean(hardship_index, na.rm = TRUE),  # Durchschnittlicher Hardship-Index
+    avg_risktaking = mean(risktaking, na.rm = TRUE),  # Durchschnittliches Risikoverhalten
+  ) %>%
+  rename(COUNTRY = isocode) %>%  # Umbenennen von 'isocode' zu 'COUNTRY'
+  arrange(country)  # Sortieren der Ergebnisse nach Land
+
+hardship_Original <- hardship_Original %>%
+  rename(COUNTRY = code) %>%
+  select(COUNTRY, homiciderate, gdp, infantmortality, lifeexpectancy, gini, femalemale_primedu, hardship_index)
+
+hardship_HS <- hardship_Original %>%
+  full_join(hardship_environment, by = "COUNTRY")
+
+#view(hardship_environment)
+```
+
+# Liste aller verfügbaren Dimensionen
+```{r}
+dimensions <- get_gho_dimensions()
+```
+
+# Werte für die Dimension "GHO" abrufen
+```{r}
+gho_values <- get_gho_values("GHO")
+# View(gho_values) # Öffnet die Werte in RStudio
+
+# Beispiel: Suche nach "SA_0000001837"
+gho_values[grepl("SA_0000001699", gho_values$Code), ]
+```
+
+# Naming: 
+# Hardship: 
+# - Health / Safety (HS), Crime (C), Financial (F), Environmental (E)
+
+# Factor: 
+# - HS: Alcohol (alc), Drugs (drg), Nicotine (nic), Mental Health (mh), Sex (sex), Other (oth)
+# - C: Bodily harm (bh), Antisocial (anti), Theft/ fraud (theft), Other (oth)
+# - F: Gambling (gam), Investment (inv), Other (oth)
+# - E: Exposure (exp), Socioeconomic (ses), Other (oth)
+
+# Abrufen der Daten für den spezifischen Indikatorcode
+```{r}
+E_exp_airdeath100k <- get_gho_data(code = "SDGAIRBODA")  # Household and ambient air pollution attributable death rate (per 100 000 population, age-standardized)
+E_exp_disaster <- get_gho_data(code = "SDGDISASTER") # Average death rate due to natural disasters (per 100 000 population)
+E_exp_watersanithyg <- get_gho_data(code = "WSH_10")  # Number of diarrhoea deaths from inadequate water, sanitation and hygiene
+E_exp_watersanithyg100k <- get_gho_data(code = "WSH_3")  # Water, sanitation and hygiene attributable deaths per 100'000 capita
+E_oth_drinkingwater <- get_gho_data(code = "WSH_WATER_BASIC")  # Population using at least basic drinking-water services (%)
+E_oth_safewater <- get_gho_data(code = "WSH_WATER_SAFELY_MANAGED")  # Population using safely managed drinking-water services (%)
+#E_exp_airdeath <- get_gho_data(code = "AIR_35") # Household and ambient air pollution attributable deaths
+#E_exp_airdaly <- get_gho_data(code = "AIR_60") # Household and ambient air pollution attributable DALYs
+#E_oth_climatdeath100k <- get_gho_data(code = "CC_3")  # Climate change attributable deaths per 100'000 capita
+#E_exp_water <- get_gho_data(code = "WSH_10_WAT")  # Number of diarrhoea deaths from inadequate water
+#E_oth_climatdaly100k <- get_gho_data(code = "CC_4")  # Climate change attributable DALYs per 100'000 capita
+#E_oth_climatchilddeath100k <- get_gho_data(code = "CC_6")  # Climate change  attributable deaths per 100'000 children under 5 years
+#E_oth_climatchilddaly100k <- get_gho_data(code = "CC_8")  # Climate change  attributable DALYs per 100'000 children under 5 years
+#E_exp_noise <- get_gho_data(code = "OCC_14")  # Occupational noise attributable DALYs per 100'000 capita
+#E_oth_waterpoll <- get_gho_data(code = "WSH_DOMESTIC_WASTE_SAFELY_TREATED")  # SDG 6.3.1 Proportion of safely treated domestic wastewater flows (%)
+
+# Erste Zeilen der Daten anzeigen
+#view(E_exp_airdeath100k)
+#view(E_exp_disaster)
+#view(E_exp_watersanithyg)
+#view(E_exp_watersanithyg100k)
+#view(E_oth_drinkingwater)
+#view(E_oth_safewater)
+#view(E_oth_climatstrategy)
+```
+
+# Select important rows 
+```{r}
+E_oth_safewater <- E_oth_safewater %>% select(IndicatorCode, NumericValue, COUNTRY, YEAR, RESIDENCEAREATYPE)
+E_oth_drinkingwater <- E_oth_drinkingwater %>% select(IndicatorCode, NumericValue, COUNTRY, YEAR, RESIDENCEAREATYPE)
+E_exp_watersanithyg100k <- E_exp_watersanithyg100k %>% select(IndicatorCode, NumericValue, COUNTRY)
+E_exp_watersanithyg <- E_exp_watersanithyg %>% select(IndicatorCode, NumericValue, COUNTRY, SEX, AGEGROUP)
+E_exp_disaster <- E_exp_disaster %>% select(IndicatorCode, Value, COUNTRY, YEAR)
+E_exp_airdeath100k <- E_exp_airdeath100k %>% select(IndicatorCode, NumericValue, COUNTRY, YEAR, SEX, GHECAUSE)
+
+#view(E_exp_airdeath100k)
+#head(E_oth_safewater)
+#str(E_exp_disaster)
+#head(E_oth_drinkingwater)
+#head(E_exp_watersanithyg100k)
+#head(E_exp_watersanithyg)
+#head(E_exp_disaster)
+#head(E_exp_airdeath100k)
+```
+
+
+# E_oth_safewater
+```{r}
+# 1. Werte in NumericValue in numerische Werte umwandeln
+E_oth_safewater <- E_oth_safewater %>%
+  mutate(NumericValue = as.numeric(NumericValue))
+
+# 2. Alle Zeilen mit NA in COUNTRY löschen
+E_oth_safewater <- E_oth_safewater %>%
+  filter(!is.na(COUNTRY))
+
+# 3. Filtern, um nur Zeilen mit RESIDENCEAREATYPE == "TOTL" zu behalten
+E_oth_safewater <- E_oth_safewater %>%
+  filter(RESIDENCEAREATYPE == "TOTL")
+
+# 4. Die Daten so transformieren, dass die Jahre als Spalten ausgewiesen werden
+E_oth_safewater <- E_oth_safewater %>%
+  select(COUNTRY, YEAR, NumericValue) %>%  # Relevante Spalten auswählen
+  pivot_wider(names_from = YEAR, values_from = NumericValue)  # Jahre als Spalten
+
+# 5. Durchschnitt der Werte zwischen 2005 und 2012 berechnen
+E_oth_safewater <- E_oth_safewater %>%
+  mutate(
+    E_oth_safewater = rowMeans(select(., `2005`:`2012`), na.rm = TRUE) 
+  )
+
+# Überprüfen der Ergebnisse
+head(E_oth_safewater)
+```
+
+# E_oth_drinkingwater
+```{r}
+# 1. Werte in NumericValue in numerische Werte umwandeln
+E_oth_drinkingwater <- E_oth_drinkingwater %>%
+  mutate(NumericValue = as.numeric(NumericValue))
+
+# 2. Alle Zeilen mit NA in COUNTRY löschen
+E_oth_drinkingwater <- E_oth_drinkingwater %>%
+  filter(!is.na(COUNTRY))
+
+# 3. Filtern, um nur Zeilen mit RESIDENCEAREATYPE == "TOTL" zu behalten
+E_oth_drinkingwater <- E_oth_drinkingwater %>%
+  filter(RESIDENCEAREATYPE == "TOTL")
+
+# 4. Die Daten so transformieren, dass die Jahre als Spalten ausgewiesen werden
+E_oth_drinkingwater <- E_oth_drinkingwater %>%
+  select(COUNTRY, YEAR, NumericValue) %>%  # Relevante Spalten auswählen
+  pivot_wider(names_from = YEAR, values_from = NumericValue)  # Jahre als Spalten
+
+# 5. Durchschnitt der Werte zwischen 2005 und 2012 berechnen
+E_oth_drinkingwater <- E_oth_drinkingwater %>%
+  mutate(
+    E_oth_drinkingwater = rowMeans(select(., `2005`:`2012`), na.rm = TRUE)  # Durchschnitt berechnen
+  )
+
+# Überprüfen der Ergebnisse
+head(E_oth_drinkingwater)
+```
+
+# E_exp_watersanithyg100k
+```{r}
+# Umbenennen der Spalte NumericValue in E_exp_watersanithyg100k
+# Sicherstellen, dass NumericValue numerisch ist
+E_exp_watersanithyg100k <- E_exp_watersanithyg100k %>%
+  mutate(NumericValue = as.numeric(NumericValue))
+
+E_exp_watersanithyg100k <- E_exp_watersanithyg100k %>%
+  rename(E_exp_watersanithyg100k = NumericValue)
+
+# Überprüfen der Änderungen
+head(E_exp_watersanithyg100k)
+```
+# E_exp_watersanithyg
+```{r}
+# 1. NumericValue in numerische Werte umwandeln und Spalte umbenennen
+E_exp_watersanithyg <- E_exp_watersanithyg %>%
+  mutate(E_exp_watersanithyg = as.numeric(NumericValue)) %>%  # Umwandlung in numerisch
+  select(-NumericValue)  # Entfernen der alten Spalte NumericValue
+
+# 2. Auswahl von SEX == "BTSX"
+E_exp_watersanithyg <- E_exp_watersanithyg %>%
+  filter(SEX == "BTSX")
+
+# 3. Auswahl von AGEGROUP == "YEARSALL"
+E_exp_watersanithyg <- E_exp_watersanithyg %>%
+  filter(AGEGROUP == "YEARSALL")
+
+# Überprüfen der Änderungen
+head(E_exp_watersanithyg)
+```
+
+# E_exp_disaster
+```{r}
+library(dplyr)
+library(tidyr)
+
+# 1. Spalte `Value` in numerische Werte umwandeln
+E_exp_disaster <- E_exp_disaster %>%
+  mutate(Value = as.numeric(Value))
+
+# 2. Jahre in Spalten umwandeln
+E_exp_disaster <- E_exp_disaster %>%
+  pivot_wider(names_from = YEAR, values_from = Value)
+
+# 3. Durchschnitt von 2005 bis 2012 berechnen und ggf. über alle Jahre mitteln
+E_exp_disaster <- E_exp_disaster %>%
+  rowwise() %>%
+  mutate(
+    Avg_2005_2012 = mean(c_across(`2005`:`2012`), na.rm = TRUE),  # Durchschnitt von 2005 bis 2012
+    E_exp_disaster = ifelse(
+      all(is.na(c_across(`2005`:`2012`))),  # Wenn keine Daten von 2005 bis 2012 vorhanden sind
+      mean(c_across(where(is.numeric)), na.rm = TRUE),  # Durchschnitt über alle Jahre
+      Avg_2005_2012  # Ansonsten bleibt der Durchschnitt von 2005 bis 2012
+    )
+  ) %>%
+  ungroup()
+
+# Überprüfung der Änderungen
+head(E_exp_disaster)
+```
+
+# E_exp_airdeath100k
+```{r}
+library(dplyr)
+library(tidyr)
+
+# 1. Spalte NumericValue in numerische Werte umwandeln
+E_exp_airdeath100k <- E_exp_airdeath100k %>%
+  mutate(NumericValue = as.numeric(NumericValue))
+
+E_exp_airdeath100k <- E_exp_airdeath100k %>%
+  filter(!is.na(COUNTRY))
+
+# 2. Auswahl von BTSX in der Spalte SEX
+E_exp_airdeath100k <- E_exp_airdeath100k %>%
+  filter(SEX == "BTSX")
+
+# 3. Überprüfung und Auswahl von GHE000000
+countries_with_GHE000000 <- E_exp_airdeath100k %>%
+  filter(GHECAUSE == "GHE000000") %>%
+  pull(COUNTRY) %>%
+  unique()
+
+E_exp_airdeath100k <- E_exp_airdeath100k %>%
+  filter(
+    COUNTRY %in% countries_with_GHE000000,  # Nur Länder mit GHE000000 behalten
+    GHECAUSE == "GHE000000"  # Nur GHE000000 behalten
+  )
+
+# 4. Jahre in separate Spalten ausweisen
+E_exp_airdeath100k <- E_exp_airdeath100k %>%
+  select(COUNTRY, YEAR, NumericValue) %>%  # Relevante Spalten auswählen
+  pivot_wider(names_from = YEAR, values_from = NumericValue)
+
+# 5. Durchschnitt zwischen 2005 und 2012 berechnen
+E_exp_airdeath100k <- E_exp_airdeath100k %>%
+  rowwise() %>%
+  mutate(
+    Avg_2005_2012 = mean(c_across(`2010`:`2012`), na.rm = TRUE),  # Durchschnitt 2005–2012
+    E_exp_airdeath100k = ifelse(
+      all(is.na(c_across(`2010`:`2012`))),  # Wenn keine Werte von 2005–2012
+      mean(c_across(where(is.numeric)), na.rm = TRUE),  # Durchschnitt über alle Jahre
+      Avg_2005_2012  # Ansonsten 2005–2012 Durchschnitt
+    )
+  ) %>%
+  ungroup()
+
+# Überprüfen der Änderungen
+head(E_exp_airdeath100k)
+```
+
+```{r}
+library("WDI")
+# Suche nach Indikatoren, die das Wort "unemployment" enthalten
+search_results <- WDIsearch(string = "School Enrollme", field = "name")
+
+# Anzeigen der Suchergebnisse
+print(search_results)
+```
+
+# Naming: 
+# Hardship: 
+# - Health / Safety (HS), Crime (C), Financial (F), Environmental (E)
+
+# Factor: 
+# - HS: Alcohol (alc), Drugs (drg), Nicotine (nic), Mental Health (mh), Sex (sex), Other (oth)
+# - C: Bodily harm (bh), Antisocial (anti), Theft/ fraud (theft), Other (oth)
+# - F: Gambling (gam), Investment (inv), Other (oth)
+# - E: Exposure (exp), Socioeconomic (ses), Other (oth)
+
+
+# E_ses_gini: SI.POV.GINI	- Gini index
+## The Gini index measures the extent to which the distribution of income or consumption among individuals or households within an economy deviates from a perfectly equal distribution. A Gini index of 0 represents perfect equality, while an index of 100 implies perfect inequality.
+```{r}
+countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
+indicators <- c("SI.POV.GINI") 
+
+# Daten abrufen
+E_ses_gini <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+
+# Spalten umbenennen
+E_ses_gini <- E_ses_gini %>%
+  rename(E_ses_gini = SI.POV.GINI) # Control of Corruption (estimate)
+
+# Daten transformieren: Jahre als Spalten darstellen
+E_ses_gini <- E_ses_gini %>%
+  pivot_wider(names_from = year, values_from = E_ses_gini)
+
+# Durchschnitt über alle Jahre berechnen und neue Spalte hinzufügen
+E_ses_gini <- E_ses_gini %>%
+  mutate(E_ses_gini = rowMeans(select(., starts_with("20")), na.rm = TRUE))
+
+# Rename iso3c to COUNTRY
+E_ses_gini <- E_ses_gini %>%
+  rename(COUNTRY = iso3c)
+
+# Werte mit 0 oder NaN durch NA ersetzen
+E_ses_gini <- E_ses_gini %>%
+  mutate(E_ses_gini = case_when(
+    is.nan(E_ses_gini) ~ NA_real_,
+    E_ses_gini == 0 ~ NA_real_,
+    TRUE ~ E_ses_gini
+  ))
+
+# Zeige die ersten Zeilen der transformierten Daten
+#view(E_ses_gini)
+```
+
+
+
+# E_ses_unemployment: SL.UEM.TOTL.ZS - Unemployment, total (% of total labor force) (modeled ILO estimate)
+## Unemployment refers to the share of the labor force that is without work but available for and seeking employment.
+```{r}
+countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
+indicators <- c("SL.UEM.TOTL.ZS") 
+
+# Daten abrufen
+E_ses_unemployment <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+
+# Spalten umbenennen
+E_ses_unemployment <- E_ses_unemployment %>%
+  rename(E_ses_unemployment = SL.UEM.TOTL.ZS)
+
+# Daten transformieren: Jahre als Spalten darstellen
+E_ses_unemployment <- E_ses_unemployment %>%
+  pivot_wider(names_from = year, values_from = E_ses_unemployment)
+
+# Durchschnitt über alle Jahre berechnen und neue Spalte hinzufügen
+E_ses_unemployment <- E_ses_unemployment %>%
+  mutate(E_ses_unemployment = rowMeans(select(., starts_with("20")), na.rm = TRUE))
+
+# Rename iso3c to COUNTRY
+E_ses_unemployment <- E_ses_unemployment %>%
+  rename(COUNTRY = iso3c)
+
+# Werte mit 0 oder NaN durch NA ersetzen
+E_ses_unemployment <- E_ses_unemployment %>%
+  mutate(E_ses_unemployment = case_when(
+    is.nan(E_ses_unemployment) ~ NA_real_,
+    E_ses_unemployment == 0 ~ NA_real_,
+    TRUE ~ E_ses_unemployment
+  ))
+
+# Zeige die ersten Zeilen der transformierten Daten
+#view(E_ses_unemployment)
+```
+
+
+# E_ses_school: SL.UEM.TOTL.ZS - Unemployment, total (% of total labor force) (modeled ILO estimate)
+## Unemployment refers to the share of the labor force that is without work but available for and seeking employment.
+```{r}
+countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
+indicators <- c("SE.ENR.PRSC.FM.ZS") 
+
+# Daten abrufen
+E_ses_school <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+
+# Spalten umbenennen
+E_ses_school <- E_ses_school %>%
+  rename(E_ses_school = `SE.ENR.PRSC.FM.ZS`)
+
+# Daten transformieren: Jahre als Spalten darstellen
+E_ses_school <- E_ses_school %>%
+  pivot_wider(names_from = year, values_from = E_ses_school)
+
+# Durchschnitt über alle Jahre berechnen und neue Spalte hinzufügen
+E_ses_school <- E_ses_school %>%
+  mutate(E_ses_school = rowMeans(select(., starts_with("20")), na.rm = TRUE))
+
+# Rename iso3c to COUNTRY
+E_ses_school <- E_ses_school %>%
+  rename(COUNTRY = iso3c)
+
+# Werte mit 0 oder NaN durch NA ersetzen
+E_ses_school <- E_ses_school %>%
+  mutate(E_ses_school = case_when(
+    is.nan(E_ses_school) ~ NA_real_,
+    E_ses_school == 0 ~ NA_real_,
+    TRUE ~ E_ses_school
+  ))
+
+# Zeige die ersten Zeilen der transformierten Daten
+#view(E_ses_school)
+```
+
+
+# E_ses_water: ER.H2O.FWTL.ZS - Annual freshwater withdrawals, total (% of internal resources)
+## Annual freshwater withdrawals refer to total water withdrawals, not counting evaporation losses from storage basins. Withdrawals also include water from desalination plants in countries where they are a significant source. Withdrawals can exceed 100 percent of total renewable resources where extraction from nonrenewable aquifers or desalination plants is considerable or where there is significant water reuse. Withdrawals for agriculture and industry are total withdrawals for irrigation and livestock production and for direct industrial use (including withdrawals for cooling thermoelectric plants). Withdrawals for domestic uses include drinking water, municipal use or supply, and use for public services, commercial establishments, and homes. 
+```{r}
+countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
+indicators <- c("ER.H2O.FWTL.ZS") 
+
+# Daten abrufen
+E_ses_water <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+
+# Spalten umbenennen
+E_ses_water <- E_ses_water %>%
+  rename(E_ses_water = `ER.H2O.FWTL.ZS`)
+
+# Daten transformieren: Jahre als Spalten darstellen
+E_ses_water <- E_ses_water %>%
+  pivot_wider(names_from = year, values_from = E_ses_water)
+
+# Durchschnitt über alle Jahre berechnen und neue Spalte hinzufügen
+E_ses_water <- E_ses_water %>%
+  mutate(E_ses_water = rowMeans(select(., starts_with("20")), na.rm = TRUE))
+
+# Rename iso3c to COUNTRY
+E_ses_water <- E_ses_water %>%
+  rename(COUNTRY = iso3c)
+
+# Werte mit 0 oder NaN durch NA ersetzen
+E_ses_water <- E_ses_water %>%
+  mutate(E_ses_water = case_when(
+    is.nan(E_ses_water) ~ NA_real_,
+    E_ses_water == 0 ~ NA_real_,
+    TRUE ~ E_ses_water
+  ))
+
+# Zeige die ersten Zeilen der transformierten Daten
+#view(E_ses_water)
+```
+
+
+# Join Specifications to hardship_HS
+```{r}
+hardship_environment <- left_join(hardship_environment, E_oth_safewater[, c("COUNTRY", "E_oth_safewater")], by = "COUNTRY")
+hardship_environment <- left_join(hardship_environment, E_oth_drinkingwater[, c("COUNTRY", "E_oth_drinkingwater")], by = "COUNTRY")
+hardship_environment <- left_join(hardship_environment, E_exp_watersanithyg100k[, c("COUNTRY", "E_exp_watersanithyg100k")], by = "COUNTRY")
+hardship_environment <- left_join(hardship_environment, E_exp_watersanithyg[, c("COUNTRY", "E_exp_watersanithyg")], by = "COUNTRY")
+hardship_environment <- left_join(hardship_environment, E_exp_disaster[, c("COUNTRY", "E_exp_disaster")], by = "COUNTRY")
+hardship_environment <- left_join(hardship_environment, E_exp_airdeath100k[, c("COUNTRY", "E_exp_airdeath100k")], by = "COUNTRY")
+hardship_environment <- left_join(hardship_environment, E_ses_gini[, c("COUNTRY", "E_ses_gini")], by = "COUNTRY")
+hardship_environment <- left_join(hardship_environment, E_ses_unemployment[, c("COUNTRY", "E_ses_unemployment")], by = "COUNTRY")
+hardship_environment <- left_join(hardship_environment, E_ses_school[, c("COUNTRY", "E_ses_school")], by = "COUNTRY")
+hardship_environment <- left_join(hardship_environment, E_ses_water[, c("COUNTRY", "E_ses_water")], by = "COUNTRY")
+
+# View(hardship_environment)
+```
+
+
+
+# Missing values
+
+# Prüfung auf den Mechanismus des Fehlens von Daten
+```{r}
+# Laden des Pakets
+library(mice)
+```
+
+```{r}
+# Little's MCAR-Test durchführen
+mcar_test <- mice::md.pattern(hardship_environment, plot = TRUE)
+
+# Ausgabe des Testergebnisses
+print(mcar_test)
+```
+
+
+```{r}
+# Installieren des naniar Pakets, falls noch nicht geschehen
+if (!require("naniar")) install.packages("naniar")
+
+# Laden des Pakets
+library(naniar)
+
+# Durchführung von Little's MCAR-Test (ähnlich)
+mcar_test <- naniar::mcar_test(hardship_environment)
+
+# Ausgabe des Testergebnisses
+print(mcar_test)
+```
+
+
+```{r}
+library(mice)
+
+library(VIM)
+aggr_plot <- aggr(hardship_environment, col = c('navyblue', 'red'), numbers = TRUE, sortVars = TRUE, 
+                  labels = names(hardship_environment), cex.axis = 0.7, gap = 3, ylab = c("Missing Data", "Pattern"))
+```
+
+
+```{r}
+# Berechnung des Anteils fehlender Werte für jede Variable
+missing_percentages <- sapply(hardship_environment, function(x) {
+  sum(is.na(x)) / length(x) * 100
+})
+
+# Ausgabe der Ergebnisse
+missing_percentages
+
+# Darstellung der Ergebnisse in einem Dataframe
+missing_summary <- data.frame(
+  Variable = names(missing_percentages),
+  MissingPercentage = missing_percentages
+)
+
+# Sortiere die Variablen nach dem Prozentsatz der fehlenden Werte
+missing_summary <- missing_summary[order(-missing_summary$MissingPercentage), ]
+
+# Ausgabe der Tabelle
+print(missing_summary)
+
+```
+
+
+```{r}
+# Überprüfe, ob alle Variablen tatsächlich numerisch sind
+sapply(hardship_HS, function(x) all(is.numeric(x)))
+
+# Erstelle einen Methoden-Vektor
+methods <- rep("none", ncol(hardship_HS))
+names(methods) <- colnames(hardship_HS)
+
+# Weisen den relevanten Spalten Imputationsmethoden zu
+methods["avg_risktaking"] <- "pmm"           # Numerisch
+methods["homiciderate"] <- "pmm"             # Numerisch
+methods["gdp"] <- "pmm"                      # Numerisch
+methods["infantmortality"] <- "pmm"          # Numerisch
+methods["lifeexpectancy"] <- "pmm"           # Numerisch
+methods["gini"] <- "pmm"                     # Numerisch
+methods["femalemale_primedu"] <- "pmm"       # Numerisch
+methods["E_oth_safewater"] <- "pmm"            # Numerisch
+methods["E_exp_watersanithyg100k"] <- "pmm"  # Numerisch
+methods["E_ses_gini"] <- "pmm"         # Numerisch
+methods["E_ses_school"] <- "pmm"        # Numerisch
+methods["E_exp_disaster"] <- "pmm"     # Numerisch
+methods["E_exp_airdeath100k"] <- "pmm"        # Numerisch
+methods["E_exp_watersanithyg"] <- "pmm"              # Numerisch
+methods["E_ses_water"] <- "pmm"           # Numerisch
+methods["E_oth_drinkingwater"] <- "pmm"      # Numerisch
+methods["E_ses_unemployment"] <- "pmm"           # Numerisch
+```
+
+
+```{r}
+# Auswahl nur der numerischen Spalten
+hardship_environment <- hardship_environment %>%
+  select(where(is.numeric))
+
+# Überprüfe die Struktur der numerischen Spalten
+str(hardship_environment)
+
+# Durchführung der Imputation nur für die numerischen Spalten
+library(mice)
+imputed_data <- mice(
+  hardship_environment,
+  m = 20,            # 5 vollständige Datensätze erzeugen
+  maxit = 50,       # Maximale Iterationen
+  seed = 123        # Reproduzierbarkeit
+)
+
+# Zusammenfassung der Imputationsergebnisse
+summary(imputed_data)
+
+# Zugriff auf den ersten vollständig imputierten Datensatz
+completed_data <- complete(imputed_data, 1)
+
+# Überprüfung der Struktur des vollständigen Datensatzes
+str(completed_data)
+```
+
+
+```{r}
+imputed_data$imp$E_oth_safewater  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$E_exp_watersanithyg100k  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$E_ses_gini  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$E_ses_school  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$E_exp_disaster  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$E_exp_airdeath100k  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$E_exp_watersanithyg  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$E_ses_water  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$E_oth_drinkingwater  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$E_ses_unemployment  # Zeigt die imputierten Werte für diese Variable
+
+# visualisierung
+stripplot(imputed_data, pch = 20, cex = 1.2)  # Verteilung der imputierten Werte
+densityplot(imputed_data)  # Dichte der imputierten Werte
+
+# Imputierte Daten extrahieren
+completed_data <- complete(imputed_data, action = 1)
+```
+
+
+```{r}
+# Berechnung der Mittelwerte vor der Imputation
+mean_values_pre_imputation <- sapply(hardship_environment, function(x) mean(x, na.rm = TRUE))
+
+# Ausgabe der Mittelwerte
+print(mean_values_pre_imputation)
+
+
+# Berechnung der Mittelwerte nach der Imputation
+mean_values_post_imputation <- sapply(completed_data, mean, na.rm = TRUE)
+
+# Ausgabe der Mittelwerte
+print(mean_values_post_imputation)
+
+# Vergleich der Mittelwerte vor und nach der Imputation
+comparison_data <- data.frame(
+  Variable = names(mean_values_pre_imputation),
+  PreImputation = mean_values_pre_imputation,
+  PostImputation = mean_values_post_imputation
+)
+
+# Log-Skalierung des Plots
+ggplot(comparison_data, aes(x = Variable)) +
+  geom_bar(aes(y = PreImputation), stat = "identity", fill = "blue", alpha = 0.7) +
+  geom_bar(aes(y = PostImputation), stat = "identity", fill = "red", alpha = 0.5) +
+  scale_y_log10() +  # Logarithmische Skalierung
+  theme_minimal() +
+  labs(title = "Vergleich der Mittelwerte vor und nach der Imputation (Log-Skala)",
+       y = "Mittelwert (log10)",
+       x = "Variable") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+
+
+
+```{r}
+densityplot(imputed_data, ~ E_oth_safewater)
+densityplot(imputed_data, ~ E_exp_airdeath100k)
+```
+
+
+
+# Füge die imputierten Variablen zurück in den ursprünglichen Datensatz ein:
+```{r}
+# Gruppierung entfernen
+hardship_environment <- hardship_environment %>%
+  ungroup()
+
+# Füge die imputierten Variablen zurück in den Datensatz ein
+hardship_environment <- hardship_environment %>%
+  mutate(
+    E_oth_safewater = completed_data$E_oth_safewater,
+    E_exp_watersanithyg100k = completed_data$E_exp_watersanithyg100k,
+    E_ses_gini = completed_data$E_ses_gini,
+    E_ses_school = completed_data$E_ses_school,
+    E_exp_disaster = completed_data$E_exp_disaster,
+    E_exp_airdeath100k = completed_data$E_exp_airdeath100k,
+    E_exp_watersanithyg = completed_data$E_exp_watersanithyg,
+    E_ses_water = completed_data$E_ses_water
+  )
+
+# Struktur überprüfen
+str(hardship_environment)
+```
+
+
+```{r}
+sum(is.na(hardship_environment$E_oth_safewater))  # Soll 0 ergeben
+sum(is.na(hardship_environment$E_exp_watersanithyg100k))  # Soll 0 ergeben
+sum(is.na(hardship_environment$E_ses_gini))  # Soll 0 ergeben
+sum(is.na(hardship_environment$E_ses_school))  # Soll 0 ergeben
+sum(is.na(hardship_environment$E_exp_disaster))  # Soll 0 ergeben
+sum(is.na(hardship_environment$E_exp_airdeath100k))  # Soll 0 ergeben
+sum(is.na(hardship_environment$E_exp_watersanithyg))  # Soll 0 ergeben
+sum(is.na(hardship_environment$E_ses_water))  # Soll 0 ergeben
+```
+
+## check countryfacts 
+```{r}
+# Plot histograms for each numeric variable
+hardship_environment %>% 
+  select_if(is.numeric) %>% 
+  gather() %>% 
+  ggplot(aes(value)) + 
+  facet_wrap(~key, scales = "free") + 
+  geom_histogram(bins = 30) + 
+  theme_minimal()
+```
+
+```{r}
+# 1. Logarithmische Transformation nur für relevante Variablen
+hardship_environment <- hardship_environment %>%
+  mutate(
+    E_exp_watersanithyg = log(E_exp_watersanithyg + 1), # Nur für große Wertebereiche
+    E_ses_water = log(E_ses_water + 1)
+  )
+
+# 2. Winsorisierung nur auf Variablen mit potenziellen Ausreißern
+winsorize <- function(x, lower_quantile = 0.01, upper_quantile = 0.99) {
+  lower <- quantile(x, lower_quantile, na.rm = TRUE)
+  upper <- quantile(x, upper_quantile, na.rm = TRUE)
+  pmin(pmax(x, lower), upper)
+}
+
+hardship_environment <- hardship_environment %>%
+  mutate(
+    E_exp_disaster = winsorize(E_exp_disaster),
+    E_exp_airdeath100k = winsorize(E_exp_airdeath100k),
+    E_ses_unemployment = winsorize(E_ses_unemployment)
+  )
+
+# 3. Keine Anpassung für andere Variablen (z. B. E_oth_safewater)
+# Überprüfen der Struktur nach Transformationen
+view(hardship_environment)
+```
+
+```{r}
+# Anpassung der Daten vor dem Logarithmieren, Ersetzen von Null oder negativen Werten durch einen kleinen positiven Wert
+hardship_environment <- hardship_environment %>%
+  mutate(
+    E_exp_watersanithyg100k = ifelse(E_exp_watersanithyg100k <= 0, 0.1, E_exp_watersanithyg100k),
+    E_exp_disaster = ifelse(E_exp_disaster <= 0, 0.1, E_exp_disaster)
+  )
+
+# Anwendung der Logarithmus-Transformation mit log1p
+hardship_environment <- hardship_environment %>%
+  mutate(
+    E_exp_watersanithyg100k = log1p(E_exp_watersanithyg100k),
+    E_exp_disaster = log1p(E_exp_disaster)
+  )
+
+# Überprüfung der Daten nach der Logarithmus-Transformation
+summary(hardship_environment$E_exp_watersanithyg100k)
+summary(hardship_environment$E_exp_disaster)
+```
+
+
+## Reverse Coding - Standardize and create hardship_environment
+```{r}
+library(dplyr)
+
+# Log-transform the variables using dplyr
+hardship_environment <- hardship_environment %>%
+  mutate(
+    E_oth_safewater = log(E_oth_safewater),
+    E_exp_watersanithyg100k = log(E_exp_watersanithyg100k),
+    E_ses_gini = log(E_ses_gini),
+    E_ses_school = log(E_ses_school),
+    E_exp_disaster = log(E_exp_disaster), 
+    E_exp_airdeath100k = log(E_exp_airdeath100k), 
+    E_oth_drinkingwater = log(E_oth_drinkingwater), 
+    E_ses_unemployment = log(E_ses_unemployment)
+  )
+
+head(hardship_environment)
+str(hardship_environment)
+```
+
+```{r}
+# Plot histograms for each numeric variable
+hardship_environment %>% 
+  select_if(is.numeric) %>% 
+  gather() %>% 
+  ggplot(aes(value)) + 
+  facet_wrap(~key, scales = "free") + 
+  geom_histogram(bins = 30) + 
+  theme_minimal()
+```
+
+## Reverse Coding - Standardize and create hardship_HS
+```{r}
+# Now apply the scale function after confirming all variables are numeric
+hardship_environment <- hardship_environment %>%
+  mutate(
+    E_oth_drinkingwater = scale(-E_oth_drinkingwater), # reverse coding
+    E_oth_safewater = scale(-E_oth_safewater), # reverse coding 
+    E_exp_watersanithyg100k = scale(E_exp_watersanithyg100k),
+    E_ses_gini = scale(-as.numeric(E_ses_gini)), 
+    E_ses_school = scale(E_ses_school),
+    E_exp_disaster = scale(E_exp_disaster),
+    E_exp_airdeath100k = scale(E_exp_airdeath100k),
+    E_exp_watersanithyg = scale(E_exp_watersanithyg), 
+    E_ses_unemployment = scale(E_ses_unemployment), 
+    E_ses_water = scale(E_ses_water)
+  ) %>%
+  rowwise() %>%
+  mutate(
+    hardship_HS = mean(c(E_oth_drinkingwater, E_oth_safewater, E_exp_watersanithyg100k, E_ses_gini, E_ses_school, E_exp_disaster, E_exp_airdeath100k, E_exp_watersanithyg, E_ses_unemployment, E_ses_water), na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+#view(hardship_environment)
+head(hardship_environment)
+str(hardship_environment)
+
+```
+
+
+```{r}
+write.csv(hardship_environment, file = file.path(base_path, "hardship_environment.csv"), row.names = FALSE)
+```
+
+
