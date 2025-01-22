@@ -10,8 +10,8 @@ rm(list = ls())
 
 # Set path Laura: ONLY USE FOR LAURA 
 ```{r}
-base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
-#base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
+#base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
 ```
 
 # Load libraries
@@ -491,7 +491,16 @@ hardship_environment <- left_join(hardship_environment, E_ses_water[, c("COUNTRY
 # View(hardship_environment)
 ```
 
+```{r}
+# Länder HKG, RAW und TWN aus dem Datensatz entfernen
+hardship_environment <- hardship_environment %>%
+  filter(!COUNTRY %in% c("TWN", "AND"))
 
+hardship_environment <- hardship_environment %>%
+  filter(!country %in% c("Serbia and Montenegro"))
+
+#view(hardship_environment)
+```
 
 # Missing values
 
