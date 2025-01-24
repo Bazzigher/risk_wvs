@@ -332,8 +332,8 @@ print(countryfacts)
 
 ## Create dataset for mixed-models 
 ```{r}
-view(countryfacts)
-view(wvs_data)
+#view(countryfacts)
+#view(wvs_data)
 
 wvs_data <- left_join(wvs_data, countryfacts, by = "country")
 wvs_data

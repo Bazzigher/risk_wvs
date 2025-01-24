@@ -34,7 +34,7 @@ library(rgho)
 risktaking <- read.csv(file.path(base_path, "gps_wvs_combined.csv"), header=TRUE, as.is=TRUE)
 hardship_Original <- read.csv(file.path(base_path, "countryfacts_cleaned.csv"), header=TRUE, as.is=TRUE)
 firearms <- read_excel(file.path(base_path, "Hardship_complete_2024_Environment.xlsx"))
-#view(risktaking)
+#view(firearms)
 str(firearms)
 ```
 
@@ -83,6 +83,24 @@ gho_values[grepl("SA_0000001699", gho_values$Code), ]
 # - C: Bodily harm (bh), Antisocial (anti), Theft/ fraud (theft), Other (oth)
 # - F: Gambling (gam), Investment (inv), Other (oth)
 # - E: Exposure (exp), Socioeconomic (ses), Other (oth)
+
+
+
+
+# E_exp_firearms
+```{r}
+# Sicherstellen, dass die Spalte firearms numerisch ist und sie umbenennen
+E_exp_firearms <- firearms %>%
+  mutate(firearms = as.numeric(firearms)) %>%  # Konvertieren von firearms in numerisch
+  rename(E_exp_firearms = firearms)           # Umbenennen in E_exp_firearms
+
+# Die Spalte "code" als "COUNTRY" verwenden
+E_exp_firearms <- E_exp_firearms %>%
+  rename(COUNTRY = code)
+
+# Überprüfen der Änderungen
+head(E_exp_firearms)
+```
 
 # Abrufen der Daten für den spezifischen Indikatorcode
 ```{r}
@@ -151,10 +169,10 @@ E_oth_safewater <- E_oth_safewater %>%
   select(COUNTRY, YEAR, NumericValue) %>%  # Relevante Spalten auswählen
   pivot_wider(names_from = YEAR, values_from = NumericValue)  # Jahre als Spalten
 
-# 5. Durchschnitt der Werte zwischen 2005 und 2012 berechnen
+# 5. Durchschnitt der Werte zwischen 2005 und 2014 berechnen
 E_oth_safewater <- E_oth_safewater %>%
   mutate(
-    E_oth_safewater = rowMeans(select(., `2005`:`2012`), na.rm = TRUE) 
+    E_oth_safewater = rowMeans(select(., `2005`:`2014`), na.rm = TRUE) 
   )
 
 # Überprüfen der Ergebnisse
@@ -180,10 +198,10 @@ E_oth_drinkingwater <- E_oth_drinkingwater %>%
   select(COUNTRY, YEAR, NumericValue) %>%  # Relevante Spalten auswählen
   pivot_wider(names_from = YEAR, values_from = NumericValue)  # Jahre als Spalten
 
-# 5. Durchschnitt der Werte zwischen 2005 und 2012 berechnen
+# 5. Durchschnitt der Werte zwischen 2005 und 2014 berechnen
 E_oth_drinkingwater <- E_oth_drinkingwater %>%
   mutate(
-    E_oth_drinkingwater = rowMeans(select(., `2005`:`2012`), na.rm = TRUE)  # Durchschnitt berechnen
+    E_oth_drinkingwater = rowMeans(select(., `2005`:`2014`), na.rm = TRUE)  # Durchschnitt berechnen
   )
 
 # Überprüfen der Ergebnisse
@@ -235,15 +253,15 @@ E_exp_disaster <- E_exp_disaster %>%
 E_exp_disaster <- E_exp_disaster %>%
   pivot_wider(names_from = YEAR, values_from = Value)
 
-# 3. Durchschnitt von 2005 bis 2012 berechnen und ggf. über alle Jahre mitteln
+# 3. Durchschnitt von 2005 bis 2014 berechnen und ggf. über alle Jahre mitteln
 E_exp_disaster <- E_exp_disaster %>%
   rowwise() %>%
   mutate(
-    Avg_2005_2012 = mean(c_across(`2005`:`2012`), na.rm = TRUE),  # Durchschnitt von 2005 bis 2012
+    Avg_2005_2014 = mean(c_across(`2005`:`2014`), na.rm = TRUE),  # Durchschnitt von 2005 bis 2014
     E_exp_disaster = ifelse(
-      all(is.na(c_across(`2005`:`2012`))),  # Wenn keine Daten von 2005 bis 2012 vorhanden sind
+      all(is.na(c_across(`2005`:`2014`))),  # Wenn keine Daten von 2005 bis 2014 vorhanden sind
       mean(c_across(where(is.numeric)), na.rm = TRUE),  # Durchschnitt über alle Jahre
-      Avg_2005_2012  # Ansonsten bleibt der Durchschnitt von 2005 bis 2012
+      Avg_2005_2014  # Ansonsten bleibt der Durchschnitt von 2005 bis 2014
     )
   ) %>%
   ungroup()
@@ -285,15 +303,15 @@ E_exp_airdeath100k <- E_exp_airdeath100k %>%
   select(COUNTRY, YEAR, NumericValue) %>%  # Relevante Spalten auswählen
   pivot_wider(names_from = YEAR, values_from = NumericValue)
 
-# 5. Durchschnitt zwischen 2005 und 2012 berechnen
+# 5. Durchschnitt zwischen 2005 und 2014 berechnen
 E_exp_airdeath100k <- E_exp_airdeath100k %>%
   rowwise() %>%
   mutate(
-    Avg_2005_2012 = mean(c_across(`2010`:`2012`), na.rm = TRUE),  # Durchschnitt 2005–2012
+    Avg_2005_2014 = mean(c_across(`2010`:`2014`), na.rm = TRUE),  # Durchschnitt 2005–2014
     E_exp_airdeath100k = ifelse(
-      all(is.na(c_across(`2010`:`2012`))),  # Wenn keine Werte von 2005–2012
+      all(is.na(c_across(`2010`:`2014`))),  # Wenn keine Werte von 2005–2014
       mean(c_across(where(is.numeric)), na.rm = TRUE),  # Durchschnitt über alle Jahre
-      Avg_2005_2012  # Ansonsten 2005–2012 Durchschnitt
+      Avg_2005_2014  # Ansonsten 2005–2014 Durchschnitt
     )
   ) %>%
   ungroup()
@@ -329,7 +347,7 @@ countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "B
 indicators <- c("SI.POV.GINI") 
 
 # Daten abrufen
-E_ses_gini <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+E_ses_gini <- WDI(country = countries, indicator = indicators, start = 2005, end = 2014)
 
 # Spalten umbenennen
 E_ses_gini <- E_ses_gini %>%
@@ -368,7 +386,7 @@ countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "B
 indicators <- c("SL.UEM.TOTL.ZS") 
 
 # Daten abrufen
-E_ses_unemployment <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+E_ses_unemployment <- WDI(country = countries, indicator = indicators, start = 2005, end = 2014)
 
 # Spalten umbenennen
 E_ses_unemployment <- E_ses_unemployment %>%
@@ -406,7 +424,7 @@ countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "B
 indicators <- c("SE.ENR.PRSC.FM.ZS") 
 
 # Daten abrufen
-E_ses_school <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+E_ses_school <- WDI(country = countries, indicator = indicators, start = 2005, end = 2014)
 
 # Spalten umbenennen
 E_ses_school <- E_ses_school %>%
@@ -444,7 +462,7 @@ countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "B
 indicators <- c("ER.H2O.FWTL.ZS") 
 
 # Daten abrufen
-E_ses_water <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+E_ses_water <- WDI(country = countries, indicator = indicators, start = 2005, end = 2014)
 
 # Spalten umbenennen
 E_ses_water <- E_ses_water %>%
@@ -487,6 +505,7 @@ hardship_environment <- left_join(hardship_environment, E_ses_gini[, c("COUNTRY"
 hardship_environment <- left_join(hardship_environment, E_ses_unemployment[, c("COUNTRY", "E_ses_unemployment")], by = "COUNTRY")
 hardship_environment <- left_join(hardship_environment, E_ses_school[, c("COUNTRY", "E_ses_school")], by = "COUNTRY")
 hardship_environment <- left_join(hardship_environment, E_ses_water[, c("COUNTRY", "E_ses_water")], by = "COUNTRY")
+hardship_environment <- left_join(hardship_environment, E_exp_firearms[, c("COUNTRY", "E_exp_firearms")], by = "COUNTRY")
 
 # View(hardship_environment)
 ```
@@ -593,6 +612,7 @@ methods["E_exp_watersanithyg"] <- "pmm"              # Numerisch
 methods["E_ses_water"] <- "pmm"           # Numerisch
 methods["E_oth_drinkingwater"] <- "pmm"      # Numerisch
 methods["E_ses_unemployment"] <- "pmm"           # Numerisch
+methods["E_exp_firearms"] <- "pmm"           # Numerisch
 ```
 
 
@@ -635,6 +655,7 @@ imputed_data$imp$E_exp_watersanithyg  # Zeigt die imputierten Werte für diese V
 imputed_data$imp$E_ses_water  # Zeigt die imputierten Werte für diese Variable
 imputed_data$imp$E_oth_drinkingwater  # Zeigt die imputierten Werte für diese Variable
 imputed_data$imp$E_ses_unemployment  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$E_exp_firearms  # Zeigt die imputierten Werte für diese Variable
 
 # visualisierung
 stripplot(imputed_data, pch = 20, cex = 1.2)  # Verteilung der imputierten Werte
@@ -705,7 +726,8 @@ hardship_environment <- hardship_environment %>%
     E_exp_disaster = completed_data$E_exp_disaster,
     E_exp_airdeath100k = completed_data$E_exp_airdeath100k,
     E_exp_watersanithyg = completed_data$E_exp_watersanithyg,
-    E_ses_water = completed_data$E_ses_water
+    E_ses_water = completed_data$E_ses_water,
+    E_exp_firearms = completed_data$E_exp_firearms
   )
 
 # Struktur überprüfen

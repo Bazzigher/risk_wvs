@@ -1,0 +1,926 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, results = 'hide', message = FALSE, warning = FALSE)
+rm(list = ls())
+```
+
+# Set path Laura: ONLY USE FOR LAURA 
+```{r}
+# base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
+```
+
+# Load libraries
+```{r}
+library("dplyr")
+library("tidyverse")
+library("tidyr")
+
+if (!require("devtools")) install.packages("devtools")
+devtools::install_github("aphp/rgho")
+
+library(rgho)
+```
+
+
+# Load dataset to create Hardship-Index
+```{r}
+risktaking <- read.csv(file.path(base_path, "gps_wvs_combined.csv"), header=TRUE, as.is=TRUE)
+hardship_Original <- read.csv(file.path(base_path, "countryfacts_cleaned.csv"), header=TRUE, as.is=TRUE)
+view(hardship_Original)
+str(risktaking)
+```
+
+# Hardship Countrylist
+```{r}
+hardship_HS <- risktaking %>%
+  group_by(country, isocode) %>%  # Gruppierung nach Land und ISO-Code
+  summarise(
+    avg_age = mean(age, na.rm = TRUE),  # Durchschnittsalter, NA-Werte ignorieren
+    avg_hardship_index = mean(hardship_index, na.rm = TRUE),  # Durchschnittlicher Hardship-Index
+    avg_risktaking = mean(risktaking, na.rm = TRUE),  # Durchschnittliches Risikoverhalten
+  ) %>%
+  rename(COUNTRY = isocode) %>%  # Umbenennen von 'isocode' zu 'COUNTRY'
+  arrange(country)  # Sortieren der Ergebnisse nach Land
+
+hardship_Original <- hardship_Original %>%
+  rename(COUNTRY = code) %>%
+  select(COUNTRY, homiciderate, gdp, infantmortality, lifeexpectancy, gini, femalemale_primedu, hardship_index)
+
+hardship_HS <- hardship_Original %>%
+  full_join(hardship_HS, by = "COUNTRY")
+
+view(hardship_HS)
+```
+
+# Liste aller verfügbaren Dimensionen
+```{r}
+dimensions <- get_gho_dimensions()
+```
+
+# Werte für die Dimension "GHO" abrufen
+```{r}
+gho_values <- get_gho_values("GHO")
+# View(gho_values) # Öffnet die Werte in RStudio
+
+# Beispiel: Suche nach "SA_0000001837"
+gho_values[grepl("SA_0000001699", gho_values$Code), ]
+```
+
+# Abrufen der Daten für den spezifischen Indikatorcode
+```{r}
+HS_alc_agelim <- get_gho_data(code = "SA_0000001699") # Age limits off-premise sales
+HS_alc_tax <- get_gho_data(code = "SA_0000001550") # Excise tax on alcoholic beverages
+HS_alc_roaddeath <- get_gho_data(code = "SA_0000001459_AA")  # Road traffic crash deaths, alcohol-attributable, age-standardized death rates, per 100,000 population
+HS_drg_treatment <- get_gho_data(code = "RSUD_220")  # Voluntary treatment for people with drug use disorders in the criminal justice system
+HS_nic_affordability <- get_gho_data(code = "R_afford_gdp")  # Affordability of cigarettes: percentage of GDP per capita required to purchase 2000 cigarettes of the most sold brand
+HS_mh_policy <- get_gho_data(code = "MH_1") # Mental health policy
+HS_sex_gini <- get_gho_data(code = "CCO_3")  # Gender inequality index rank
+HS_sex_antiretroviral <- get_gho_data(code = "HIV_ARTCOVERAGE")  # Estimated antiretroviral therapy coverage among people living with HIV (%)
+HS_oth_obesity <- get_gho_data(code = "NCD_BMI_30A")  # Obesity prevalence
+HS_oth_cleancooking <- get_gho_data(code = "PHE_HHAIR_PROP_POP_CLEAN_FUELS")  # Proportion of population with primary reliance on clean fuels and technologies for cooking (%)
+HS_mh_mhhospit <- get_gho_data(code = "MH_18")  # Mental health units in general hospitals
+
+# Erste Zeilen der Daten anzeigen
+#view(HS_sex_HIV)
+```
+
+# Select important rows 
+```{r}
+HS_alc_agelim <- HS_alc_agelim %>% select(IndicatorCode, Value, COUNTRY, YEAR, ALCOHOLTYPE)
+HS_alc_tax <- HS_alc_tax %>% select(IndicatorCode, Value, COUNTRY, YEAR, ALCOHOLTYPE)
+HS_alc_roaddeath <- HS_alc_roaddeath %>% select(IndicatorCode, NumericValue, COUNTRY, YEAR, SEX, AGEGROUP)
+HS_drg_treatment <- HS_drg_treatment %>% select(IndicatorCode, Value, COUNTRY, YEAR, RSUDTREATMENT)
+HS_nic_affordability <- HS_nic_affordability %>% select(IndicatorCode, NumericValue, COUNTRY, YEAR)
+HS_mh_policy <- HS_mh_policy %>% select(IndicatorCode, Value, COUNTRY)
+HS_sex_gini <- HS_sex_gini %>% select(IndicatorCode, NumericValue, COUNTRY, YEAR)
+HS_sex_antiretroviral <- HS_sex_antiretroviral %>% select(IndicatorCode, NumericValue, COUNTRY, YEAR)
+HS_oth_obesity <- HS_oth_obesity %>% select(IndicatorCode, NumericValue, COUNTRY, YEAR, SEX)
+HS_oth_cleancooking <- HS_oth_cleancooking %>% select(IndicatorCode, NumericValue, COUNTRY, YEAR, RESIDENCEAREATYPE)
+HS_mh_mhhospit <- HS_mh_mhhospit %>% select(IndicatorCode, NumericValue, COUNTRY, YEAR)
+
+# head(HS_alc_agelim)
+#view(HS_alc_agelim)
+```
+
+# HS_alc_agelim
+```{r}
+HS_alc_agelim <- HS_alc_agelim %>%
+  pivot_wider(
+    names_from = ALCOHOLTYPE,   # Werte in ALCOHOLTYPE werden zu Spaltennamen
+    values_from = Value,        # Werte in Value werden in die neuen Spalten geschrieben
+    values_fill = NA            # Fehlende Werte werden durch NA ersetzt
+  )
+
+# Sicherstellen, dass YEAR als Zeichenkette formatiert ist
+HS_alc_agelim <- HS_alc_agelim %>%
+  mutate(YEAR = as.character(YEAR))
+
+# Transformieren der Daten in ein breites Format
+HS_alc_agelim_wide <- HS_alc_agelim %>%
+  pivot_wider(
+    names_from = YEAR,
+    values_from = c(SA_WINE, SA_BEER, SA_SPIRITS),
+    names_sep = "_"
+  )
+
+# Verarbeitung, falls Spalten für die Jahre 2016 und 2019 vorhanden sind
+HS_alc_agelim_selected <- HS_alc_agelim_wide %>%
+  rowwise() %>%
+  mutate(
+    final_SA_WINE = case_when(
+      SA_WINE_2016 == "No data" & !is.na(SA_WINE_2019) ~ SA_WINE_2019,
+      SA_WINE_2016 == "None" ~ "1",
+      SA_WINE_2016 == "Subnational" & !is.na(SA_WINE_2019) ~ SA_WINE_2019,
+      SA_WINE_2016 == "Total ban" ~ "99",
+      !is.na(SA_WINE_2016) ~ SA_WINE_2016,
+      TRUE ~ SA_WINE_2019
+    ),
+    final_SA_BEER = case_when(
+      SA_BEER_2016 == "No data" & !is.na(SA_BEER_2019) ~ SA_BEER_2019,
+      SA_BEER_2016 == "None" ~ "1",
+      SA_BEER_2016 == "Subnational" & !is.na(SA_BEER_2019) ~ SA_BEER_2019,
+      SA_BEER_2016 == "Total ban" ~ "99",
+      !is.na(SA_BEER_2016) ~ SA_BEER_2016,
+      TRUE ~ SA_BEER_2019
+    ),
+    final_SA_SPIRITS = case_when(
+      SA_SPIRITS_2016 == "No data" & !is.na(SA_SPIRITS_2019) ~ SA_SPIRITS_2019,
+      SA_SPIRITS_2016 == "None" ~ "1",
+      SA_SPIRITS_2016 == "Subnational" & !is.na(SA_SPIRITS_2019) ~ SA_SPIRITS_2019,
+      SA_SPIRITS_2016 == "Total ban" ~ "99",
+      !is.na(SA_SPIRITS_2016) ~ SA_SPIRITS_2016,
+      TRUE ~ SA_SPIRITS_2019
+    )
+  ) %>%
+  ungroup() %>%
+  select(COUNTRY, final_SA_WINE, final_SA_BEER, final_SA_SPIRITS)
+
+
+# Transformation der final_SA_WINE, final_SA_BEER, und final_SA_SPIRITS Spalten
+# um die jeweils niedrigsten Werte oder spezifischen Statusinformationen zu erhalten
+HS_alc_agelim_final <- HS_alc_agelim_selected %>%
+  rowwise() %>%
+  mutate(
+    HS_alc_agelim = case_when(
+      # Wenn alle drei Werte "No data" sind, dann "No data"
+      all(c(final_SA_WINE, final_SA_BEER, final_SA_SPIRITS) == "No data", na.rm = TRUE) ~ "No data",
+      # Wenn ein Wert "Subnational" ist, dann "Subnational"
+      any(c(final_SA_WINE, final_SA_BEER, final_SA_SPIRITS) == "Subnational", na.rm = TRUE) ~ "Subnational",
+      # Wenn ein Wert "Total ban" ist, dann "99"
+      any(c(final_SA_WINE, final_SA_BEER, final_SA_SPIRITS) == "99", na.rm = TRUE) ~ "99",
+      # Andernfalls der niedrigste numerische Wert
+      TRUE ~ as.character(min(as.numeric(c(final_SA_WINE, final_SA_BEER, final_SA_SPIRITS)), na.rm = TRUE))
+    )
+  ) %>%
+  ungroup() %>%
+  select(COUNTRY, HS_alc_agelim)
+
+
+# Neue Daten für die Länder erstellen
+updated_values <- tibble(
+  COUNTRY = c("CAN", "HTI", "KWT", "IND", "PSE", "RAW", "NA", "TWN"),
+  HS_alc_agelim = c("18", "1", "99", "18", "16", "1", "18", "18")
+)
+
+# Aktualisieren oder Hinzufügen der neuen Werte
+HS_alc_agelim_final <- HS_alc_agelim_final %>%
+  full_join(updated_values, by = "COUNTRY") %>% # Fügt neue Werte hinzu und aktualisiert vorhandene
+  mutate(
+    HS_alc_agelim = coalesce(HS_alc_agelim.y, HS_alc_agelim.x) # Bevorzugt aktualisierte Werte
+  ) %>%
+  select(COUNTRY, HS_alc_agelim) # Überflüssige Spalten entfernen
+
+# Ergebnis überprüfen
+#view(HS_alc_agelim_final)
+```
+
+# HS_alc_tax
+```{r}
+# Daten in breites Format umwandeln und gleichzeitig Jahre und Alkoholtypen kombinieren
+HS_alc_tax <- HS_alc_tax %>%
+  unite("YearAlcohol", YEAR, ALCOHOLTYPE, sep = "_") %>%  # Kombiniert Jahr und Alkoholtyp zu einer neuen Spalte
+  pivot_wider(
+    names_from = YearAlcohol,   # Die kombinierten Jahr-Alkoholtyp-Werte werden zu Spaltennamen
+    values_from = Value,        # Die Werte in Value werden in die neuen Spalten geschrieben
+    values_fill = list(Value = NA)  # Fehlende Werte werden durch NA ersetzt
+  )
+
+#view(HS_alc_tax)
+```
+
+
+```{r}
+# Sicherstellen, dass nur die benötigten Spalten ausgewählt werden
+HS_alc_tax <- HS_alc_tax %>%
+  select(COUNTRY, `2016_SA_WINE`, `2019_SA_WINE`)
+
+# Neue Spalte 'tax_wine' erstellen
+HS_alc_tax <- HS_alc_tax %>%
+  mutate(HS_alc_tax_wine = case_when(
+    !is.na(`2016_SA_WINE`) & `2016_SA_WINE` != "No data" ~ `2016_SA_WINE`,
+    TRUE ~ `2019_SA_WINE`
+  ))
+
+# Neue Werte für die Länder erstellen
+updated_values_tax <- tibble(
+  COUNTRY = c(
+    "BOL", "HTI", "RAW", "PSE", "TWN", "AFG", "IRN", "SAU", "PAK", "KWT", "LBY", "YEM"
+  ),
+  HS_alc_tax_wine = c(
+    "Yes", "No", "Yes", "No", "Yes", "Total ban", "Total ban", 
+    "Total ban", "Total ban", "Total ban", "Total ban", "Total ban"
+  )
+)
+
+# Bestehenden Datensatz aktualisieren oder Werte ersetzen
+HS_alc_tax <- HS_alc_tax %>%
+  select(COUNTRY, HS_alc_tax_wine) %>% # Sicherstellen, dass nur relevante Spalten vorhanden sind
+  full_join(updated_values_tax, by = "COUNTRY") %>% # Werte ergänzen oder aktualisieren
+  mutate(
+    HS_alc_tax_wine = coalesce(HS_alc_tax_wine.y, HS_alc_tax_wine.x) # Bevorzugt aktualisierte Werte
+  ) %>%
+  select(COUNTRY, HS_alc_tax_wine) # Überflüssige Spalten entfernen
+
+# Ergebnis überprüfen
+#view(HS_alc_tax)
+```
+
+# HS_alc_roaddeath
+```{r}
+# Anzeigen der ersten Zeilen der Daten, um die Struktur zu überprüfen
+head(HS_alc_roaddeath)
+
+# Falls du eine spezifische Auswahl oder Transformation benötigst, hier ein Beispiel:
+HS_alc_roaddeath <- HS_alc_roaddeath %>%
+  select(IndicatorCode, NumericValue, COUNTRY, YEAR, SEX, AGEGROUP) %>%
+  mutate(
+    SEX = case_when(
+      SEX == "MLE" ~ "Male",
+      SEX == "FMLE" ~ "Female",
+      SEX == "BTSX" ~ "Both sexes",
+      TRUE ~ SEX
+    )
+  )
+
+# Überprüfe die aktualisierten Daten
+#view(HS_alc_roaddeath)
+```
+
+```{r}
+HS_alc_roaddeath <- HS_alc_roaddeath %>%
+  unite("sex_age", SEX, AGEGROUP, sep = "_") %>%  # Kombiniere 'SEX' und 'AGEGROUP' für eindeutige Spaltennamen
+  pivot_wider(
+    names_from = sex_age,    # Verwende die kombinierte 'sex_age' Spalte für neue Spaltennamen
+    values_from = NumericValue,  # Die Werte, die in die neuen Spalten gehen
+    values_fill = list(NumericValue = NA)  # Setze NA, wo keine Daten vorhanden sind
+  )
+
+# Nur relevante Spalten auswählen
+HS_alc_roaddeath <- HS_alc_roaddeath %>% 
+  select(IndicatorCode, COUNTRY, `Both sexes_YEARSALL`)
+
+# Spalte korrekt umbenennen
+HS_alc_roaddeath <- HS_alc_roaddeath %>%
+  rename(HS_alc_roaddeath = `Both sexes_YEARSALL`)
+
+# Ergebnis überprüfen
+#head(HS_alc_roaddeath)
+```
+
+# HS_drg_treatment
+```{r}
+# Vorher solltest du sicherstellen, dass du die Bibliotheken geladen hast
+library(tidyr)
+library(dplyr)
+
+# Umgewandelte Daten für RSUDTREATMENT
+HS_drg_treatment <- HS_drg_treatment %>%
+  pivot_wider(
+    names_from = RSUDTREATMENT,        # Verwende RSUDTREATMENT als Basis für die neuen Spaltennamen
+    values_from = Value,               # Die Werte, die in die neuen Spalten gehen
+    values_fill = list(Value = NA)     # Setze NA, wo keine Daten vorhanden sind
+  )
+
+# Überprüfen der umgeformten Daten
+#view(HS_drg_treatment)
+```
+
+```{r}
+# Annahme, dass HS_drg_treatment_wide bereits die Spalten ALTERNATIVE und ADDITION enthält
+HS_drg_treatment <- HS_drg_treatment %>%
+  mutate(
+    HS_drg_treatment = case_when(
+      ALTERNATIVE == "Yes" & ADDITION == "Yes" ~ "Yes",
+      ALTERNATIVE == "No" & ADDITION == "No" ~ "No",
+      ALTERNATIVE == "Yes" & ADDITION == "No" ~ "Mixed",
+      ALTERNATIVE == "No" & ADDITION == "Yes" ~ "Mixed",
+      ALTERNATIVE == "Yes" & ADDITION == "No data" ~ "Yes",
+      ALTERNATIVE == "No" & ADDITION == "No data" ~ "No",
+      ALTERNATIVE == "No data" & ADDITION == "Yes" ~ "Yes",
+      ALTERNATIVE == "No data" & ADDITION == "No" ~ "No",
+      TRUE ~ "No data" # Diese Zeile deckt alle anderen Fälle ab, die nicht spezifiziert wurden
+    )
+  ) %>%
+  mutate(
+    HS_drg_treatment = na_if(HS_drg_treatment, "No data") # Ersetzt "No data" durch NA
+  )
+
+# Überprüfen der aktualisierten Daten
+#view(HS_drg_treatment)
+```
+
+# HS_nic_affordability
+```{r}
+library(tidyr)
+library(dplyr)
+
+# Umwandlung der Daten, sodass Jahre nebeneinander dargestellt werden
+HS_nic_affordability <- HS_nic_affordability %>%
+  # Sicherstellen, dass NumericValue tatsächlich numerische Werte enthält
+  mutate(NumericValue = as.numeric(NumericValue)) %>%
+  pivot_wider(
+    names_from = YEAR,         # Die Jahre werden zu Spaltennamen
+    values_from = NumericValue, # Die Werte in diesen Jahren
+    names_prefix = "Year_"     # Hinzufügen eines Präfix zu den Spaltennamen für Klarheit
+  )
+
+# Ergänzen oder Aktualisieren der manuell hinzugefügten Werte
+manual_values <- tibble(
+  COUNTRY = c("RWA", "TWN"),          # Ländercodes für Ruanda und Taiwan
+  HS_nic_affordability_manual = c(10.5, NA) # Manuell ergänzte Werte
+)
+
+HS_nic_affordability <- HS_nic_affordability %>%
+  full_join(manual_values, by = "COUNTRY") # Manuelle Werte hinzufügen
+
+# Sicherstellen, dass die numerischen Werte tatsächlich als numerische Typen behandelt werden
+HS_nic_affordability <- HS_nic_affordability %>%
+  mutate(across(starts_with("Year_"), as.numeric))  # Konvertiere alle "Year_" Spalten zu numerischen Typen
+
+# Erstelle eine neue Spalte "HS_nic_affordability", die das Jahr 2014 bevorzugt oder manuelle Werte nutzt
+HS_nic_affordability <- HS_nic_affordability %>%
+  mutate(
+    HS_nic_affordability = coalesce(
+      HS_nic_affordability_manual, # Manuell hinzugefügte Werte bevorzugen
+      Year_2014,                   # Werte aus dem Jahr 2014 nutzen, falls verfügbar
+      rowMeans(select(., starts_with("Year_")), na.rm = TRUE) # Durchschnitt aus allen Jahren berechnen
+    )
+  ) %>%
+  select(COUNTRY, HS_nic_affordability) # Überflüssige Spalten entfernen
+
+# Überprüfen des Ergebnisses
+#view(HS_nic_affordability)
+```
+
+# HS_sex_gini
+```{r}
+library(tidyr)
+library(dplyr)
+
+# Umwandlung der Daten, sodass Jahre nebeneinander dargestellt werden
+HS_sex_gini <- HS_sex_gini %>%
+  # Sicherstellen, dass NumericValue tatsächlich numerische Werte enthält
+  mutate(NumericValue = as.numeric(NumericValue)) %>%
+  pivot_wider(
+    names_from = YEAR,         # Die Jahre werden zu Spaltennamen
+    values_from = NumericValue, # Die Werte in diesen Jahren
+    names_prefix = "Year_"     # Hinzufügen eines Präfix zu den Spaltennamen für Klarheit
+  )
+
+# Ergänzen oder Aktualisieren der manuell hinzugefügten Werte
+manual_values_gini <- tibble(
+  COUNTRY = c("AND", "NGA", "PSE", "TWN", "UZB"), # ISO-Codes für die Länder
+  HS_sex_gini_manual = c(NA, 0.680, NA, NA, 0.288) # Manuelle Werte für GII
+)
+
+HS_sex_gini <- HS_sex_gini %>%
+  full_join(manual_values_gini, by = "COUNTRY") # Manuelle Werte hinzufügen
+
+# Sicherstellen, dass die numerischen Werte tatsächlich als numerische Typen behandelt werden
+HS_sex_gini <- HS_sex_gini %>%
+  mutate(across(starts_with("Year_"), as.numeric))  # Konvertiere alle "Year_" Spalten zu numerischen Typen
+
+# Erstelle eine neue Spalte "HS_sex_gini", die das Jahr 2014 bevorzugt oder manuelle Werte nutzt
+HS_sex_gini <- HS_sex_gini %>%
+  mutate(
+    HS_sex_gini = coalesce(
+      HS_sex_gini_manual, # Manuelle Werte bevorzugen
+      Year_2014,          # Werte aus dem Jahr 2014 nutzen, falls verfügbar
+      rowMeans(select(., starts_with("Year_")), na.rm = TRUE) # Durchschnitt aus allen Jahren berechnen
+    )
+  ) %>%
+  select(COUNTRY, HS_sex_gini) # Überflüssige Spalten entfernen
+
+# Überprüfen des Ergebnisses
+#View(HS_sex_gini)
+```
+
+# HS_sex_antiretroviral
+```{r}
+
+# Umwandlung der Daten in ein breites Format
+HS_sex_antiretroviral <- HS_sex_antiretroviral %>%
+  pivot_wider(
+    names_from = YEAR,
+    values_from = NumericValue,
+    names_prefix = "Year_"
+  )
+
+HS_sex_antiretroviral <- HS_sex_antiretroviral %>% select(IndicatorCode, COUNTRY, Year_2005, Year_2006, Year_2007, Year_2008, Year_2009, Year_2010, Year_2012, Year_2013, Year_2014)
+
+#view(HS_sex_antiretroviral)
+```
+
+```{r}
+# Länder mit NA in der Spalte COUNTRY ausschließen
+HS_sex_antiretroviral <- HS_sex_antiretroviral %>%
+  filter(!is.na(COUNTRY))
+
+# Berechnung des Durchschnitts nach Ländern (ohne die problematischen Zeilen)
+HS_sex_antiretroviral <- HS_sex_antiretroviral %>%
+  mutate(across(starts_with("Year_"), ~ as.numeric(unlist(.)))) %>%
+  rowwise() %>%
+  mutate(
+    HS_sex_antiretroviral = mean(
+      c_across(starts_with("Year_")),
+      na.rm = TRUE
+    )
+  )
+
+
+# Neue Werte für die Länder erstellen
+manual_antiretroviral_values <- tibble(
+  COUNTRY = c("Cameroon", "United Arab Emirates", "Cyprus (G)", "Trinidad and Tobago", "Poland", "Germany"),
+  ISOCode = c("CMR", "ARE", "CYP", "TTO", "POL", "DEU"),
+  HS_sex_antiretroviral = c(18, 19.72727273, 31.81818182, 35.81818182, 44.81818182, 74.66666667) # Die neuen Werte
+)
+
+# Bestehenden Datensatz ergänzen oder aktualisieren
+HS_sex_antiretroviral <- HS_sex_antiretroviral %>%
+  full_join(manual_antiretroviral_values, by = "COUNTRY") %>% # Werte hinzufügen
+  mutate(
+    HS_sex_antiretroviral = coalesce(HS_sex_antiretroviral.y, HS_sex_antiretroviral.x) # Bevorzugt manuell ergänzte Werte
+  ) %>%
+  select(COUNTRY, ISOCode, HS_sex_antiretroviral, starts_with("Year_")) # Überflüssige Spalten entfernen
+
+
+# Ergebnis anzeigen
+#view(HS_sex_antiretroviral)
+```
+
+# HS_oth_obesity
+```{r}
+# Einschränken des Datensatzes auf die Jahre 2005 bis 2016
+HS_oth_obesity <- HS_oth_obesity %>%
+  filter(YEAR >= 2005 & YEAR <= 2016)
+
+# Überprüfung des gefilterten Datensatzes
+# view(HS_oth_obesity)
+```
+
+```{r}
+# Tabelle in ein weites Format umwandeln
+HS_oth_obesity <- HS_oth_obesity %>%
+  filter(SEX == "BTSX") %>%  # Nur "total"-Werte berücksichtigen
+  pivot_wider(
+    names_from = YEAR,           # Jahre werden zu Spalten
+    values_from = NumericValue   # Werte für die neuen Spalten
+  )
+
+# Überprüfung des weiten Formats
+#view(HS_oth_obesity)
+```
+
+```{r}
+# Struktur der Tabelle und der Jahreswert-Spalten prüfen
+#astr(HS_oth_obesity)
+
+# Identifizieren von problematischen Zellen (Listen oder nicht atomare Werte)
+HS_oth_obesity %>%
+  filter(if_any(starts_with("20"), ~ !is.atomic(.))) %>%
+  view()
+
+# Listen oder nicht-numerische Werte auf den ersten Eintrag reduzieren
+HS_oth_obesity <- HS_oth_obesity %>%
+  mutate(across(starts_with("20"), ~ as.numeric(unlist(lapply(., `[`, 1)))))
+
+# Zeilen mit nicht-atomaren Werten in Jahreswert-Spalten entfernen
+HS_oth_obesity <- HS_oth_obesity %>%
+  filter(if_all(starts_with("20"), ~ is.atomic(.) && !is.list(.)))
+
+# Jahreswerte in numerische Werte umwandeln
+HS_oth_obesity <- HS_oth_obesity %>%
+  mutate(across(starts_with("20"), ~ as.numeric(.)))
+
+# Durchschnitt über die Jahre pro Land berechnen
+HS_oth_obesity <- HS_oth_obesity %>%
+  rowwise() %>%
+  mutate(
+    HS_oth_obesity = mean(c_across(starts_with("20")), na.rm = TRUE)
+  )
+
+# Ergebnis überprüfen
+#view(HS_oth_obesity)
+```
+
+# HS_oth_cleancooking
+```{r}
+# Einschränken des Datensatzes auf die Jahre 2005 bis 2016
+HS_oth_cleancooking <- HS_oth_cleancooking %>%
+  filter(YEAR >= 2005 & YEAR <= 2016)
+
+# Tabelle in ein weites Format umwandeln
+HS_oth_cleancooking <- HS_oth_cleancooking %>%
+  filter(RESIDENCEAREATYPE == "TOTL") %>%  # Nur "total"-Werte berücksichtigen
+  pivot_wider(
+    names_from = YEAR,           # Jahre werden zu Spalten
+    values_from = NumericValue   # Werte für die neuen Spalten
+  )
+
+# Problematische Werte (z.B. Listen) auflösen
+HS_oth_cleancooking <- HS_oth_cleancooking %>%
+  mutate(across(starts_with("20"), ~ as.numeric(unlist(lapply(., `[`, 1)))))
+
+# Jahreswerte in numerische Werte umwandeln
+HS_oth_cleancooking <- HS_oth_cleancooking %>%
+  mutate(across(starts_with("20"), ~ as.numeric(.)))
+
+# Durchschnitt über die Jahre pro Land berechnen
+HS_oth_cleancooking <- HS_oth_cleancooking %>%
+  rowwise() %>%
+  mutate(
+    HS_oth_cleancooking = mean(c_across(starts_with("20")), na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+# Ergänzen oder Aktualisieren der manuell hinzugefügten Werte
+manual_values_cleancooking <- tibble(
+  COUNTRY = c("LBN", "BGR", "LBY", "PSE", "TWN"),
+  HS_oth_cleancooking_manual = c(97.5, 100, 99.8, 99.9, NA) # Werte von der World Bank
+)
+
+# Hinzufügen der manuellen Werte und sicherstellen, dass diese bevorzugt werden
+HS_oth_cleancooking <- HS_oth_cleancooking %>%
+  full_join(manual_values_cleancooking, by = "COUNTRY") %>% # Ergänzen der manuellen Werte
+  mutate(
+    HS_oth_cleancooking = coalesce(HS_oth_cleancooking_manual, HS_oth_cleancooking) # Manuelle Werte bevorzugen
+  ) %>%
+  select(COUNTRY, HS_oth_cleancooking) # Entfernen überflüssiger Spalten
+
+# Ergebnis überprüfen
+#view(HS_oth_cleancooking)
+
+```
+
+# HS_mh_mhhospit 
+## Rename HS_mh_mhhospit
+```{r}
+# Rename HS_mh_mhhospit
+HS_mh_mhhospit <- HS_mh_mhhospit %>%
+  rename(HS_mh_mhhospit = NumericValue)
+
+# Manuell ergänzte Werte für psychiatrische Einheiten in allgemeinen Krankenhäusern
+manual_mh_mhhospit <- tibble(
+  COUNTRY = c("AND", "CMR", "CHN", "EGY", "FRA", "KAZ", "KWT", "LBY", "MWI", 
+              "NLD", "NGA", "PSE", "RUS", "SUR", "SWE", "TWN", "TTO", "TUN", 
+              "GBR", "VEN"), # ISO-Codes für die Länder
+  HS_mh_mhhospit = c(NA, 0.01, 0.17, 0.04, 0.04, 0.02, 0.02, 0.01, 0.00, 
+                     0.03, 0.02, 0.01, 0.13, 0.00, 0.03, NA, 0.01, 0.01, 
+                     0.40, NA) # Ergänze den fehlenden Wert
+)
+
+# Ergänzen oder Aktualisieren der bestehenden Tabelle mit manuellen Werten
+HS_mh_mhhospit <- HS_mh_mhhospit %>%
+  full_join(manual_mh_mhhospit, by = "COUNTRY") %>%
+  mutate(
+    # Konvertiere beide Spalten in denselben Typ (numeric)
+    HS_mh_mhhospit.x = as.numeric(HS_mh_mhhospit.x),
+    HS_mh_mhhospit.y = as.numeric(HS_mh_mhhospit.y),
+    # Manuelle Werte bevorzugen
+    HS_mh_mhhospit = coalesce(HS_mh_mhhospit.y, HS_mh_mhhospit.x)
+  ) %>%
+  select(COUNTRY, HS_mh_mhhospit) # Entfernen überflüssiger Spalten
+
+# Ergebnis überprüfen
+# view(HS_mh_mhhospit)
+```
+
+# HS_mh_policy
+```{r}
+# Umbenennen der Spalte für Konsistenz
+HS_mh_policy <- HS_mh_policy %>%
+  rename(HS_mh_policy = Value)
+
+# Manuelle Ergänzung von Ja/Nein-Werten für die Länder
+manual_mh_policy <- tibble(
+  COUNTRY = c("COL", "URY", "LBY", "GBR", "VEN", "PSE", "TWN"), # ISO-Codes für die Länder
+  HS_mh_policy = c("Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes") # Mental Health Policy Status
+)
+
+# Aktualisieren der bestehenden Liste mit den manuellen Werten
+HS_mh_policy <- HS_mh_policy %>%
+  full_join(manual_mh_policy, by = "COUNTRY") %>% # Ergänzen oder Überschreiben von Einträgen
+  mutate(
+    HS_mh_policy = coalesce(HS_mh_policy.y, HS_mh_policy.x) # Bevorzugt die manuellen Werte
+  ) %>%
+  select(COUNTRY, HS_mh_policy) # Überflüssige Spalten entfernen
+
+# Überprüfung der Tabelle nach Umbenennung
+#view(HS_mh_policy)
+```
+
+
+# Join Specifications to hardship_HS
+```{r}
+hardship_HS <- left_join(hardship_HS, HS_alc_agelim_final[, c("COUNTRY", "HS_alc_agelim")], by = "COUNTRY")
+hardship_HS <- left_join(hardship_HS, HS_alc_tax[, c("COUNTRY", "HS_alc_tax_wine")], by = "COUNTRY")
+hardship_HS <- left_join(hardship_HS, HS_alc_roaddeath[, c("COUNTRY", "HS_alc_roaddeath")], by = "COUNTRY")
+hardship_HS <- left_join(hardship_HS, HS_drg_treatment[, c("COUNTRY", "HS_drg_treatment")], by = "COUNTRY")
+hardship_HS <- left_join(hardship_HS, HS_nic_affordability[, c("COUNTRY", "HS_nic_affordability")], by = "COUNTRY")
+hardship_HS <- left_join(hardship_HS, HS_mh_policy[, c("COUNTRY", "HS_mh_policy")], by = "COUNTRY")
+hardship_HS <- left_join(hardship_HS, HS_sex_gini[, c("COUNTRY", "HS_sex_gini")], by = "COUNTRY")
+hardship_HS <- left_join(hardship_HS, HS_sex_antiretroviral[, c("COUNTRY", "HS_sex_antiretroviral")], by = "COUNTRY")
+hardship_HS <- left_join(hardship_HS, HS_oth_obesity[, c("COUNTRY", "HS_oth_obesity")], by = "COUNTRY")
+hardship_HS <- left_join(hardship_HS, HS_oth_cleancooking[, c("COUNTRY", "HS_oth_cleancooking")], by = "COUNTRY")
+hardship_HS <- left_join(hardship_HS, HS_mh_mhhospit[, c("COUNTRY", "HS_mh_mhhospit")], by = "COUNTRY")
+
+# Entfernen von Zeilen, wo der COUNTRY-Code fehlt (NA)
+hardship_HS <- hardship_HS %>%
+  filter(!is.na(COUNTRY))
+
+#View(hardship_HS)
+```
+
+```{r}
+# Überprüfung der aggregierten Daten für RWA
+hardship_HS %>% filter(COUNTRY == "RWA")
+
+# Länder HKG, RAW und TWN aus dem Datensatz entfernen
+hardship_HS <- hardship_HS %>%
+  filter(!COUNTRY %in% c("HKG", "TWN", "PSE", "RAW"))
+
+# Endgültigen Datensatz anzeigen
+#View(hardship_HS)
+```
+
+
+# Standardisieren der Variablen
+```{r}
+library(dplyr)
+
+# Transformation der Spalte mit dem korrekten Spaltennamen
+hardship_HS <- hardship_HS %>%
+  mutate(HS_alc_tax_wine = case_when(
+    HS_alc_tax_wine == "Total ban" ~ 2,
+    HS_alc_tax_wine == "Yes" ~ 1,
+    HS_alc_tax_wine == "No" ~ 0,
+    TRUE ~ NA_real_  # für den Fall, dass andere Werte vorhanden sind
+  ))
+
+
+# Annahme, dass wvs_data Ihr Datenrahmen ist
+hardship_HS <- hardship_HS %>%
+  mutate(HS_drg_treatment = case_when(
+    HS_drg_treatment == "No" ~ 2,
+    HS_drg_treatment == "Yes" ~ 1,
+    HS_drg_treatment == "Mixed" ~ 0,
+    TRUE ~ NA_real_  # für den Fall, dass andere Werte vorhanden sind
+  ))
+
+# Binäre Transformation
+hardship_HS <- hardship_HS %>%
+  mutate(HS_mh_policy = case_when(
+    HS_mh_policy == "No" ~ 0,
+    HS_mh_policy == "Yes" ~ 1,
+    TRUE ~ NA_real_  # für den Fall, dass andere Werte vorhanden sind
+  ))
+view(hardship_HS)
+```
+
+# select variable of hardship_HS
+```{r}
+hardship_HS <- hardship_HS %>% select(COUNTRY, country, avg_risktaking, homiciderate, gdp, infantmortality, lifeexpectancy, lifeexpectancy, gini, femalemale_primedu, HS_alc_agelim, HS_alc_tax_wine, HS_alc_roaddeath, HS_drg_treatment, HS_nic_affordability, HS_mh_policy, HS_sex_gini, HS_oth_obesity, HS_oth_cleancooking, HS_mh_mhhospit, HS_sex_antiretroviral)
+str(hardship_HS)
+```
+
+```{r}
+# Ensure all relevant variables are numeric and handle NA values appropriately
+hardship_HS <- hardship_HS %>%
+  mutate(
+    HS_alc_agelim = as.numeric(HS_alc_agelim),
+    HS_alc_roaddeath = as.numeric(HS_alc_roaddeath),
+    HS_alc_tax_wine = as.numeric(HS_alc_tax_wine), 
+    HS_drg_treatment = as.numeric(HS_drg_treatment), 
+    HS_mh_policy = as.numeric(HS_mh_policy)
+  )
+
+str(hardship_HS)
+```
+
+# Missing values
+```{r}
+library(mice)
+
+library(VIM)
+aggr_plot <- aggr(hardship_HS, col = c('navyblue', 'red'), numbers = TRUE, sortVars = TRUE, 
+                  labels = names(hardship_HS), cex.axis = 0.7, gap = 3, ylab = c("Missing Data", "Pattern"))
+```
+
+```{r}
+# Multiple Imputation mit Predictive Mean Matching (PMM)
+selected_vars <- hardship_HS %>%
+  select(HS_alc_agelim, HS_alc_tax_wine, HS_alc_roaddeath, HS_drg_treatment, 
+         HS_nic_affordability, HS_mh_policy, HS_sex_gini, HS_oth_obesity, 
+         HS_oth_cleancooking, HS_mh_mhhospit, HS_sex_antiretroviral)
+
+# Imputation mit Predictive Mean Matching (PMM)
+imputed_data <- mice(selected_vars, m = 5, method = 'pmm', maxit = 50, seed = 123)
+
+# Zusammenfassung der Imputation
+summary(imputed_data)
+```
+```{r}
+imputed_data$imp$HS_alc_agelim  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_alc_tax_wine  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_alc_roaddeath  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_drg_treatment  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_nic_affordability  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_mh_policy  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_sex_gini  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_oth_obesity  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_oth_cleancooking  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_mh_mhhospit  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$HS_sex_antiretroviral
+
+# visualisierung
+stripplot(imputed_data, pch = 20, cex = 1.2)  # Verteilung der imputierten Werte
+densityplot(imputed_data)  # Dichte der imputierten Werte
+
+# Imputierte Daten extrahieren
+completed_data <- complete(imputed_data, action = 1)
+```
+
+```{r}
+original_mean <- mean(hardship_HS$HS_drg_treatment, na.rm = TRUE)
+imputed_mean <- mean(completed_data$HS_drg_treatment)
+original_mean
+imputed_mean
+
+original_median <- median(hardship_HS$HS_drg_treatment, na.rm = TRUE)
+imputed_median <- median(completed_data$HS_drg_treatment)
+
+original_sd <- sd(hardship_HS$HS_drg_treatment, na.rm = TRUE)
+imputed_sd <- sd(completed_data$HS_drg_treatment)
+
+list(
+  original_median = original_median,
+  imputed_median = imputed_median,
+  original_sd = original_sd,
+  imputed_sd = imputed_sd
+)
+
+original_mean <- mean(hardship_HS$HS_sex_antiretroviral, na.rm = TRUE)
+imputed_mean <- mean(completed_data$HS_sex_antiretroviral)
+original_mean
+imputed_mean
+
+original_median <- median(hardship_HS$HS_sex_antiretroviral, na.rm = TRUE)
+imputed_median <- median(completed_data$HS_sex_antiretroviral)
+
+original_sd <- sd(hardship_HS$HS_sex_antiretroviral, na.rm = TRUE)
+imputed_sd <- sd(completed_data$HS_sex_antiretroviral)
+
+list(
+  original_median = original_median,
+  imputed_median = imputed_median,
+  original_sd = original_sd,
+  imputed_sd = imputed_sd
+)
+```
+
+
+# Füge die imputierten Variablen zurück in den ursprünglichen Datensatz ein:
+```{r}
+hardship_HS <- hardship_HS %>%
+  mutate(
+    HS_alc_agelim = completed_data$HS_alc_agelim,
+    HS_alc_tax_wine = completed_data$HS_alc_tax_wine,
+    HS_alc_roaddeath = completed_data$HS_alc_roaddeath,
+    HS_drg_treatment = completed_data$HS_drg_treatment,
+    HS_nic_affordability = completed_data$HS_nic_affordability,
+    HS_mh_policy = completed_data$HS_mh_policy,
+    HS_sex_gini = completed_data$HS_sex_gini,
+    HS_oth_obesity = completed_data$HS_oth_obesity,
+    HS_oth_cleancooking = completed_data$HS_oth_cleancooking,
+    HS_mh_mhhospit = completed_data$HS_mh_mhhospit, 
+    HS_sex_antiretroviral = completed_data$HS_sex_antiretroviral
+  )
+str(hardship_HS)
+```
+
+```{r}
+sum(is.na(hardship_HS$HS_alc_agelim))  # Soll 0 ergeben
+sum(is.na(hardship_HS$HS_alc_roaddeath))  # Soll 0 ergeben
+head(hardship_HS)
+```
+
+```{r}
+# Anpassung der Daten vor dem Logarithmieren, Ersetzen von Null oder negativen Werten durch einen kleinen positiven Wert
+hardship_HS <- hardship_HS %>%
+  mutate(
+    HS_mh_mhhospit = ifelse(HS_mh_mhhospit <= 0, 0.1, HS_mh_mhhospit),
+    HS_sex_antiretroviral = ifelse(HS_sex_antiretroviral <= 0, 0.1, HS_sex_antiretroviral)
+  )
+
+# Anwendung der Logarithmus-Transformation mit log1p
+hardship_HS <- hardship_HS %>%
+  mutate(
+    HS_mh_mhhospit = log1p(HS_mh_mhhospit),
+    HS_sex_antiretroviral = log1p(HS_sex_antiretroviral)
+  )
+
+# Überprüfung der Daten nach der Logarithmus-Transformation
+summary(hardship_HS$HS_mh_mhhospit)
+summary(hardship_HS$HS_sex_antiretroviral)
+
+```
+
+
+## check countryfacts 
+```{r}
+# Plot histograms for each numeric variable
+hardship_HS %>% 
+  select_if(is.numeric) %>% 
+  gather() %>% 
+  ggplot(aes(value)) + 
+  facet_wrap(~key, scales = "free") + 
+  geom_histogram(bins = 30) + 
+  theme_minimal()
+```
+
+## Log Countryfacts 
+```{r}
+# Log-transform the variables using dplyr
+hardship_HS <- hardship_HS %>%
+  mutate(
+    HS_mh_mhhospit = log(HS_mh_mhhospit),
+    HS_nic_affordability = log(HS_nic_affordability),
+    HS_oth_cleancooking = log(HS_oth_cleancooking),
+    HS_oth_obesity = log(HS_oth_obesity),
+    HS_sex_antiretroviral = log(HS_sex_antiretroviral), 
+  )
+
+head(hardship_HS)
+
+# Plot histograms for each numeric variable
+hardship_HS %>% 
+  select_if(is.numeric) %>% 
+  gather() %>% 
+  ggplot(aes(value)) + 
+  facet_wrap(~key, scales = "free") + 
+  geom_histogram(bins = 30) + 
+  theme_minimal()
+```
+
+
+```{r}
+str(hardship_HS)
+```
+
+
+## Reverse Coding - Standardize and create hardship_HS
+```{r}
+library(dplyr)
+
+# Now apply the scale function after confirming all variables are numeric
+hardship_HS <- hardship_HS %>%
+  mutate(
+    HS_alc_agelim = scale(-HS_alc_agelim), # reverse coding
+    HS_sex_antiretroviral = scale(-as.numeric(HS_sex_antiretroviral)), # reverse coding 
+    HS_oth_cleancooking = scale(-as.numeric(HS_oth_cleancooking)), # reverse coding
+    HS_mh_mhhospit = scale(-as.numeric(HS_mh_mhhospit)), # reverse coding
+    HS_alc_tax_wine = scale(HS_alc_tax_wine),
+    HS_alc_roaddeath = scale(HS_alc_roaddeath),
+    HS_nic_affordability = scale(HS_nic_affordability),
+    HS_sex_gini = scale(HS_sex_gini), 
+    HS_drg_treatment = scale(HS_drg_treatment), 
+    HS_oth_obesity = scale(HS_oth_obesity)
+  ) %>%
+  rowwise() %>%
+  mutate(
+    hardship_HS = mean(c(HS_alc_agelim, HS_sex_antiretroviral, HS_oth_cleancooking, HS_mh_mhhospit, HS_alc_tax_wine, HS_alc_roaddeath, HS_nic_affordability, HS_sex_gini, HS_drg_treatment, HS_mh_policy, HS_oth_obesity), na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+# View the updated hardship_HS data frame
+view(hardship_HS)
+```
+
+```{r}
+write.csv(hardship_HS, file = file.path(base_path, "hardship_HS.csv"), row.names = FALSE)
+```

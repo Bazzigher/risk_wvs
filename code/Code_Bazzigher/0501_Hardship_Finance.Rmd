@@ -10,8 +10,8 @@ rm(list = ls())
 
 # Set path Laura: ONLY USE FOR LAURA 
 ```{r}
-base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
-#base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
+#base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
 ```
 
 # Load libraries
@@ -83,7 +83,7 @@ countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "B
 indicators <- c("SH.UHC.OOPC.10.ZS") 
 
 # Daten abrufen
-control <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+control <- WDI(country = countries, indicator = indicators, start = 2005, end = 2014)
 
 # Daten transformieren: Jahre als Spalten darstellen
 control <- control %>%
@@ -123,7 +123,7 @@ countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "B
 indicators <- c("FX.OWN.TOTL.PL.ZS") 
 
 # Daten abrufen
-f_inv_acctownership_primaryedu <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+f_inv_acctownership_primaryedu <- WDI(country = countries, indicator = indicators, start = 2005, end = 2014)
 
 # Spalten umbenennen
 f_inv_acctownership_primaryedu <- f_inv_acctownership_primaryedu %>%
@@ -160,7 +160,7 @@ countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "B
 indicators <- c("BX.GSR.INSF.ZS") 
 
 # Daten abrufen
-f_oth_insfinsvcs_exp <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+f_oth_insfinsvcs_exp <- WDI(country = countries, indicator = indicators, start = 2005, end = 2014)
 
 # Spalten umbenennen
 f_oth_insfinsvcs_exp <- f_oth_insfinsvcs_exp %>%
@@ -198,7 +198,7 @@ countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "B
 indicators <- c("BM.GSR.INSF.ZS") 
 
 # Daten abrufen
-f_oth_insfinsvcs_int <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+f_oth_insfinsvcs_int <- WDI(country = countries, indicator = indicators, start = 2005, end = 2014)
 
 # Spalten umbenennen
 f_oth_insfinsvcs_int <- f_oth_insfinsvcs_int %>%
@@ -235,7 +235,7 @@ countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "B
 indicators <- c("IC.FRM.BNKS.ZS") 
 
 # Daten abrufen
-f_inv_bankfin_invest <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+f_inv_bankfin_invest <- WDI(country = countries, indicator = indicators, start = 2005, end = 2014)
 
 # Spalten umbenennen
 f_inv_bankfin_invest <- f_inv_bankfin_invest %>%
@@ -273,7 +273,7 @@ countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "B
 indicators <- c("IC.FRM.BKWC.ZS") 
 
 # Daten abrufen
-f_inv_bankfin_workcap <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+f_inv_bankfin_workcap <- WDI(country = countries, indicator = indicators, start = 2005, end = 2014)
 
 # Spalten umbenennen
 f_inv_bankfin_workcap <- f_inv_bankfin_workcap %>%
@@ -310,7 +310,7 @@ countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "B
 indicators <- c("NE.CON.GOVT.ZS") 
 
 # Daten abrufen
-f_gov_finconsgdp <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+f_gov_finconsgdp <- WDI(country = countries, indicator = indicators, start = 2005, end = 2014)
 
 # Spalten umbenennen
 f_gov_finconsgdp <- f_gov_finconsgdp %>%
@@ -346,7 +346,7 @@ countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "B
 indicators <- c("BN.FIN.TOTL.CD") 
 
 # Daten abrufen
-f_bofp_netfinacct <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+f_bofp_netfinacct <- WDI(country = countries, indicator = indicators, start = 2005, end = 2014)
 
 # Spalten umbenennen
 f_bofp_netfinacct <- f_bofp_netfinacct %>%
@@ -383,7 +383,7 @@ countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "B
 indicators <- c("SH.UHC.OOPC.10.ZS") 
 
 # Daten abrufen
-f_hs_oopexp10 <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+f_hs_oopexp10 <- WDI(country = countries, indicator = indicators, start = 2005, end = 2014)
 
 # Spalten umbenennen
 f_hs_oopexp10 <- f_hs_oopexp10 %>%
@@ -420,7 +420,7 @@ countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "B
 indicators <- c("NY.GDP.DEFL.KD.ZG") 
 
 # Daten abrufen
-f_eco_gdpdefl <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+f_eco_gdpdefl <- WDI(country = countries, indicator = indicators, start = 2005, end = 2014)
 
 # Spalten umbenennen
 f_eco_gdpdefl <- f_eco_gdpdefl %>%
@@ -449,7 +449,7 @@ countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "B
 indicators <- c("NY.GDP.DEFL.KD.ZG.AD") 
 
 # Daten abrufen
-f_eco_gdpdefl_linked <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+f_eco_gdpdefl_linked <- WDI(country = countries, indicator = indicators, start = 2005, end = 2014)
 
 # Spalten umbenennen
 f_eco_gdpdefl_linked <- f_eco_gdpdefl_linked %>%
@@ -479,7 +479,7 @@ countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "B
 indicators <- c("SH.UHC.OOPC.10.ZS") 
 
 # Daten abrufen
-f_hs_oopexp10pc <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+f_hs_oopexp10pc <- WDI(country = countries, indicator = indicators, start = 2005, end = 2014)
 
 # Spalten umbenennen
 f_hs_oopexp10pc <- f_hs_oopexp10pc %>%
@@ -517,7 +517,7 @@ countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "B
 indicators <- c("SH.UHC.NOP1.ZS") 
 
 # Daten abrufen
-f_hs_oopexp_pov215 <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+f_hs_oopexp_pov215 <- WDI(country = countries, indicator = indicators, start = 2005, end = 2014)
 
 # Spalten umbenennen
 f_hs_oopexp_pov215 <- f_hs_oopexp_pov215 %>%
@@ -550,7 +550,7 @@ countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "B
 indicators <- c("FP.CPI.TOTL.ZG") 
 
 # Daten abrufen
-f_eco_cpi <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+f_eco_cpi <- WDI(country = countries, indicator = indicators, start = 2005, end = 2014)
 
 # Spalten umbenennen
 f_eco_cpi <- f_eco_cpi %>%

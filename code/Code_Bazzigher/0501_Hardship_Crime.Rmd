@@ -145,9 +145,9 @@ c_bh_violextchildprot <- c_bh_violextchildprot %>% select(IndicatorCode, Value, 
 c_bh_homicide <- c_bh_homicide %>%
   mutate(NumericValue = as.numeric(NumericValue))
 
-# Filtere die Jahre zwischen 2005 und 2012
+# Filtere die Jahre zwischen 2005 und 2014
 c_bh_homicide <- c_bh_homicide %>%
-  filter(as.numeric(YEAR) >= 2005 & as.numeric(YEAR) <= 2012)
+  filter(as.numeric(YEAR) >= 2005 & as.numeric(YEAR) <= 2014)
 
 # Aggregiere Werte, um Mehrfachzuweisungen zu vermeiden
 c_bh_homicide <- c_bh_homicide %>%
@@ -254,7 +254,7 @@ countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "B
 indicators <- c("VC.IHR.PSRC.P5") 
 
 # Daten abrufen
-c_bh_inthomicide <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+c_bh_inthomicide <- WDI(country = countries, indicator = indicators, start = 2005, end = 2014)
 
 # Spalten umbenennen
 c_bh_inthomicide <- c_bh_inthomicide %>%
@@ -288,7 +288,7 @@ countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "B
 indicators <- c("CC.EST") 
 
 # Daten abrufen
-c_theft_estcorruption <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+c_theft_estcorruption <- WDI(country = countries, indicator = indicators, start = 2005, end = 2014)
 
 # Spalten umbenennen
 c_theft_estcorruption <- c_theft_estcorruption %>%
@@ -318,7 +318,7 @@ countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "B
 indicators <- c("PV.EST") 
 
 # Daten abrufen
-c_oth_polstab <- WDI(country = countries, indicator = indicators, start = 2005, end = 2012)
+c_oth_polstab <- WDI(country = countries, indicator = indicators, start = 2005, end = 2014)
 
 # Spalten umbenennen
 c_oth_polstab <- c_oth_polstab %>%

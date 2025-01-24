@@ -10,7 +10,7 @@ rm(list = ls())
 
 # Set path Laura: ONLY USE FOR LAURA 
 ```{r}
-# base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+#base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
 base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
 ```
 
@@ -31,7 +31,7 @@ library(rgho)
 ```{r}
 risktaking <- read.csv(file.path(base_path, "gps_wvs_combined.csv"), header=TRUE, as.is=TRUE)
 hardship_Original <- read.csv(file.path(base_path, "countryfacts_cleaned.csv"), header=TRUE, as.is=TRUE)
-view(hardship_Original)
+#view(risktaking)
 str(risktaking)
 ```
 
@@ -54,7 +54,7 @@ hardship_Original <- hardship_Original %>%
 hardship_HS <- hardship_Original %>%
   full_join(hardship_HS, by = "COUNTRY")
 
-view(hardship_HS)
+#view(hardship_HS)
 ```
 
 # Liste aller verfügbaren Dimensionen
@@ -255,7 +255,6 @@ HS_alc_tax <- HS_alc_tax %>%
 # Anzeigen der ersten Zeilen der Daten, um die Struktur zu überprüfen
 head(HS_alc_roaddeath)
 
-# Falls du eine spezifische Auswahl oder Transformation benötigst, hier ein Beispiel:
 HS_alc_roaddeath <- HS_alc_roaddeath %>%
   select(IndicatorCode, NumericValue, COUNTRY, YEAR, SEX, AGEGROUP) %>%
   mutate(
@@ -431,7 +430,7 @@ HS_sex_antiretroviral <- HS_sex_antiretroviral %>%
     names_prefix = "Year_"
   )
 
-HS_sex_antiretroviral <- HS_sex_antiretroviral %>% select(IndicatorCode, COUNTRY, Year_2005, Year_2006, Year_2007, Year_2008, Year_2009, Year_2010, Year_2012, Year_2013, Year_2014)
+HS_sex_antiretroviral <- HS_sex_antiretroviral %>% select(IndicatorCode, COUNTRY, Year_2005, Year_2006, Year_2007, Year_2008, Year_2009, Year_2010, Year_2011, Year_2012, Year_2013, Year_2014)
 
 #view(HS_sex_antiretroviral)
 ```
@@ -673,7 +672,6 @@ hardship_HS <- hardship_HS %>%
 ```{r}
 library(dplyr)
 
-# Transformation der Spalte mit dem korrekten Spaltennamen
 hardship_HS <- hardship_HS %>%
   mutate(HS_alc_tax_wine = case_when(
     HS_alc_tax_wine == "Total ban" ~ 2,
@@ -682,8 +680,6 @@ hardship_HS <- hardship_HS %>%
     TRUE ~ NA_real_  # für den Fall, dass andere Werte vorhanden sind
   ))
 
-
-# Annahme, dass wvs_data Ihr Datenrahmen ist
 hardship_HS <- hardship_HS %>%
   mutate(HS_drg_treatment = case_when(
     HS_drg_treatment == "No" ~ 2,
@@ -699,12 +695,12 @@ hardship_HS <- hardship_HS %>%
     HS_mh_policy == "Yes" ~ 1,
     TRUE ~ NA_real_  # für den Fall, dass andere Werte vorhanden sind
   ))
-view(hardship_HS)
+#view(hardship_HS)
 ```
 
 # select variable of hardship_HS
 ```{r}
-hardship_HS <- hardship_HS %>% select(COUNTRY, country, avg_risktaking, homiciderate, gdp, infantmortality, lifeexpectancy, lifeexpectancy, gini, femalemale_primedu, HS_alc_agelim, HS_alc_tax_wine, HS_alc_roaddeath, HS_drg_treatment, HS_nic_affordability, HS_mh_policy, HS_sex_gini, HS_oth_obesity, HS_oth_cleancooking, HS_mh_mhhospit, HS_sex_antiretroviral)
+hardship_HS <- hardship_HS %>% select(COUNTRY, country, avg_risktaking, homiciderate, gdp, infantmortality, lifeexpectancy, gini, femalemale_primedu, HS_alc_agelim, HS_alc_tax_wine, HS_alc_roaddeath, HS_drg_treatment, HS_nic_affordability, HS_mh_policy, HS_sex_gini, HS_oth_obesity, HS_oth_cleancooking, HS_mh_mhhospit, HS_sex_antiretroviral)
 str(hardship_HS)
 ```
 
@@ -723,6 +719,55 @@ str(hardship_HS)
 ```
 
 # Missing values
+
+# Prüfung auf den Mechanismus des Fehlens von Daten
+```{r}
+# Laden des Pakets
+library(mice)
+```
+
+```{r}
+# Fehlende Werte berechnen
+missing_percentages <- sapply(hardship_HS, function(x) {
+  sum(is.na(x)) / length(x) * 100
+})
+
+# Ergebnisse in DataFrame umwandeln
+missing_summary <- data.frame(
+  Variable = names(missing_percentages),
+  MissingPercentage = missing_percentages
+)
+
+# Nach Prozent sortieren
+missing_summary <- missing_summary[order(-missing_summary$MissingPercentage), ]
+
+# Ausgabe der Tabelle
+print(missing_summary)
+```
+
+```{r}
+# Little's MCAR-Test durchführen
+mcar_test <- mice::md.pattern(hardship_HS, plot = TRUE)
+
+# Ausgabe des Testergebnisses
+print(mcar_test)
+```
+
+```{r}
+# Installieren des naniar Pakets, falls noch nicht geschehen
+if (!require("naniar")) install.packages("naniar")
+
+# Laden des Pakets
+library(naniar)
+
+# Durchführung von Little's MCAR-Test (ähnlich)
+mcar_test <- naniar::mcar_test(hardship_HS)
+
+# Ausgabe des Testergebnisses
+print(mcar_test)
+```
+
+
 ```{r}
 library(mice)
 
@@ -732,18 +777,104 @@ aggr_plot <- aggr(hardship_HS, col = c('navyblue', 'red'), numbers = TRUE, sortV
 ```
 
 ```{r}
-# Multiple Imputation mit Predictive Mean Matching (PMM)
-selected_vars <- hardship_HS %>%
-  select(HS_alc_agelim, HS_alc_tax_wine, HS_alc_roaddeath, HS_drg_treatment, 
-         HS_nic_affordability, HS_mh_policy, HS_sex_gini, HS_oth_obesity, 
-         HS_oth_cleancooking, HS_mh_mhhospit, HS_sex_antiretroviral)
+# Berechnung des Anteils fehlender Werte für jede Variable
+missing_percentages <- sapply(hardship_HS, function(x) {
+  sum(is.na(x)) / length(x) * 100
+})
 
-# Imputation mit Predictive Mean Matching (PMM)
-imputed_data <- mice(selected_vars, m = 5, method = 'pmm', maxit = 50, seed = 123)
+# Ausgabe der Ergebnisse
+missing_percentages
 
-# Zusammenfassung der Imputation
-summary(imputed_data)
+# Darstellung der Ergebnisse in einem Dataframe
+missing_summary <- data.frame(
+  Variable = names(missing_percentages),
+  MissingPercentage = missing_percentages
+)
+
+# Sortiere die Variablen nach dem Prozentsatz der fehlenden Werte
+missing_summary <- missing_summary[order(-missing_summary$MissingPercentage), ]
+
+# Ausgabe der Tabelle
+print(missing_summary)
+
 ```
+
+
+```{r}
+hardship_HS$HS_alc_tax_wine <- as.numeric(as.character(hardship_HS$HS_alc_tax_wine))
+
+
+hardship_HS <- hardship_HS %>%
+  mutate(
+    HS_alc_agelim = as.numeric(HS_alc_agelim),
+    HS_alc_tax_wine = as.numeric(HS_alc_tax_wine), 
+    HS_alc_roaddeath = as.numeric(HS_alc_roaddeath),
+    HS_drg_treatment = as.numeric(HS_drg_treatment),
+    HS_nic_affordability = as.numeric(HS_nic_affordability),
+    HS_mh_policy = as.numeric(HS_mh_policy),
+    HS_sex_gini = as.numeric(HS_sex_gini),
+    HS_oth_obesity = as.numeric(HS_oth_obesity),
+    HS_oth_cleancooking = as.numeric(HS_oth_cleancooking),
+    HS_mh_mhhospit = as.numeric(HS_mh_mhhospit),
+    HS_sex_antiretroviral = as.numeric(HS_sex_antiretroviral)
+  )
+
+# Überprüfe, ob alle Variablen tatsächlich numerisch sind
+sapply(hardship_HS, function(x) all(is.numeric(x)))
+
+# Erstelle einen Methoden-Vektor
+methods <- rep("none", ncol(hardship_HS))
+names(methods) <- colnames(hardship_HS)
+
+# Weisen den relevanten Spalten Imputationsmethoden zu
+methods["avg_risktaking"] <- "pmm"           # Numerisch
+methods["homiciderate"] <- "pmm"             # Numerisch
+methods["gdp"] <- "pmm"                      # Numerisch
+methods["infantmortality"] <- "pmm"          # Numerisch
+methods["lifeexpectancy"] <- "pmm"           # Numerisch
+methods["gini"] <- "pmm"                     # Numerisch
+methods["femalemale_primedu"] <- "pmm"       # Numerisch
+methods["HS_alc_agelim"] <- "pmm"            # Numerisch
+methods["HS_alc_tax_wine"] <- "polr"         # Ordinal (0, 1, 2)
+methods["HS_alc_roaddeath"] <- "pmm"         # Numerisch
+methods["HS_drg_treatment"] <- "polr"        # Ordinal (0, 1, 2)
+methods["HS_nic_affordability"] <- "pmm"     # Numerisch
+methods["HS_mh_policy"] <- "logreg"          # Binär (0, 1)
+methods["HS_sex_gini"] <- "pmm"              # Numerisch
+methods["HS_oth_obesity"] <- "pmm"           # Numerisch
+methods["HS_oth_cleancooking"] <- "pmm"      # Numerisch
+methods["HS_mh_mhhospit"] <- "pmm"           # Numerisch
+methods["HS_sex_antiretroviral"] <- "pmm"    # Numerisch
+```
+
+```{r}
+# Auswahl nur der numerischen Spalten
+hardship_HS_numeric <- hardship_HS %>%
+  select(where(is.numeric))
+
+# Überprüfe die Struktur der numerischen Spalten
+str(hardship_HS_numeric)
+
+# Durchführung der Imputation nur für die numerischen Spalten
+library(mice)
+imputed_data <- mice(
+  hardship_HS_numeric,
+  m = 20,            # 20 vollständige Datensätze erzeugen
+  maxit = 50,       # Maximale Iterationen
+  seed = 123        # Reproduzierbarkeit
+)
+
+# Zusammenfassung der Imputationsergebnisse
+summary(imputed_data)
+
+# Zugriff auf den ersten vollständig imputierten Datensatz
+completed_data <- complete(imputed_data, 1)
+
+# Überprüfung der Struktur des vollständigen Datensatzes
+str(completed_data)
+```
+
+
 ```{r}
 imputed_data$imp$HS_alc_agelim  # Zeigt die imputierten Werte für diese Variable
 imputed_data$imp$HS_alc_tax_wine  # Zeigt die imputierten Werte für diese Variable
@@ -768,8 +899,6 @@ completed_data <- complete(imputed_data, action = 1)
 ```{r}
 original_mean <- mean(hardship_HS$HS_drg_treatment, na.rm = TRUE)
 imputed_mean <- mean(completed_data$HS_drg_treatment)
-original_mean
-imputed_mean
 
 original_median <- median(hardship_HS$HS_drg_treatment, na.rm = TRUE)
 imputed_median <- median(completed_data$HS_drg_treatment)
@@ -778,6 +907,8 @@ original_sd <- sd(hardship_HS$HS_drg_treatment, na.rm = TRUE)
 imputed_sd <- sd(completed_data$HS_drg_treatment)
 
 list(
+  original_mean = original_mean, 
+  imputed_mean = imputed_mean, 
   original_median = original_median,
   imputed_median = imputed_median,
   original_sd = original_sd,
@@ -786,8 +917,6 @@ list(
 
 original_mean <- mean(hardship_HS$HS_sex_antiretroviral, na.rm = TRUE)
 imputed_mean <- mean(completed_data$HS_sex_antiretroviral)
-original_mean
-imputed_mean
 
 original_median <- median(hardship_HS$HS_sex_antiretroviral, na.rm = TRUE)
 imputed_median <- median(completed_data$HS_sex_antiretroviral)
@@ -796,6 +925,8 @@ original_sd <- sd(hardship_HS$HS_sex_antiretroviral, na.rm = TRUE)
 imputed_sd <- sd(completed_data$HS_sex_antiretroviral)
 
 list(
+  original_mean = original_mean, 
+  imputed_mean = imputed_mean, 
   original_median = original_median,
   imputed_median = imputed_median,
   original_sd = original_sd,
@@ -826,7 +957,6 @@ str(hardship_HS)
 ```{r}
 sum(is.na(hardship_HS$HS_alc_agelim))  # Soll 0 ergeben
 sum(is.na(hardship_HS$HS_alc_roaddeath))  # Soll 0 ergeben
-head(hardship_HS)
 ```
 
 ```{r}
@@ -888,10 +1018,6 @@ hardship_HS %>%
 ```
 
 
-```{r}
-str(hardship_HS)
-```
-
 
 ## Reverse Coding - Standardize and create hardship_HS
 ```{r}
@@ -918,7 +1044,7 @@ hardship_HS <- hardship_HS %>%
   ungroup()
 
 # View the updated hardship_HS data frame
-view(hardship_HS)
+#view(hardship_HS)
 ```
 
 ```{r}
