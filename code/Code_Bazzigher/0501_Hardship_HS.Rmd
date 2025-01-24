@@ -655,6 +655,22 @@ hardship_HS <- hardship_HS %>%
 #View(hardship_HS)
 ```
 
+# Missing Countries
+```{r}
+# Auswahl aller Spalten, die mit "F_" beginnen
+missing_countries <- grep("^HS_", names(hardship_HS), value = TRUE)
+
+# Berechnung des Prozentsatzes der fehlenden Werte pro Land
+missing_percentages <- hardship_HS %>%
+  select(country, all_of(missing_countries)) %>%
+  group_by(country) %>%
+  summarise_each(funs(sum(is.na(.)) / n() * 100), all_of(missing_countries)) %>%
+  mutate(average_missing = rowMeans(select(., -country), na.rm = TRUE))  # Berechnet den Durchschnitt der fehlenden Werte über alle "F_" Variablen
+
+# Ausgabe der Ergebnisse
+print(missing_percentages)
+```
+
 ```{r}
 # Überprüfung der aggregierten Daten für RWA
 hardship_HS %>% filter(COUNTRY == "RWA")
@@ -747,7 +763,7 @@ print(missing_summary)
 
 ```{r}
 # Little's MCAR-Test durchführen
-mcar_test <- mice::md.pattern(hardship_HS, plot = TRUE)
+mcar_test <- mcar_test(hardship_HS)
 
 # Ausgabe des Testergebnisses
 print(mcar_test)
@@ -1046,6 +1062,110 @@ hardship_HS <- hardship_HS %>%
 # View the updated hardship_HS data frame
 #view(hardship_HS)
 ```
+
+# Correlation Heatmap with all variables 
+```{r}
+# Erstellung der Heatmap mit Korrelationskoeffizienten
+library(ggplot2)
+library(reshape2)
+
+# Berechnung der Korrelationsmatrix
+cor_matrix <- cor(hardship_HS %>% select_if(is.numeric), use = "complete.obs")
+
+# Umwandlung der Korrelationsmatrix in einen Datensatz für ggplot
+melted_cor_matrix <- melt(cor_matrix)
+
+# Erstellen der Heatmap mit Korrelationskoeffizienten
+ggplot(melted_cor_matrix, aes(Var1, Var2, fill = value)) +
+  geom_tile() +  # Zeichnet die Kacheln
+  geom_text(aes(label = sprintf("%.2f", value)), color = "black", size = 3) +  # Fügt die Korrelationskoeffizienten hinzu
+  scale_fill_gradient2(midpoint = 0, low = "blue", high = "red", mid = "white", limit = c(-1,1)) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(fill = "Korrelation", x = NULL, y = NULL) +
+  coord_fixed()
+
+# Optional: Speichern der Heatmap als PDF
+ggsave("correlation_heatmap.pdf", width = 11, height = 9, path = base_path)
+```
+
+# Corrlation Heatmap with Health/Safety-Hardship
+```{r}
+# Auswahl relevanter Spalten
+selected_vars <- hardship_HS %>% 
+  select(avg_risktaking, starts_with("HS_"))
+
+# Berechnung der Korrelationsmatrix für ausgewählte Variablen
+cor_matrix <- cor(selected_vars, use = "complete.obs")
+
+# Umwandlung der Korrelationsmatrix in einen Datensatz für ggplot
+melted_cor_matrix <- melt(cor_matrix)
+
+# Erstellung der Heatmap mit Korrelationskoeffizienten
+library(ggplot2)
+ggplot(melted_cor_matrix, aes(Var1, Var2, fill = value)) +
+  geom_tile() +  # Zeichnet die Kacheln
+  geom_text(aes(label = sprintf("%.2f", value)), color = "black", size = 3) +  # Fügt die Korrelationskoeffizienten hinzu
+  scale_fill_gradient2(midpoint = 0, low = "blue", high = "red", mid = "white", limit = c(-1,1)) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), axis.text.y = element_text(angle = 45, hjust = 1)) +
+  labs(fill = "Korrelation", x = NULL, y = NULL) +
+  coord_fixed()
+```
+# Cronbach's Alpha
+```{r}
+# Reverse and convert specified variables to numeric
+hardship_HS <- hardship_HS %>%
+  mutate(
+    HS_alc_agelim = as.numeric(max(HS_alc_agelim, na.rm = TRUE) + 1 - HS_alc_agelim),
+    HS_sex_antiretroviral = as.numeric(max(HS_sex_antiretroviral, na.rm = TRUE) + 1 - HS_sex_antiretroviral),
+    HS_oth_cleancooking = as.numeric(max(HS_oth_cleancooking, na.rm = TRUE) + 1 - HS_oth_cleancooking),
+    HS_mh_mhhospit = as.numeric(max(HS_mh_mhhospit, na.rm = TRUE) + 1 - HS_mh_mhhospit),
+    HS_mh_policy = as.numeric(max(HS_mh_policy, na.rm = TRUE) + 1 - HS_mh_policy),
+    HS_oth_obesity = as.numeric(max(HS_oth_obesity, na.rm = TRUE) + 1 - HS_oth_obesity)
+  )
+
+# Select only numeric variables for PCA
+numeric_vars_for_pca <- select_if(hardship_HS, is.numeric)
+
+# Confirming that only numeric variables are being considered
+if (!all(sapply(numeric_vars_for_pca, is.numeric))) {
+  stop("Non-numeric columns present in the dataset used for PCA")
+}
+
+# Load the necessary library
+library(psych)
+
+# Conduct PCA on the numeric variables only
+pca_results <- principal(numeric_vars_for_pca, nfactors = 5, rotate = "varimax")
+
+# Print the loadings to check the direction
+print(pca_results$loadings)
+
+# Check summary of PCA results
+summary(pca_results)
+
+# Print eigenvalues directly
+print(pca_results$values)
+# Load ggplot2 for plotting
+library(ggplot2)
+
+# Create a data frame for the eigenvalues
+eigen_df <- data.frame(
+  Component = seq_along(pca_results$values),
+  Eigenvalues = pca_results$values
+)
+
+# Plot the scree plot using ggplot2
+ggplot(eigen_df, aes(x = Component, y = Eigenvalues)) +
+  geom_line() +
+  geom_point() +
+  theme_minimal() +
+  labs(title = "Scree Plot", x = "Component Number", y = "Eigenvalues") +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "red")  # Cutoff for eigenvalues > 1
+```
+
+
 
 ```{r}
 write.csv(hardship_HS, file = file.path(base_path, "hardship_HS.csv"), row.names = FALSE)

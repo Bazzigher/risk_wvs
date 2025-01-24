@@ -354,6 +354,22 @@ hardship_Crime <- left_join(hardship_Crime, c_oth_polstab[, c("COUNTRY", "c_oth_
 # View(hardship_Crime)
 ```
 
+# Missing Countries
+```{r}
+# Auswahl aller Spalten, die mit "F_" beginnen
+missing_countries <- grep("^c_", names(hardship_Crime), value = TRUE)
+
+# Berechnung des Prozentsatzes der fehlenden Werte pro Land
+missing_percentages <- hardship_Crime %>%
+  select(country, all_of(missing_countries)) %>%
+  group_by(country) %>%
+  summarise_each(funs(sum(is.na(.)) / n() * 100), all_of(missing_countries)) %>%
+  mutate(average_missing = rowMeans(select(., -country), na.rm = TRUE))  # Berechnet den Durchschnitt der fehlenden Werte über alle "F_" Variablen
+
+# Ausgabe der Ergebnisse
+print(missing_percentages)
+```
+
 
 ```{r}
 # Länder HKG, RAW und TWN aus dem Datensatz entfernen

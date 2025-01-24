@@ -590,16 +590,30 @@ hardship_Finance <- left_join(hardship_Finance, f_eco_cpi[, c("COUNTRY", "f_eco_
 # View(hardship_Finance)
 ```
 
-
+# Missing Countries
 ```{r}
-# Länder HKG, RAW und TWN aus dem Datensatz entfernen
-hardship_Finance <- hardship_Finance %>%
-  filter(!COUNTRY %in% c("HKG", "ADO"))
+# Auswahl aller Spalten, die mit "F_" beginnen
+missing_countries <- grep("^f_", names(hardship_Finance), value = TRUE)
 
-#str(hardship_Finance)
+# Berechnung des Prozentsatzes der fehlenden Werte pro Land
+missing_percentages <- hardship_Finance %>%
+  select(country, all_of(missing_countries)) %>%
+  group_by(country) %>%
+  summarise_each(funs(sum(is.na(.)) / n() * 100), all_of(missing_countries)) %>%
+  mutate(average_missing = rowMeans(select(., -country), na.rm = TRUE))  # Berechnet den Durchschnitt der fehlenden Werte über alle "F_" Variablen
+
+# Ausgabe der Ergebnisse
+print(missing_percentages)
 ```
 
 
+```{r}
+# Länder RAW und TWN aus dem Datensatz entfernen
+hardship_Finance <- hardship_Finance %>%
+  filter(!COUNTRY %in% c("TWN", "ADO"))
+
+#str(hardship_Finance)
+```
 
 # select variable of hardship_HS
 ```{r}
@@ -617,26 +631,13 @@ corrplot(corr_matrix, method = "circle")
 
 ###################################################################
 
-# Missing values
-if (!require("finalfit")) {
-  install.packages("finalfit")
-}
-library(finalfit)
+```{r}
+# Little's MCAR-Test durchführen
+mcar_test <- mcar_test(hardship_Finance)
 
-
-# Überblick über fehlende Werte in deinem Datensatz
-hardship_Finance %>%
-  ff_glimpse()
-
-head(hardship_Finance)
-
-# Visualisierung der fehlenden Werte
-hardship_Finance %>%
-  missing_plot()
-
-# Fehlende Werte nach Gruppen analysieren
-hardship_Finance %>%
-  missing_pattern()
+# Ausgabe des Testergebnisses
+print(mcar_test)
+```
 
 
 ```{r}

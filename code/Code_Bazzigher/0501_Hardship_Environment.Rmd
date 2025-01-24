@@ -510,6 +510,23 @@ hardship_environment <- left_join(hardship_environment, E_exp_firearms[, c("COUN
 # View(hardship_environment)
 ```
 
+# Missing Countries
+```{r}
+# Auswahl aller Spalten, die mit "F_" beginnen
+missing_countries <- grep("^E_", names(hardship_environment), value = TRUE)
+
+# Berechnung des Prozentsatzes der fehlenden Werte pro Land
+missing_percentages <- hardship_environment %>%
+  select(country, all_of(missing_countries)) %>%
+  group_by(country) %>%
+  summarise_each(funs(sum(is.na(.)) / n() * 100), all_of(missing_countries)) %>%
+  mutate(average_missing = rowMeans(select(., -country), na.rm = TRUE))  # Berechnet den Durchschnitt der fehlenden Werte über alle "F_" Variablen
+
+# Ausgabe der Ergebnisse
+print(missing_percentages)
+```
+
+
 ```{r}
 # Länder HKG, RAW und TWN aus dem Datensatz entfernen
 hardship_environment <- hardship_environment %>%
@@ -551,6 +568,55 @@ mcar_test <- naniar::mcar_test(hardship_environment)
 # Ausgabe des Testergebnisses
 print(mcar_test)
 ```
+
+
+
+```{r}
+# Auswahl der numerischen Variablen (country ausschließen und Gruppierung aufheben)
+selected_vars <- hardship_environment %>%
+  ungroup() %>%  # Gruppierung entfernen
+  select(-country) %>%  # Entferne die Spalte country
+  select(avg_risktaking, starts_with("E_")) %>%  # Wähle relevante Spalten
+  drop_na()  # Entferne Zeilen mit fehlenden Werten
+
+# Berechnung der Korrelationsmatrix
+cor_matrix <- cor(selected_vars, use = "complete.obs")
+
+# Ausgabe der Korrelationsmatrix
+print(cor_matrix)
+
+```
+
+```{r}
+# Installieren und Laden des sensemakr-Pakets
+if (!require("sensemakr")) install.packages("sensemakr")
+library(sensemakr)
+
+# 1. Auswahl der relevanten Variablen und Bereinigung
+selected_vars <- hardship_environment %>%
+  ungroup() %>%  # Gruppierung entfernen
+  select(avg_risktaking, E_oth_safewater, E_exp_watersanithyg100k, E_exp_airdeath100k, E_ses_gini, E_ses_unemployment, E_ses_school, E_exp_firearms, E_ses_water) %>%  # Auswahl der Variablen
+  drop_na()  # Entferne Zeilen mit fehlenden Werten
+
+# 2. Modell anpassen
+model <- lm(avg_risktaking ~ E_oth_safewater + E_exp_watersanithyg100k + E_exp_airdeath100k + E_ses_gini + E_ses_unemployment + E_ses_school + E_exp_firearms, E_ses_water, data = selected_vars)
+
+# 3. Sensitivitätsanalyse durchführen
+# Hier wird "E_oth_safewater" als Schlüsselvariable (treatment) analysiert
+sensitivity <- sensemakr(
+  model = model,
+  treatment = "E_oth_safewater", # Schlüsselvariable, deren Effekt getestet wird
+  benchmark_covariates = c("E_exp_watersanithyg100k", "E_exp_airdeath100k"), # Störvariablen
+  kd = 1 # Stärke des Störfaktors im Vergleich zu den beobachteten Variablen
+)
+
+# 4. Ergebnisse der Sensitivitätsanalyse anzeigen
+print(sensitivity)
+
+# 5. Visualisierung der Sensitivitätsanalyse
+plot(sensitivity)
+```
+
 
 
 ```{r}
