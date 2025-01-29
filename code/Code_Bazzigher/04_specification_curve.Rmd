@@ -1,11 +1,14 @@
 ---
 title: "4_Hardship_specification_curve_v2"
-output: html_document
+output: 
+  html_document:
+    code_folding: hide
 date: "2024-05-08"
 ---
 
+
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, results = 'hide', message = FALSE, warning = FALSE)
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
 rm(list = ls())
 ```
 
@@ -33,112 +36,129 @@ remotes::install_github("masurp/specr")
 
 # Load all data
 ```{r}
-# Countryfacts
-countryfacts <- read.csv(file.path(base_path, "countryfacts_cleaned.csv"))
-
-countryfacts <- countryfacts %>%
-  select(-label, -codeWVS, -hardship_index)
-
 # Combined GPS WVS
 risktaking <- read.csv(file.path(base_path, "gps_wvs_combined.csv"), header=TRUE, as.is=TRUE)
 
+# Umbenennen von 'isocode' zu 'COUNTRY' in risktaking
 risktaking <- risktaking %>%
-  select(-hardship_index, -worldmap)
-
-# Check for 'country' column in both datasets
-print("Countryfacts columns:")
-print(names(countryfacts))
-
-print("Risktaking columns:")
-print(names(risktaking))
-print(countryfacts$code)
-```
-
-
-# Merge the datasets 
-```{r}
-risktaking <- merge(countryfacts, risktaking, by = "country")
-head(risktaking)
-```
-
-
-# Remove duplicated columns and unnecessary columns
-```{r}
-print("Checking for duplicate columns...")
-print(names(risktaking))
+  rename(COUNTRY = isocode)
 
 risktaking <- risktaking %>%
-  select(-ends_with(".y")) %>%
-  rename_with(~ gsub("\\.x", "", .), ends_with(".x"))
+  select(-hardship_index, -worldmap, -source)
+
+hardship_hs <- read.csv(file.path(base_path, "hardship_HS.csv"))
+hardship_finance <- read.csv(file.path(base_path, "hardship_finance.csv"))
+hardship_crime <- read.csv(file.path(base_path, "hardship_crime.csv"))
+hardship_environment <- read.csv(file.path(base_path, "hardship_environment.csv"))
+
+# Entfernen der nicht benötigten Spalten aus den Datensätzen vor dem Zusammenführen
+hardship_hs <- hardship_hs %>%
+  select(-country, -avg_risktaking)
+hardship_finance <- hardship_finance %>%
+  select(-country, -avg_risktaking)
+hardship_crime <- hardship_crime %>%
+  select(-country, -avg_risktaking)
+hardship_environment <- hardship_environment %>%
+  select(-country, -avg_risktaking)
+
+# Zusammenführen der Datensätze
+hardship_combined <- risktaking %>%
+  left_join(hardship_hs, by = "COUNTRY") %>%
+  left_join(hardship_finance, by = "COUNTRY") %>%
+  left_join(hardship_crime, by = "COUNTRY") %>%
+  left_join(hardship_environment, by = "COUNTRY")
+
+# Überprüfung der Struktur des kombinierten Datensatzes
+#str(hardship_combined)
 ```
 
 # Calculate correlation with risktaking
 ```{r}
-# Select only the numeric variables
-numeric_vars <- risktaking %>%
-  select_if(is.numeric)
+# Berechnung der Korrelation zwischen risktaking und den anderen Variablen
+correlation_results <- cor(hardship_combined[, sapply(hardship_combined, is.numeric)], use = "complete.obs")
 
-# Calculate the correlations 
-cor_matrix <- cor(numeric_vars, use = "complete.obs")
+# Korrelationstabelle für risktaking extrahieren
+risktaking_correlations <- correlation_results["risktaking", ]
 
-# Extract only the correlations that relate to "risktaking"
-risktaking_correlations <- cor_matrix["risktaking", ]
+# Konvertierung der Korrelationsergebnisse in ein formatiertes Datenframe
+correlation_table <- data.frame(
+  Variable = names(risktaking_correlations),
+  Correlation = risktaking_correlations
+)
 
-print(risktaking_correlations)
+# Entfernen der Korrelation von risktaking mit sich selbst
+correlation_table <- correlation_table[correlation_table$Variable != "risktaking", ]
+
+# Sortieren der Ergebnisse nach dem Betrag der Korrelation, absteigend
+correlation_table <- correlation_table[order(-abs(correlation_table$Correlation)), ]
+
+# Anzeigen der Tabelle
+kable(correlation_table, caption = "Korrelationen zwischen risktaking und anderen Variablen") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
 ```
 
 
 # Table with Correlation hardship factors and risktaking 
 ```{r}
-# Select only the numeric variables, including "risktaking"
-numeric_vars <- risktaking %>%
-  select_if(is.numeric)
+# Laden notwendiger Bibliotheken
+library(Hmisc)
+library(kableExtra)
 
-# Calculate both the correlation matrix and the p-values using rcorr()
+# Auswahl aller numerischen Variablen
+numeric_vars <- hardship_combined %>%
+  select(where(is.numeric))
+
+# Berechnen der Korrelationsmatrix und der p-Werte
 cor_results <- rcorr(as.matrix(numeric_vars))
 
-# Extract the correlation matrix and p-values for 'risktaking'
-correlations <- cor_results$r["risktaking", ]  # Correlation values
-p_values <- cor_results$P["risktaking", ]      # P-values
+# Korrelationen und p-Werte spezifisch für 'risktaking' extrahieren
+correlations <- cor_results$r[, "risktaking"]  # Korrelationen zu 'risktaking'
+p_values <- cor_results$P[, "risktaking"]      # p-Werte zu 'risktaking'
 
-# Create a data frame with correlation values, p-values, and significance
+# Datenrahmen für die Darstellung erstellen
 cor_table <- data.frame(
-  Variable = names(correlations),  # Set the variable names correctly
-  Correlation = round(correlations, 5),  # Correlation values
-  P_value = format(p_values, scientific = TRUE),  # P-values in scientific notation
-  Significant = ifelse(p_values < 0.05, "Yes", "No")  # Flag significant results
+  Variable = rownames(cor_results$r),  # Namen der Variablen
+  Correlation = round(correlations, 5),  # Korrelationswerte, gerundet auf 5 Dezimalstellen
+  P_value = format(p_values, scientific = TRUE),  # p-Werte in wissenschaftlicher Notation
+  Significant = ifelse(p_values < 0.05, "Yes", "No")  # Signifikanzflag, basierend auf p-Wert
 )
 
-# Ensure the rownames are not added as an extra column
-rownames(cor_table) <- NULL
-
-# Display the table without showing an extra unnamed column
+# Tabellendarstellung mit 'kable' und 'kableExtra'
 cor_table %>%
-  kable("html", 
-        caption = "Correlations with Risktaking: Summary of Results", 
-        col.names = c("Variable", "Correlation", "P-value", "Significant"),
-        digits = 5,  # Rounding numbers to 5 decimals
-        align = "c") %>%  # Center-align columns
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = F) %>% 
-  column_spec(2, bold = T) %>%  # Make the correlation column bold
-  column_spec(3, background = "lightyellow")  # Highlight P-value column
+  kable("html", caption = "Correlations with Risktaking: Summary of Results") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>%
+  column_spec(2, bold = TRUE) %>%
+  column_spec(3, background = "lightyellow")
 ```
 
 
 # Setup for specifications
 ```{r}
-# Setup for specifications
+library(specr)
+
+# Setup für die Spezifikationen mit einer umfassenderen Auswahl von Variablen
 specification <- setup(
-  data = risktaking, 
-  y = "risktaking",     # dependent variable
-  x = c("homiciderate", "gdp", "infantmortality", "lifeexpectancy", "gini", 
-        "femalemale_primedu", "alcusedis", "anxietydis", "adhd", "autism", 
-        "bipolardis", "conductdis", "depressdis", "drugusedis", "eatingdis", 
-        "hiv_aids_sextrasinf", "ediopathicdevintdis", "mentaldis", 
-        "othermentaldis", "schizophrenia"),  
+  data = hardship_combined,
+  y = "risktaking",  # abhängige Variable
+  x = c("HS_alc_agelim", "HS_alc_tax_wine", "HS_alc_roaddeath", 
+        "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy",
+        "HS_sex_gini", "HS_oth_obesity", "HS_oth_cleancooking",
+        "HS_mh_mhhospit", "HS_sex_antiretroviral", "HS_original_infantmortality",
+        "HS_original_lifeexpectancy", "HS_original_genderequality",
+        "hardship_HS", "f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int",
+        "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
+        "f_original_gdp", "f_original_gini", "hardship_Finance_index",
+        "c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot",
+        "c_bh_parviolenceprog", "c_bh_elderabuse", "c_bh_inthomicide",
+        "c_theft_estcorruption", "c_oth_polstab", "c_original_homiciderate",
+        "hardship_Crime_index", "e_original_gini", "e_oth_drinkingwater",
+        "e_oth_safewater", "e_exp_watersanithyg100k", "e_ses_gini",
+        "e_ses_school", "e_exp_disaster", "e_exp_airdeath100k", 
+        "e_exp_watersanithyg"),
   model = "lm"
 )
 
+# Zusammenfassung der Spezifikationen
 summary(specification)
 ```
 # run specifications
@@ -184,17 +204,28 @@ plot(specification_results, type = "boxplot") +
   labs(x = "Effect size", fill = "")
 ```
 
+
 # Subsetting data for males 
 ```{r}
 specification_males <- setup(
-  data = risktaking %>%
+  data = hardship_combined %>%
            filter(gender == 1),  # Filter for males
   y = "risktaking",
-  x = c("homiciderate", "gdp", "infantmortality", "lifeexpectancy", "gini", 
-        "femalemale_primedu", "alcusedis", "anxietydis", "adhd", "autism", 
-        "bipolardis", "conductdis", "depressdis", "drugusedis", "eatingdis", 
-        "hiv_aids_sextrasinf", "ediopathicdevintdis", "mentaldis", 
-        "othermentaldis", "schizophrenia"),
+  x = c("HS_alc_agelim", "HS_alc_tax_wine", "HS_alc_roaddeath", 
+        "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy",
+        "HS_sex_gini", "HS_oth_obesity", "HS_oth_cleancooking",
+        "HS_mh_mhhospit", "HS_sex_antiretroviral", "HS_original_infantmortality",
+        "HS_original_lifeexpectancy", "HS_original_genderequality",
+        "hardship_HS", "f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int",
+        "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
+        "f_original_gdp", "f_original_gini", "hardship_Finance_index",
+        "c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot",
+        "c_bh_parviolenceprog", "c_bh_elderabuse", "c_bh_inthomicide",
+        "c_theft_estcorruption", "c_oth_polstab", "c_original_homiciderate",
+        "hardship_Crime_index", "e_original_gini", "e_oth_drinkingwater",
+        "e_oth_safewater", "e_exp_watersanithyg100k", "e_ses_gini",
+        "e_ses_school", "e_exp_disaster", "e_exp_airdeath100k", 
+        "e_exp_watersanithyg"),
   model = "lm"
 )
 
@@ -234,14 +265,24 @@ plot(specification_results_males, type = "boxplot") +
 # Subsetting data for females 
 ```{r}
 specification_females <- setup(
-  data = risktaking %>%
+  data = hardship_combined %>%
            filter(gender == 0),  # Filter for females
   y = "risktaking",
-  x = c("homiciderate", "gdp", "infantmortality", "lifeexpectancy", "gini", 
-        "femalemale_primedu", "alcusedis", "anxietydis", "adhd", "autism", 
-        "bipolardis", "conductdis", "depressdis", "drugusedis", "eatingdis", 
-        "hiv_aids_sextrasinf", "ediopathicdevintdis", "mentaldis", 
-        "othermentaldis", "schizophrenia"),
+  x = c("HS_alc_agelim", "HS_alc_tax_wine", "HS_alc_roaddeath", 
+        "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy",
+        "HS_sex_gini", "HS_oth_obesity", "HS_oth_cleancooking",
+        "HS_mh_mhhospit", "HS_sex_antiretroviral", "HS_original_infantmortality",
+        "HS_original_lifeexpectancy", "HS_original_genderequality",
+        "hardship_HS", "f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int",
+        "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
+        "f_original_gdp", "f_original_gini", "hardship_Finance_index",
+        "c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot",
+        "c_bh_parviolenceprog", "c_bh_elderabuse", "c_bh_inthomicide",
+        "c_theft_estcorruption", "c_oth_polstab", "c_original_homiciderate",
+        "hardship_Crime_index", "e_original_gini", "e_oth_drinkingwater",
+        "e_oth_safewater", "e_exp_watersanithyg100k", "e_ses_gini",
+        "e_ses_school", "e_exp_disaster", "e_exp_airdeath100k", 
+        "e_exp_watersanithyg"),
   model = "lm"
 )
 
@@ -276,3 +317,624 @@ plot(specification_results_females, type = "boxplot") +
   scale_fill_brewer(palette = "Pastel2") +
   labs(x = "Effect size", fill = "")
 ```
+
+# Hardship Health/Safety
+## Setup for specifications
+```{r}
+library(specr)
+
+# Setup für die Spezifikationen mit einer umfassenderen Auswahl von Variablen
+specification <- setup(
+  data = hardship_combined,
+  y = "risktaking",  # abhängige Variable
+  x = c("HS_alc_agelim", "HS_alc_tax_wine", "HS_alc_roaddeath", 
+        "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy",
+        "HS_sex_gini", "HS_oth_obesity", "HS_oth_cleancooking",
+        "HS_mh_mhhospit", "HS_sex_antiretroviral", "HS_original_infantmortality",
+        "HS_original_lifeexpectancy", "HS_original_genderequality",
+        "hardship_HS"),
+  model = "lm"
+)
+
+# Zusammenfassung der Spezifikationen
+summary(specification)
+```
+## run specifications
+```{r}
+specification_results <- specr(specification)
+specification_results
+
+summary(specification_results, digits = 5)
+```
+
+## summarizing the parameter distribution
+```{r}
+summary(specification_results, type = "curve")
+
+summary(specification_results, 
+        type = "curve", 
+        group = "x",           
+        stats = c("median", "mean", "min", "max"))  # Statistiken in einem Vektor auflisten
+```
+
+## Plots
+```{r}
+plot(specification_results)
+
+(a <- plot(specification_results, type = "curve", ci = F, ribbon = T) + 
+   geom_point(size = 4))
+
+
+(b <- plot(specification_results, type = "choices", choices = c("x", "y", "model", "controls")) +
+   geom_point(size = 2, shape = 4)) 
+
+(c <- plot(specification_results, type = "samplesizes") + ylim(0, 400))
+
+
+plot_grid(a, b, c, ncol = 1,
+          align = "v",
+          rel_heights = c(1.5, 2.5, 0.8),
+          axis = "rbl")
+
+plot(specification_results, type = "boxplot") + 
+  geom_point(alpha = .4) + 
+  scale_fill_brewer(palette = "Pastel2") +
+  labs(x = "Effect size", fill = "")
+```
+
+## Subsetting data for males 
+```{r}
+specification_males <- setup(
+  data = hardship_combined %>%
+           filter(gender == 1),  # Filter for males
+  y = "risktaking",
+  x = c("HS_alc_agelim", "HS_alc_tax_wine", "HS_alc_roaddeath", 
+        "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy",
+        "HS_sex_gini", "HS_oth_obesity", "HS_oth_cleancooking",
+        "HS_mh_mhhospit", "HS_sex_antiretroviral", "HS_original_infantmortality",
+        "HS_original_lifeexpectancy", "HS_original_genderequality",
+        "hardship_HS"),
+  model = "lm"
+)
+
+# Run the specifications for males
+specification_results_males <- specr(specification_males)
+
+# View the summary of the results
+summary(specification_results_males)
+```
+
+## Plots for male subset results
+```{r}
+plot(specification_results_males)
+
+(a_male <- plot(specification_results_males, type = "curve", ci = F, ribbon = T) + 
+   geom_point(size = 4))
+
+
+(b_male <- plot(specification_results_males, type = "choices", choices = c("x", "y", "model", "controls")) +
+   geom_point(size = 2, shape = 4)) 
+
+(c_male <- plot(specification_results_males, type = "samplesizes") + ylim(0, 400))
+
+
+plot_grid(a_male, b_male, c_male, ncol = 1,
+          align = "v",
+          rel_heights = c(1.5, 2, 0.8),
+          axis = "rbl")
+
+plot(specification_results_males, type = "boxplot") + 
+  geom_point(alpha = .4) + 
+  scale_fill_brewer(palette = "Pastel2") +
+  labs(x = "Effect size", fill = "")
+```
+
+
+## Subsetting data for females 
+```{r}
+specification_females <- setup(
+  data = hardship_combined %>%
+           filter(gender == 0),  # Filter for females
+  y = "risktaking",
+  x = c("HS_alc_agelim", "HS_alc_tax_wine", "HS_alc_roaddeath", 
+        "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy",
+        "HS_sex_gini", "HS_oth_obesity", "HS_oth_cleancooking",
+        "HS_mh_mhhospit", "HS_sex_antiretroviral", "HS_original_infantmortality",
+        "HS_original_lifeexpectancy", "HS_original_genderequality",
+        "hardship_HS"),
+  model = "lm"
+)
+
+# Run the specifications for females
+specification_results_females <- specr(specification_females)
+
+# View the summary of the results
+summary(specification_results_females)
+```
+
+## Plots for female subset results
+```{r}
+plot(specification_results_females)
+
+(a_female <- plot(specification_results_females, type = "curve", ci = F, ribbon = T) + 
+   geom_point(size = 4))
+
+
+(b_female <- plot(specification_results_females, type = "choices", choices = c("x", "y", "model", "controls")) +
+   geom_point(size = 2, shape = 4)) 
+
+(c_female <- plot(specification_results_females, type = "samplesizes") + ylim(0, 400))
+
+
+plot_grid(a_female, b_female, c_female, ncol = 1,
+          align = "v",
+          rel_heights = c(1.5, 2, 0.8),
+          axis = "rbl")
+
+plot(specification_results_females, type = "boxplot") + 
+  geom_point(alpha = .4) + 
+  scale_fill_brewer(palette = "Pastel2") +
+  labs(x = "Effect size", fill = "")
+```
+
+
+# Hardship Finance
+## Setup for specifications
+```{r}
+library(specr)
+
+# Setup für die Spezifikationen mit einer umfassenderen Auswahl von Variablen
+specification <- setup(
+  data = hardship_combined,
+  y = "risktaking",  # abhängige Variable
+  x = c("f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int",
+        "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
+        "f_original_gdp", "f_original_gini", "hardship_Finance_index"),
+  model = "lm"
+)
+
+# Zusammenfassung der Spezifikationen
+summary(specification)
+```
+## run specifications
+```{r}
+specification_results <- specr(specification)
+specification_results
+
+summary(specification_results, digits = 5)
+```
+
+## summarizing the parameter distribution
+```{r}
+summary(specification_results, type = "curve")
+
+summary(specification_results, 
+        type = "curve", 
+        group = "x",           
+        stats = c("median", "mean", "min", "max"))  # Statistiken in einem Vektor auflisten
+```
+
+## Plots
+```{r}
+plot(specification_results)
+
+(a <- plot(specification_results, type = "curve", ci = F, ribbon = T) + 
+   geom_point(size = 4))
+
+
+(b <- plot(specification_results, type = "choices", choices = c("x", "y", "model", "controls")) +
+   geom_point(size = 2, shape = 4)) 
+
+(c <- plot(specification_results, type = "samplesizes") + ylim(0, 400))
+
+
+plot_grid(a, b, c, ncol = 1,
+          align = "v",
+          rel_heights = c(1.5, 2, 0.8),
+          axis = "rbl")
+
+plot(specification_results, type = "boxplot") + 
+  geom_point(alpha = .4) + 
+  scale_fill_brewer(palette = "Pastel2") +
+  labs(x = "Effect size", fill = "")
+```
+
+## Subsetting data for males 
+```{r}
+specification_males <- setup(
+  data = hardship_combined %>%
+           filter(gender == 1),  # Filter for males
+  y = "risktaking",
+  x = c("f_oth_insfinsvcs_int",
+        "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
+        "f_original_gdp", "f_original_gini", "hardship_Finance_index"
+        ),
+  model = "lm"
+)
+
+# Run the specifications for males
+specification_results_males <- specr(specification_males)
+
+# View the summary of the results
+summary(specification_results_males)
+```
+
+## Plots for male subset results
+```{r}
+plot(specification_results_males)
+
+(a_male <- plot(specification_results_males, type = "curve", ci = F, ribbon = T) + 
+   geom_point(size = 4))
+
+
+(b_male <- plot(specification_results_males, type = "choices", choices = c("x", "y", "model", "controls")) +
+   geom_point(size = 2, shape = 4)) 
+
+(c_male <- plot(specification_results_males, type = "samplesizes") + ylim(0, 400))
+
+
+plot_grid(a_male, b_male, c_male, ncol = 1,
+          align = "v",
+          rel_heights = c(1.5, 2, 0.8),
+          axis = "rbl")
+
+plot(specification_results_males, type = "boxplot") + 
+  geom_point(alpha = .4) + 
+  scale_fill_brewer(palette = "Pastel2") +
+  labs(x = "Effect size", fill = "")
+```
+
+
+## Subsetting data for females 
+```{r}
+specification_females <- setup(
+  data = hardship_combined %>%
+           filter(gender == 0),  # Filter for females
+  y = "risktaking",
+  x = c("f_oth_insfinsvcs_int",
+        "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
+        "f_original_gdp", "f_original_gini", "hardship_Finance_index"
+        ),
+  model = "lm"
+)
+
+# Run the specifications for females
+specification_results_females <- specr(specification_females)
+
+# View the summary of the results
+summary(specification_results_females)
+```
+
+## Plots for female subset results
+```{r}
+plot(specification_results_females)
+
+(a_female <- plot(specification_results_females, type = "curve", ci = F, ribbon = T) + 
+   geom_point(size = 4))
+
+
+(b_female <- plot(specification_results_females, type = "choices", choices = c("x", "y", "model", "controls")) +
+   geom_point(size = 2, shape = 4)) 
+
+(c_female <- plot(specification_results_females, type = "samplesizes") + ylim(0, 400))
+
+
+plot_grid(a_female, b_female, c_female, ncol = 1,
+          align = "v",
+          rel_heights = c(1.5, 2, 0.8),
+          axis = "rbl")
+
+plot(specification_results_females, type = "boxplot") + 
+  geom_point(alpha = .4) + 
+  scale_fill_brewer(palette = "Pastel2") +
+  labs(x = "Effect size", fill = "")
+```
+
+
+# Hardship Crime
+## Setup for specifications
+```{r}
+library(specr)
+
+# Setup für die Spezifikationen mit einer umfassenderen Auswahl von Variablen
+specification <- setup(
+  data = hardship_combined,
+  y = "risktaking",  # abhängige Variable
+  x = c("c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot",
+        "c_bh_parviolenceprog", "c_bh_elderabuse", "c_bh_inthomicide",
+        "c_theft_estcorruption", "c_oth_polstab", "c_original_homiciderate",
+        "hardship_Crime_index"),
+  model = "lm"
+)
+
+# Zusammenfassung der Spezifikationen
+summary(specification)
+```
+## run specifications
+```{r}
+specification_results <- specr(specification)
+specification_results
+
+summary(specification_results, digits = 5)
+```
+
+## summarizing the parameter distribution
+```{r}
+summary(specification_results, type = "curve")
+
+summary(specification_results, 
+        type = "curve", 
+        group = "x",           
+        stats = c("median", "mean", "min", "max"))  # Statistiken in einem Vektor auflisten
+```
+
+## Plots
+```{r}
+plot(specification_results)
+
+(a <- plot(specification_results, type = "curve", ci = F, ribbon = T) + 
+   geom_point(size = 4))
+
+
+(b <- plot(specification_results, type = "choices", choices = c("x", "y", "model", "controls")) +
+   geom_point(size = 2, shape = 4)) 
+
+(c <- plot(specification_results, type = "samplesizes") + ylim(0, 400))
+
+
+plot_grid(a, b, c, ncol = 1,
+          align = "v",
+          rel_heights = c(1.5, 2, 0.8),
+          axis = "rbl")
+
+plot(specification_results, type = "boxplot") + 
+  geom_point(alpha = .4) + 
+  scale_fill_brewer(palette = "Pastel2") +
+  labs(x = "Effect size", fill = "")
+```
+
+## Subsetting data for males 
+```{r}
+specification_males <- setup(
+  data = hardship_combined %>%
+           filter(gender == 1),  # Filter for males
+  y = "risktaking",
+  x = c("c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot",
+        "c_bh_parviolenceprog", "c_bh_elderabuse", "c_bh_inthomicide",
+        "c_theft_estcorruption", "c_oth_polstab", "c_original_homiciderate",
+        "hardship_Crime_index"),
+  model = "lm"
+)
+
+# Run the specifications for males
+specification_results_males <- specr(specification_males)
+
+# View the summary of the results
+summary(specification_results_males)
+```
+
+## Plots for male subset results
+```{r}
+plot(specification_results_males)
+
+(a_male <- plot(specification_results_males, type = "curve", ci = F, ribbon = T) + 
+   geom_point(size = 4))
+
+
+(b_male <- plot(specification_results_males, type = "choices", choices = c("x", "y", "model", "controls")) +
+   geom_point(size = 2, shape = 4)) 
+
+(c_male <- plot(specification_results_males, type = "samplesizes") + ylim(0, 400))
+
+
+plot_grid(a_male, b_male, c_male, ncol = 1,
+          align = "v",
+          rel_heights = c(1.5, 2, 0.8),
+          axis = "rbl")
+
+plot(specification_results_males, type = "boxplot") + 
+  geom_point(alpha = .4) + 
+  scale_fill_brewer(palette = "Pastel2") +
+  labs(x = "Effect size", fill = "")
+```
+
+
+## Subsetting data for females 
+```{r}
+specification_females <- setup(
+  data = hardship_combined %>%
+           filter(gender == 0),  # Filter for females
+  y = "risktaking",
+  x = c("c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot",
+        "c_bh_parviolenceprog", "c_bh_elderabuse", "c_bh_inthomicide",
+        "c_theft_estcorruption", "c_oth_polstab", "c_original_homiciderate",
+        "hardship_Crime_index"),
+  model = "lm"
+)
+
+# Run the specifications for females
+specification_results_females <- specr(specification_females)
+
+# View the summary of the results
+summary(specification_results_females)
+```
+
+## Plots for female subset results
+```{r}
+plot(specification_results_females)
+
+(a_female <- plot(specification_results_females, type = "curve", ci = F, ribbon = T) + 
+   geom_point(size = 4))
+
+
+(b_female <- plot(specification_results_females, type = "choices", choices = c("x", "y", "model", "controls")) +
+   geom_point(size = 2, shape = 4)) 
+
+(c_female <- plot(specification_results_females, type = "samplesizes") + ylim(0, 400))
+
+
+plot_grid(a_female, b_female, c_female, ncol = 1,
+          align = "v",
+          rel_heights = c(1.5, 2, 0.8),
+          axis = "rbl")
+
+plot(specification_results_females, type = "boxplot") + 
+  geom_point(alpha = .4) + 
+  scale_fill_brewer(palette = "Pastel2") +
+  labs(x = "Effect size", fill = "")
+```
+
+
+# Hardship Environment
+## Setup for specifications
+```{r}
+library(specr)
+
+# Setup für die Spezifikationen mit einer umfassenderen Auswahl von Variablen
+specification <- setup(
+  data = hardship_combined,
+  y = "risktaking",  # abhängige Variable
+  x = c("e_original_gini", "e_oth_drinkingwater",
+        "e_oth_safewater", "e_exp_watersanithyg100k", "e_ses_gini",
+        "e_ses_school", "e_exp_disaster", "e_exp_airdeath100k", 
+        "e_exp_watersanithyg"),
+  model = "lm"
+)
+
+# Zusammenfassung der Spezifikationen
+summary(specification)
+```
+## run specifications
+```{r}
+specification_results <- specr(specification)
+specification_results
+
+summary(specification_results, digits = 5)
+```
+
+## summarizing the parameter distribution
+```{r}
+summary(specification_results, type = "curve")
+
+summary(specification_results, 
+        type = "curve", 
+        group = "x",           
+        stats = c("median", "mean", "min", "max"))  # Statistiken in einem Vektor auflisten
+```
+
+## Plots
+```{r}
+plot(specification_results)
+
+(a <- plot(specification_results, type = "curve", ci = F, ribbon = T) + 
+   geom_point(size = 4))
+
+
+(b <- plot(specification_results, type = "choices", choices = c("x", "y", "model", "controls")) +
+   geom_point(size = 2, shape = 4)) 
+
+(c <- plot(specification_results, type = "samplesizes") + ylim(0, 400))
+
+
+plot_grid(a, b, c, ncol = 1,
+          align = "v",
+          rel_heights = c(1.5, 2, 0.8),
+          axis = "rbl")
+
+plot(specification_results, type = "boxplot") + 
+  geom_point(alpha = .4) + 
+  scale_fill_brewer(palette = "Pastel2") +
+  labs(x = "Effect size", fill = "")
+```
+
+## Subsetting data for males 
+```{r}
+specification_males <- setup(
+  data = hardship_combined %>%
+           filter(gender == 1),  # Filter for males
+  y = "risktaking",
+  x = c("e_original_gini", "e_oth_drinkingwater",
+        "e_oth_safewater", "e_exp_watersanithyg100k", "e_ses_gini",
+        "e_ses_school", "e_exp_disaster", "e_exp_airdeath100k", 
+        "e_exp_watersanithyg"),
+  model = "lm"
+)
+
+# Run the specifications for males
+specification_results_males <- specr(specification_males)
+
+# View the summary of the results
+summary(specification_results_males)
+```
+
+## Plots for male subset results
+```{r}
+plot(specification_results_males)
+
+(a_male <- plot(specification_results_males, type = "curve", ci = F, ribbon = T) + 
+   geom_point(size = 4))
+
+
+(b_male <- plot(specification_results_males, type = "choices", choices = c("x", "y", "model", "controls")) +
+   geom_point(size = 2, shape = 4)) 
+
+(c_male <- plot(specification_results_males, type = "samplesizes") + ylim(0, 400))
+
+
+plot_grid(a_male, b_male, c_male, ncol = 1,
+          align = "v",
+          rel_heights = c(1.5, 2, 0.8),
+          axis = "rbl")
+
+plot(specification_results_males, type = "boxplot") + 
+  geom_point(alpha = .4) + 
+  scale_fill_brewer(palette = "Pastel2") +
+  labs(x = "Effect size", fill = "")
+```
+
+
+## Subsetting data for females 
+```{r}
+specification_females <- setup(
+  data = hardship_combined %>%
+           filter(gender == 0),  # Filter for females
+  y = "risktaking",
+  x = c("e_original_gini", "e_oth_drinkingwater",
+        "e_oth_safewater", "e_exp_watersanithyg100k", "e_ses_gini",
+        "e_ses_school", "e_exp_disaster", "e_exp_airdeath100k", 
+        "e_exp_watersanithyg"),
+  model = "lm"
+)
+
+# Run the specifications for females
+specification_results_females <- specr(specification_females)
+
+# View the summary of the results
+summary(specification_results_females)
+```
+
+## Plots for female subset results
+```{r}
+plot(specification_results_females)
+
+(a_female <- plot(specification_results_females, type = "curve", ci = F, ribbon = T) + 
+   geom_point(size = 4))
+
+
+(b_female <- plot(specification_results_females, type = "choices", choices = c("x", "y", "model", "controls")) +
+   geom_point(size = 2, shape = 4)) 
+
+(c_female <- plot(specification_results_females, type = "samplesizes") + ylim(0, 400))
+
+
+plot_grid(a_female, b_female, c_female, ncol = 1,
+          align = "v",
+          rel_heights = c(1.5, 2, 0.8),
+          axis = "rbl")
+
+plot(specification_results_females, type = "boxplot") + 
+  geom_point(alpha = .4) + 
+  scale_fill_brewer(palette = "Pastel2") +
+  labs(x = "Effect size", fill = "")
+```
+

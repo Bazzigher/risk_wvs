@@ -1,10 +1,14 @@
 ---
-title: "R Notebook"
-output: html_notebook
+title: "4_Hardship_specification_curve_v2"
+output: 
+  html_document:
+    code_folding: hide
+date: "2024-05-08"
 ---
 
+
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, results = 'hide', message = FALSE, warning = FALSE)
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
 rm(list = ls())
 ```
 
@@ -14,16 +18,17 @@ rm(list = ls())
 base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
 ```
 
+
+#if (!require("devtools")) install.packages("devtools")
+#devtools::install_github("aphp/rgho")
+
+
 # Load libraries
 ```{r}
 library("dplyr")
 library("tidyverse")
 library("tidyr")
 library("WDI")
-
-if (!require("devtools")) install.packages("devtools")
-devtools::install_github("aphp/rgho")
-
 library(rgho)
 ```
 
@@ -63,6 +68,25 @@ hardship_Finance <- hardship_Finance %>%
   filter(COUNTRY != "Serbia and Montenegro")
 
 #view(hardship_Finance)
+head(hardship_Finance)
+```
+
+# Copy and rename original hardship-Variables
+```{r}
+# Umformen des 'hardship_Original' Datensatzes
+hardship_Finance <- hardship_Finance %>%
+  mutate(
+    HS_original_infantmortality = infantmortality,
+    HS_original_lifeexpectancy = lifeexpectancy,
+    e_original_gini = gini,
+    f_original_gini = gini,
+    c_original_homiciderate = homiciderate,
+    f_original_gdp = gdp,
+    HS_original_genderequality = femalemale_primedu
+  )
+
+# Überprüfung der neuen Struktur
+str(hardship_Finance)
 ```
 
 # Naming: 
@@ -76,45 +100,79 @@ hardship_Finance <- hardship_Finance %>%
 # - E: Exposure (exp), Socioeconomic (ses), Other (oth)
 
 
-
+# f_oth_grosssaving - Adjusted savings: gross savings (% of GNI)
+## Gross savings are the difference between gross national income and public and private consumption... 
 ```{r}
-# Setzen der Länder und Indikatoren
-countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")  
-indicators <- c("SH.UHC.OOPC.10.ZS") 
+countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
+indicators <- c("NY.ADJ.ICTR.GN.ZS") 
 
 # Daten abrufen
-control <- WDI(country = countries, indicator = indicators, start = 2005, end = 2014)
+f_oth_grosssaving <- WDI(country = countries, indicator = indicators, start = 2005, end = 2014)
+
+# Spalten umbenennen
+f_oth_grosssaving <- f_oth_grosssaving %>%
+  rename(f_oth_grosssaving = NY.ADJ.ICTR.GN.ZS) # Control of Corruption (estimate)
 
 # Daten transformieren: Jahre als Spalten darstellen
-control <- control %>%
-  pivot_wider(names_from = year, values_from = SH.UHC.OOPC.10.ZS)
+f_oth_grosssaving <- f_oth_grosssaving %>%
+  pivot_wider(names_from = year, values_from = f_oth_grosssaving)
 
 # Durchschnitt über alle Jahre berechnen und neue Spalte hinzufügen
-control <- control %>%
-  mutate(control = rowMeans(select(., starts_with("20")), na.rm = TRUE))
+f_oth_grosssaving <- f_oth_grosssaving %>%
+  mutate(f_oth_grosssaving = rowMeans(select(., starts_with("20")), na.rm = TRUE))
 
-# Prüfen, welche Länder keine Werte in der 'control' Spalte haben
-missing_values <- control %>%
-  filter(is.na(control)) %>%
-  select(country)  # Auswahl nur der Länderspalte
+# Rename iso3c to COUNTRY
+f_oth_grosssaving <- f_oth_grosssaving %>%
+  rename(COUNTRY = iso3c)
 
-# Anzahl der Länder ohne Werte
-num_missing <- nrow(missing_values)
+# Werte mit 0 oder NaN durch NA ersetzen
+f_oth_grosssaving <- f_oth_grosssaving %>%
+  mutate(f_oth_grosssaving = case_when(
+    is.nan(f_oth_grosssaving) ~ NA_real_,
+    f_oth_grosssaving == 0 ~ NA_real_,
+    TRUE ~ f_oth_grosssaving
+  ))
 
-# Ausgabe der Länder ohne Werte und der Anzahl
-print(missing_values)
-print(paste("Anzahl der Länder ohne Werte: ", num_missing))
+# Zeige die ersten Zeilen der transformierten Daten
+#view(f_oth_grosssaving)
 ```
 
+# f_oth_eduexpenditure - Adjusted savings: education expenditure (% of GNI)
+## Education expenditure refers to the current operating expenditures in education, including wages and salaries and excluding capital investments in buildings and equipment.
 ```{r}
-library("WDI")
-# Suche nach Indikatoren, die das Wort "unemployment" enthalten
-search_results <- WDIsearch(string = "Proportion of population pushed below the 50", field = "name")
+countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
+indicators <- c("NY.ADJ.AEDU.GN.ZS") 
 
-# Anzeigen der Suchergebnisse
-print(search_results)
+# Daten abrufen
+f_oth_eduexpenditure <- WDI(country = countries, indicator = indicators, start = 2005, end = 2014)
+
+# Spalten umbenennen
+f_oth_eduexpenditure <- f_oth_eduexpenditure %>%
+  rename(f_oth_eduexpenditure = NY.ADJ.AEDU.GN.ZS) # Control of Corruption (estimate)
+
+# Daten transformieren: Jahre als Spalten darstellen
+f_oth_eduexpenditure <- f_oth_eduexpenditure %>%
+  pivot_wider(names_from = year, values_from = f_oth_eduexpenditure)
+
+# Durchschnitt über alle Jahre berechnen und neue Spalte hinzufügen
+f_oth_eduexpenditure <- f_oth_eduexpenditure %>%
+  mutate(f_oth_eduexpenditure = rowMeans(select(., starts_with("20")), na.rm = TRUE))
+
+# Rename iso3c to COUNTRY
+f_oth_eduexpenditure <- f_oth_eduexpenditure %>%
+  rename(COUNTRY = iso3c)
+
+# Werte mit 0 oder NaN durch NA ersetzen
+f_oth_eduexpenditure <- f_oth_eduexpenditure %>%
+  mutate(f_oth_eduexpenditure = case_when(
+    is.nan(f_oth_eduexpenditure) ~ NA_real_,
+    f_oth_eduexpenditure == 0 ~ NA_real_,
+    TRUE ~ f_oth_eduexpenditure
+  ))
+
+# Zeige die ersten Zeilen der transformierten Daten
+#view(f_oth_eduexpenditure)
 ```
-
 
 # f_inv_acctownership_primaryedu - Account ownership at a financial institution or with a mobile-money-service provider, primary education or less (% of population ages 15+)
 ## Account denotes the percentage of respondents who report having an account (by themselves or together with someone else) at a bank or another type of financial institution or report personally using a mobile money service in the past 12 months (primary education or less, % of population ages 15+).
@@ -578,6 +636,8 @@ f_eco_cpi <- f_eco_cpi %>%
 
 # Join Specifications to hardship_HS
 ```{r}
+hardship_Finance <- left_join(hardship_Finance, f_oth_grosssaving[, c("COUNTRY", "f_oth_grosssaving")], by = "COUNTRY")
+hardship_Finance <- left_join(hardship_Finance, f_oth_eduexpenditure[, c("COUNTRY", "f_oth_eduexpenditure")], by = "COUNTRY")
 hardship_Finance <- left_join(hardship_Finance, f_inv_acctownership_primaryedu[, c("COUNTRY", "f_inv_acctownership_primaryedu")], by = "COUNTRY")
 hardship_Finance <- left_join(hardship_Finance, f_oth_insfinsvcs_int[, c("COUNTRY", "f_oth_insfinsvcs_int")], by = "COUNTRY")
 hardship_Finance <- left_join(hardship_Finance, f_inv_bankfin_invest[, c("COUNTRY", "f_inv_bankfin_invest")], by = "COUNTRY")
@@ -587,7 +647,7 @@ hardship_Finance <- left_join(hardship_Finance, f_eco_gdpdefl_linked[, c("COUNTR
 hardship_Finance <- left_join(hardship_Finance, f_hs_oopexp_pov215[, c("COUNTRY", "f_hs_oopexp_pov215")], by = "COUNTRY")
 hardship_Finance <- left_join(hardship_Finance, f_eco_cpi[, c("COUNTRY", "f_eco_cpi")], by = "COUNTRY")
 
-# View(hardship_Finance)
+head(hardship_Finance)
 ```
 
 # Missing Countries
@@ -600,7 +660,8 @@ missing_percentages <- hardship_Finance %>%
   select(country, all_of(missing_countries)) %>%
   group_by(country) %>%
   summarise_each(funs(sum(is.na(.)) / n() * 100), all_of(missing_countries)) %>%
-  mutate(average_missing = rowMeans(select(., -country), na.rm = TRUE))  # Berechnet den Durchschnitt der fehlenden Werte über alle "F_" Variablen
+  mutate(average_missing = rowMeans(select(., -country), na.rm = TRUE))  %>%
+  arrange(desc(average_missing))  # Sortiert die Daten absteigend nach dem durchschnittlichen Prozentsatz der fehlenden Werte
 
 # Ausgabe der Ergebnisse
 print(missing_percentages)
@@ -617,7 +678,7 @@ hardship_Finance <- hardship_Finance %>%
 
 # select variable of hardship_HS
 ```{r}
-hardship_Finance <- hardship_Finance %>% select(COUNTRY, country, avg_risktaking, homiciderate, gdp, infantmortality, lifeexpectancy, gini, femalemale_primedu, f_inv_acctownership_primaryedu,  f_oth_insfinsvcs_int, f_inv_bankfin_invest, f_inv_bankfin_workcap, f_hs_oopexp10, f_eco_gdpdefl_linked, f_hs_oopexp_pov215, f_eco_cpi)
+hardship_Finance <- hardship_Finance %>% select(COUNTRY, country, avg_risktaking, f_inv_acctownership_primaryedu,  f_oth_insfinsvcs_int, f_inv_bankfin_invest, f_inv_bankfin_workcap, f_hs_oopexp10, f_eco_gdpdefl_linked, f_hs_oopexp_pov215, f_eco_cpi, f_original_gdp, f_original_gini)
 str(hardship_Finance)
 ```
 
@@ -629,11 +690,43 @@ corrplot(corr_matrix, method = "circle")
 ```
 
 
+
 ###################################################################
 
+# Prüfung auf den Mechanismus des Fehlens von Daten
 ```{r}
-# Little's MCAR-Test durchführen
-mcar_test <- mcar_test(hardship_Finance)
+# Laden des Pakets
+library(mice)
+```
+
+```{r}
+# Fehlende Werte berechnen
+missing_percentages <- sapply(hardship_Finance, function(x) {
+  sum(is.na(x)) / length(x) * 100
+})
+
+# Ergebnisse in DataFrame umwandeln
+missing_summary <- data.frame(
+  Variable = names(missing_percentages),
+  MissingPercentage = missing_percentages
+)
+
+# Nach Prozent sortieren
+missing_summary <- missing_summary[order(-missing_summary$MissingPercentage), ]
+
+# Ausgabe der Tabelle
+print(missing_summary)
+```
+
+```{r}
+# Installieren des naniar Pakets, falls noch nicht geschehen
+if (!require("naniar")) install.packages("naniar")
+
+# Laden des Pakets
+library(naniar)
+
+# Durchführung von Little's MCAR-Test (ähnlich)
+mcar_test <- naniar::mcar_test(hardship_Finance)
 
 # Ausgabe des Testergebnisses
 print(mcar_test)
@@ -646,6 +739,8 @@ library(VIM)
 # Aggregierte Missingness-Visualisierung
 aggr_plot <- aggr(hardship_Finance, col = c('navyblue', 'red'), numbers = TRUE, sortVars = TRUE, 
                   labels = names(hardship_Finance), cex.axis = 0.7, gap = 3, ylab = c("Missing Data", "Pattern"))
+
+vis_miss(hardship_Finance)
 ```
 
 ```{r}
@@ -668,14 +763,6 @@ print(missing_summary)
 ```
 
 
-
-# Plot Missingness 
-# Beispiel: Missingness von f_hs_oopexp10 in Bezug auf avg_risktaking
-ggplot(hardship_Finance, aes(x = avg_risktaking, y = is.na(f_hs_oopexp10))) +
-  geom_jitter() +
-  labs(title = "Missingness in f_hs_oopexp10 vs avg_risktaking")
-
-
 ```{r}
 # Überprüfe, ob alle Variablen tatsächlich numerisch sind
 sapply(hardship_Finance, function(x) all(is.numeric(x)))
@@ -685,18 +772,16 @@ methods <- rep("none", ncol(hardship_Finance))
 names(methods) <- colnames(hardship_Finance)
 
 # Weisen den relevanten Spalten Imputationsmethoden zu
-methods["avg_risktaking"] <- "pmm"           # Numerisch
-methods["homiciderate"] <- "pmm"             # Numerisch
-methods["gdp"] <- "pmm"                      # Numerisch
-methods["infantmortality"] <- "pmm"          # Numerisch
-methods["lifeexpectancy"] <- "pmm"           # Numerisch
-methods["gini"] <- "pmm"                     # Numerisch
+methods["f_original_gini"] <- "pmm"           # Numerisch
+methods["f_original_gdp"] <- "pmm"                     # Numerisch
 methods["femalemale_primedu"] <- "pmm"       # Numerisch
 methods["f_inv_acctownership_primaryedu"] <- "pmm"           # Numerisch
 methods["f_oth_insfinsvcs_int"] <- "pmm"   # Numerisch
 methods["f_hs_oopexp10"] <- "pmm"              # Numerisch
 methods["f_eco_gdpdefl_linked"] <- "pmm"           # Numerisch
 methods["f_bofp_netfinacct"] <- "pmm"           # Numerisch
+methods["f_inv_bankfin_invest"] <- "pmm"           # Numerisch
+methods["f_inv_bankfin_workcap"] <- "pmm"           # Numerisch
 ```
 
 
@@ -704,20 +789,20 @@ methods["f_bofp_netfinacct"] <- "pmm"           # Numerisch
 
 ```{r}
 library(mice)
+
 # Auswahl nur der numerischen Spalten
-hardship_Finance <- hardship_Finance %>%
-  select(where(is.numeric))
+hardship_Finance_numeric <- hardship_Finance %>%
+  select(where(is.numeric)) %>%
+  select(-avg_risktaking)
 
 # Entfernen von f_hs_oopexp10
-#hardship_Finance <- hardship_Finance %>% select(-f_hs_oopexp10)
 hardship_Finance <- hardship_Finance %>% select(-f_inv_bankfin_invest)
 hardship_Finance <- hardship_Finance %>% select(-f_inv_bankfin_workcap)
 hardship_Finance <- hardship_Finance %>% select(-f_hs_oopexp_pov215)
 
-
 # Erneute Imputation durchführen
 imputed_data <- mice(
-  hardship_Finance,
+  hardship_Finance_numeric,
   m = 20,
   maxit = 50,
   method = "pmm",
@@ -725,7 +810,6 @@ imputed_data <- mice(
 )
 
 completed_data <- complete(imputed_data, 1)
-
 
 # Zusammenfassung der Imputationsergebnisse
 summary(imputed_data)
@@ -737,25 +821,14 @@ completed_data <- complete(imputed_data, 1)
 str(completed_data)
 ```
 
-
-```{r}
-sapply(hardship_Finance, function(x) all(x == x[1], na.rm = TRUE))
-
-cor_matrix <- cor(hardship_Finance, use = "pairwise.complete.obs")
-high_cor <- which(abs(cor_matrix) > 0.99 & abs(cor_matrix) < 1, arr.ind = TRUE)
-print(high_cor)
-
-sum(complete.cases(hardship_Finance))
-
-```
-
-
 ```{r}
 imputed_data$imp$f_inv_acctownership_primaryedu  # Zeigt die imputierten Werte für diese Variable
 imputed_data$imp$f_oth_insfinsvcs_int  # Zeigt die imputierten Werte für diese Variable
 imputed_data$imp$f_hs_oopexp10  # Zeigt die imputierten Werte für diese Variable
 imputed_data$imp$f_eco_gdpdefl_linked  # Zeigt die imputierten Werte für diese Variable
 imputed_data$imp$f_eco_cpi  # Zeigt die imputierten Werte für diese Variable
+imputed_data$imp$f_original_gdp
+imputed_data$imp$f_original_gini
 
 # visualisierung
 stripplot(imputed_data, pch = 20, cex = 1.2)  # Verteilung der imputierten Werte
@@ -766,38 +839,36 @@ completed_data <- complete(imputed_data, action = 1)
 ```
 
 
+
+
 ```{r}
-# Berechnung der Mittelwerte vor der Imputation
-mean_values_pre_imputation <- sapply(hardship_Finance, function(x) mean(x, na.rm = TRUE))
+# Berechnen der Mittelwerte vor der Imputation
+mean_values_pre_imputation <- sapply(hardship_Finance_numeric, mean, na.rm = TRUE)
 
-# Ausgabe der Mittelwerte
-print(mean_values_pre_imputation)
-
-
-# Berechnung der Mittelwerte nach der Imputation
+# Berechnen der Mittelwerte nach der Imputation
 mean_values_post_imputation <- sapply(completed_data, mean, na.rm = TRUE)
 
-# Ausgabe der Mittelwerte
-print(mean_values_post_imputation)
+# Erhalten der Schnittmenge der Namen von Variablen in beiden Datensätzen
+common_vars <- intersect(names(mean_values_pre_imputation), names(mean_values_post_imputation))
 
-# Vergleich der Mittelwerte vor und nach der Imputation
+# Anpassen der Mittelwertdatensätze, um nur gemeinsame Variablen zu enthalten
+mean_values_pre_imputation <- mean_values_pre_imputation[common_vars]
+mean_values_post_imputation <- mean_values_post_imputation[common_vars]
+
+# Erstellen des Vergleichsdatensatzes
 comparison_data <- data.frame(
-  Variable = names(mean_values_pre_imputation),
+  Variable = common_vars,
   PreImputation = mean_values_pre_imputation,
   PostImputation = mean_values_post_imputation
 )
 
-# Plotten der Mittelwerte vor und nach der Imputation
 library(ggplot2)
-ggplot(comparison_data, aes(x = Variable)) +
-  geom_bar(aes(y = PreImputation), stat = "identity", fill = "blue", alpha = 0.7) +
-  geom_bar(aes(y = PostImputation), stat = "identity", fill = "red", alpha = 0.5) +
+ggplot(comparison_data, aes(x = Variable, y = PreImputation, fill = "Pre")) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_bar(aes(y = PostImputation, fill = "Post"), stat = "identity", position = "dodge") +
   theme_minimal() +
-  labs(title = "Vergleich der Mittelwerte vor und nach der Imputation",
-       y = "Mittelwert",
-       fill = "Legende") +
-  scale_fill_manual(values = c("Pre-Imputation" = "blue", "Post-Imputation" = "red"))
-
+  labs(title = "Vergleich der Mittelwerte vor und nach der Imputation", y = "Mittelwert") +
+  scale_fill_manual(values = c("Pre" = "blue", "Post" = "red"))
 ```
 
 
@@ -809,11 +880,13 @@ hardship_Finance <- hardship_Finance %>%
     f_oth_insfinsvcs_int = completed_data$f_oth_insfinsvcs_int,
     f_hs_oopexp10 = completed_data$f_hs_oopexp10,
     f_eco_gdpdefl_linked = completed_data$f_eco_gdpdefl_linked,
-    f_eco_cpi = completed_data$f_eco_cpi
+    f_eco_cpi = completed_data$f_eco_cpi,
+    f_original_gdp = completed_data$f_original_gdp,
+    f_original_gini = completed_data$f_original_gini
   )
 
 # Überprüfung der Struktur des aktualisierten Datensatzes
-head(hardship_Finance)
+str(hardship_Finance)
 ```
 
 
@@ -837,6 +910,25 @@ hardship_Finance %>%
   geom_histogram(bins = 30) + 
   theme_minimal()
 ```
+# Ausreisser
+```{r}
+# Winsorisierung nur auf Variablen mit potenziellen Ausreißern
+winsorize <- function(x, lower_quantile = 0.01, upper_quantile = 0.99) {
+  lower <- quantile(x, lower_quantile, na.rm = TRUE)
+  upper <- quantile(x, upper_quantile, na.rm = TRUE)
+  pmin(pmax(x, lower), upper)
+}
+
+hardship_Finance <- hardship_Finance %>%
+  mutate(f_hs_oopexp10 = winsorize(f_hs_oopexp10)
+  )
+
+# 3. Keine Anpassung für andere Variablen (z. B. E_oth_safewater)
+# Überprüfen der Struktur nach Transformationen
+#view(hardship_Finance)
+```
+
+
 
 ## Log Countryfacts 
 ```{r}
@@ -847,7 +939,7 @@ hardship_Finance <- hardship_Finance %>%
     f_oth_insfinsvcs_int = log(f_oth_insfinsvcs_int),
     f_hs_oopexp10 = log(f_hs_oopexp10),
     f_eco_gdpdefl_linked = log(f_eco_gdpdefl_linked),
-    f_eco_cpi = log(f_eco_cpi),
+    f_eco_cpi = log(f_eco_cpi)
 
   )
 
@@ -863,12 +955,6 @@ hardship_Finance %>%
   theme_minimal()
 ```
 
-
-```{r}
-head(hardship_Finance)
-```
-
-
 ## Reverse Coding - Standardize and create hardship_HS
 ```{r}
 library(dplyr)
@@ -878,19 +964,84 @@ hardship_Finance <- hardship_Finance %>%
   mutate(
     f_inv_acctownership_primaryedu = scale(-f_inv_acctownership_primaryedu), # reverse coding
     f_oth_insfinsvcs_int = scale(-f_oth_insfinsvcs_int), # reverse coding
-    f_hs_oopexp10 = scale(f_hs_oopexp10), # keine Umkehrung
+    f_hs_oopexp10 = scale(-f_hs_oopexp10), # reverse coding
     f_eco_gdpdefl_linked = scale(f_eco_gdpdefl_linked), # keine Umkehrung
     f_eco_cpi = scale(f_eco_cpi) # keine Umkehrung
   ) %>%
   rowwise() %>%
   mutate(
-    hardship_Finance_index = mean(c(f_inv_acctownership_primaryedu, f_oth_insfinsvcs_int, f_hs_oopexp10, f_eco_gdpdefl_linked, f_eco_cpi), na.rm = TRUE)
+    hardship_Finance_index = mean(c(f_inv_acctownership_primaryedu, f_oth_insfinsvcs_int, f_hs_oopexp10, f_eco_gdpdefl_linked, f_eco_cpi, f_original_gdp, f_original_gini), na.rm = TRUE)
   ) %>%
   ungroup()
 
 # Überprüfung des aktualisierten Datensatzes
 # View the updated hardship_Finance data frame
-# view(hardship_Finance)
+head(hardship_Finance)
+```
+
+# Correlation Heatmap with all variables 
+```{r}
+# Erstellung der Heatmap mit Korrelationskoeffizienten
+library(ggplot2)
+library(reshape2)
+
+# Berechnung der Korrelationsmatrix
+cor_matrix <- cor(hardship_Finance %>% select_if(is.numeric), use = "complete.obs")
+
+# Umwandlung der Korrelationsmatrix in einen Datensatz für ggplot
+melted_cor_matrix <- melt(cor_matrix)
+
+# Erstellen der Heatmap mit Korrelationskoeffizienten
+ggplot(melted_cor_matrix, aes(Var1, Var2, fill = value)) +
+  geom_tile() +  # Zeichnet die Kacheln
+  geom_text(aes(label = sprintf("%.2f", value)), color = "black", size = 3) +  # Fügt die Korrelationskoeffizienten hinzu
+  scale_fill_gradient2(midpoint = 0, low = "blue", high = "red", mid = "white", limit = c(-1,1)) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(fill = "Korrelation", x = NULL, y = NULL) +
+  coord_fixed()
+
+# Optional: Speichern der Heatmap als PDF
+ggsave("correlation_heatmap.pdf", width = 11, height = 9, path = base_path)
+```
+
+# Corrlation Heatmap with Health/Safety-Hardship
+```{r}
+# Auswahl relevanter Spalten
+selected_vars <- hardship_Finance %>% 
+  select(avg_risktaking, starts_with("f_"))
+
+# Berechnung der Korrelationsmatrix für ausgewählte Variablen
+cor_matrix <- cor(selected_vars, use = "complete.obs")
+
+# Umwandlung der Korrelationsmatrix in einen Datensatz für ggplot
+melted_cor_matrix <- melt(cor_matrix)
+
+# Erstellung der Heatmap mit Korrelationskoeffizienten
+library(ggplot2)
+ggplot(melted_cor_matrix, aes(Var1, Var2, fill = value)) +
+  geom_tile() +  # Zeichnet die Kacheln
+  geom_text(aes(label = sprintf("%.2f", value)), color = "black", size = 3) +  # Fügt die Korrelationskoeffizienten hinzu
+  scale_fill_gradient2(midpoint = 0, low = "blue", high = "red", mid = "white", limit = c(-1,1)) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), axis.text.y = element_text(angle = 45, hjust = 1)) +
+  labs(fill = "Korrelation", x = NULL, y = NULL) +
+  coord_fixed()
+```
+
+
+
+# Cronbachs Alpha
+```{r}
+library(psych)
+
+# Sicherstellen, dass alle relevanten 'f_'-Spalten ausgewählt werden
+items <- hardship_Finance %>%
+  select(f_inv_acctownership_primaryedu, f_oth_insfinsvcs_int, f_hs_oopexp10, f_eco_gdpdefl_linked, f_eco_cpi, f_original_gdp, f_original_gini)
+
+# Berechnung von Cronbachs Alpha
+alpha_result <- alpha(items)
+print(alpha_result)
 ```
 
 ```{r}
