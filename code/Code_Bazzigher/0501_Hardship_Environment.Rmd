@@ -69,7 +69,7 @@ hardship_Finance <- hardship_environment %>%
 head(hardship_environment)
 ```
 
-# Copy and rename original hardship-Variables
+## Copy and rename original hardship-Variables
 ```{r}
 # Umformen des 'hardship_Original' Datensatzes
 hardship_environment <- hardship_environment %>%
@@ -86,13 +86,13 @@ hardship_environment <- hardship_environment %>%
 # Überprüfung der neuen Struktur
 str(hardship_environment)
 ```
-
-# Liste aller verfügbaren Dimensionen
+# GHO Data
+## Liste aller verfügbaren Dimensionen
 ```{r}
 dimensions <- get_gho_dimensions()
 ```
 
-# Werte für die Dimension "GHO" abrufen
+## Werte für die Dimension "GHO" abrufen
 ```{r}
 gho_values <- get_gho_values("GHO")
 # View(gho_values) # Öffnet die Werte in RStudio
@@ -101,20 +101,7 @@ gho_values <- get_gho_values("GHO")
 gho_values[grepl("SA_0000001699", gho_values$Code), ]
 ```
 
-# Naming: 
-# Hardship: 
-# - Health / Safety (HS), Crime (C), Financial (F), Environmental (E)
-
-# Factor: 
-# - HS: Alcohol (alc), Drugs (drg), Nicotine (nic), Mental Health (mh), Sex (sex), Other (oth)
-# - C: Bodily harm (bh), Antisocial (anti), Theft/ fraud (theft), Other (oth)
-# - F: Gambling (gam), Investment (inv), Other (oth)
-# - E: Exposure (exp), Socioeconomic (ses), Other (oth)
-
-
-
-
-# Abrufen der Daten für den spezifischen Indikatorcode
+## Abrufen der Daten für den spezifischen Indikatorcode
 ```{r}
 e_exp_airdeath100k <- get_gho_data(code = "SDGAIRBODA")  # Household and ambient air pollution attributable death rate (per 100 000 population, age-standardized)
 e_exp_disaster <- get_gho_data(code = "SDGDISASTER") # Average death rate due to natural disasters (per 100 000 population)
@@ -142,7 +129,7 @@ e_oth_safewater <- get_gho_data(code = "WSH_WATER_SAFELY_MANAGED")  # Population
 #view(e_oth_climatstrategy)
 ```
 
-# Select important rows 
+## Select important rows 
 ```{r}
 e_oth_safewater <- e_oth_safewater %>% select(IndicatorCode, NumericValue, COUNTRY, YEAR, RESIDENCEAREATYPE)
 e_oth_drinkingwater <- e_oth_drinkingwater %>% select(IndicatorCode, NumericValue, COUNTRY, YEAR, RESIDENCEAREATYPE)
@@ -162,7 +149,7 @@ e_exp_airdeath100k <- e_exp_airdeath100k %>% select(IndicatorCode, NumericValue,
 ```
 
 
-# e_oth_safewater
+## e_oth_safewater
 ```{r}
 # 1. Werte in NumericValue in numerische Werte umwandeln
 e_oth_safewater <- e_oth_safewater %>%
@@ -191,7 +178,7 @@ e_oth_safewater <- e_oth_safewater %>%
 head(e_oth_safewater)
 ```
 
-# e_oth_drinkingwater
+## e_oth_drinkingwater
 ```{r}
 # 1. Werte in NumericValue in numerische Werte umwandeln
 e_oth_drinkingwater <- e_oth_drinkingwater %>%
@@ -220,7 +207,7 @@ e_oth_drinkingwater <- e_oth_drinkingwater %>%
 head(e_oth_drinkingwater)
 ```
 
-# e_exp_watersanithyg100k
+## e_exp_watersanithyg100k
 ```{r}
 # Umbenennen der Spalte NumericValue in e_exp_watersanithyg100k
 # Sicherstellen, dass NumericValue numerisch ist
@@ -233,7 +220,7 @@ e_exp_watersanithyg100k <- e_exp_watersanithyg100k %>%
 # Überprüfen der Änderungen
 head(e_exp_watersanithyg100k)
 ```
-# e_exp_watersanithyg
+## e_exp_watersanithyg
 ```{r}
 # 1. NumericValue in numerische Werte umwandeln und Spalte umbenennen
 e_exp_watersanithyg <- e_exp_watersanithyg %>%
@@ -252,7 +239,7 @@ e_exp_watersanithyg <- e_exp_watersanithyg %>%
 head(e_exp_watersanithyg)
 ```
 
-# e_exp_disaster
+## e_exp_disaster
 ```{r}
 library(dplyr)
 library(tidyr)
@@ -282,7 +269,7 @@ e_exp_disaster <- e_exp_disaster %>%
 head(e_exp_disaster)
 ```
 
-# e_exp_airdeath100k
+## e_exp_airdeath100k
 ```{r}
 library(dplyr)
 library(tidyr)
@@ -331,6 +318,7 @@ e_exp_airdeath100k <- e_exp_airdeath100k %>%
 # Überprüfen der Änderungen
 head(e_exp_airdeath100k)
 ```
+# World Bank data
 ```{r}
 library("WDI")
 # Suche nach Indikatoren, die das Wort "unemployment" enthalten
@@ -340,19 +328,9 @@ search_results <- WDIsearch(string = "Rule of Law", field = "name")
 print(search_results)
 ```
 
-# Naming: 
-# Hardship: 
-# - Health / Safety (HS), Crime (C), Financial (F), Environmental (E)
 
-# Factor: 
-# - HS: Alcohol (alc), Drugs (drg), Nicotine (nic), Mental Health (mh), Sex (sex), Other (oth)
-# - C: Bodily harm (bh), Antisocial (anti), Theft/ fraud (theft), Other (oth)
-# - F: Gambling (gam), Investment (inv), Other (oth)
-# - E: Exposure (exp), Socioeconomic (ses), Other (oth)
-
-
-# e_ses_gini: SI.POV.GINI	- Gini index
-## The Gini index measures the extent to which the distribution of income or consumption among individuals or households within an economy deviates from a perfectly equal distribution. A Gini index of 0 represents perfect equality, while an index of 100 implies perfect inequality.
+## e_ses_gini: SI.POV.GINI	- Gini index
+### The Gini index measures the extent to which the distribution of income or consumption among individuals or households within an economy deviates from a perfectly equal distribution. A Gini index of 0 represents perfect equality, while an index of 100 implies perfect inequality.
 ```{r}
 countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
 indicators <- c("SI.POV.GINI") 
@@ -390,8 +368,8 @@ e_ses_gini <- e_ses_gini %>%
 
 
 
-# e_ses_unemployment: SL.UEM.TOTL.ZS - Unemployment, total (% of total labor force) (modeled ILO estimate)
-## Unemployment refers to the share of the labor force that is without work but available for and seeking employment.
+## e_ses_unemployment: SL.UEM.TOTL.ZS - Unemployment, total (% of total labor force) (modeled ILO estimate)
+### Unemployment refers to the share of the labor force that is without work but available for and seeking employment.
 ```{r}
 countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
 indicators <- c("SL.UEM.TOTL.ZS") 
@@ -428,8 +406,8 @@ e_ses_unemployment <- e_ses_unemployment %>%
 ```
 
 
-# e_ses_school: SL.UEM.TOTL.ZS - Unemployment, total (% of total labor force) (modeled ILO estimate)
-## Unemployment refers to the share of the labor force that is without work but available for and seeking employment.
+## e_ses_school: SL.UEM.TOTL.ZS - Unemployment, total (% of total labor force) (modeled ILO estimate)
+### Unemployment refers to the share of the labor force that is without work but available for and seeking employment.
 ```{r}
 countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
 indicators <- c("SE.ENR.PRSC.FM.ZS") 
@@ -466,8 +444,8 @@ e_ses_school <- e_ses_school %>%
 ```
 
 
-# e_ses_water: ER.H2O.FWTL.ZS - Annual freshwater withdrawals, total (% of internal resources)
-## Annual freshwater withdrawals refer to total water withdrawals, not counting evaporation losses from storage basins. Withdrawals also include water from desalination plants in countries where they are a significant source. Withdrawals can exceed 100 percent of total renewable resources where extraction from nonrenewable aquifers or desalination plants is considerable or where there is significant water reuse. Withdrawals for agriculture and industry are total withdrawals for irrigation and livestock production and for direct industrial use (including withdrawals for cooling thermoelectric plants). Withdrawals for domestic uses include drinking water, municipal use or supply, and use for public services, commercial establishments, and homes. 
+## e_ses_water: ER.H2O.FWTL.ZS - Annual freshwater withdrawals, total (% of internal resources)
+### Annual freshwater withdrawals refer to total water withdrawals, not counting evaporation losses from storage basins. Withdrawals also include water from desalination plants in countries where they are a significant source. Withdrawals can exceed 100 percent of total renewable resources where extraction from nonrenewable aquifers or desalination plants is considerable or where there is significant water reuse. Withdrawals for agriculture and industry are total withdrawals for irrigation and livestock production and for direct industrial use (including withdrawals for cooling thermoelectric plants). Withdrawals for domestic uses include drinking water, municipal use or supply, and use for public services, commercial establishments, and homes. 
 ```{r}
 countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
 indicators <- c("ER.H2O.FWTL.ZS") 
@@ -537,7 +515,6 @@ missing_percentages <- hardship_environment %>%
 print(missing_percentages)
 ```
 
-
 ```{r}
 # Länder HKG, RAW und TWN aus dem Datensatz entfernen
 hardship_environment <- hardship_environment %>%
@@ -555,8 +532,7 @@ str(hardship_Finance)
 ```
 
 # Missing values
-
-# Prüfung auf den Mechanismus des Fehlens von Daten
+## Prüfung auf den Mechanismus des Fehlens von Daten
 ```{r}
 # Laden des Pakets
 library(mice)
@@ -644,7 +620,7 @@ methods["e_oth_drinkingwater"] <- "pmm"      # Numerisch
 methods["e_ses_unemployment"] <- "pmm"           # Numerisch
 ```
 
-
+# Impute data
 ```{r}
 # Auswahl nur der numerischen Spalten
 hardship_environment_numeric <- hardship_environment %>%
@@ -750,7 +726,7 @@ print(comparison_data)
 
 
 
-# Füge die imputierten Variablen zurück in den ursprünglichen Datensatz ein:
+## Füge die imputierten Variablen zurück in den ursprünglichen Datensatz ein:
 ```{r}
 # Gruppierung entfernen
 hardship_environment <- hardship_environment %>%
@@ -797,7 +773,7 @@ hardship_environment %>%
   theme_minimal()
 ```
 
-# Ausreisser 
+## Ausreisser 
 ```{r}
 # 1. Logarithmische Transformation nur für relevante Variablen
 hardship_environment <- hardship_environment %>%
@@ -846,7 +822,7 @@ summary(hardship_environment$e_exp_disaster)
 ```
 
 
-## Reverse Coding - Standardize and create hardship_environment
+## Log-Transformation 
 ```{r}
 library(dplyr)
 
@@ -876,7 +852,7 @@ hardship_environment %>%
   theme_minimal()
 ```
 
-## Reverse Coding - Standardize and create hardship_HS
+## Reverse Coding & Standardize 
 ```{r}
 # Now apply the scale function after confirming all variables are numeric
 hardship_environment <- hardship_environment %>%
@@ -930,7 +906,7 @@ ggplot(melted_cor_matrix, aes(Var1, Var2, fill = value)) +
 ggsave("correlation_heatmap.pdf", width = 11, height = 9, path = base_path)
 ```
 
-# Corrlation Heatmap 
+# Corrlation Heatmap with e_-variables
 ```{r}
 # Auswahl relevanter Spalten
 selected_vars <- hardship_environment %>% 
@@ -994,6 +970,7 @@ ggplot(melted_cor_matrix, aes(Var1, Var2, fill = value)) +
   labs(fill = "Korrelation", x = NULL, y = NULL) +
   coord_fixed()
 ```
+
 # Cronbachs Alpha
 ```{r}
 library(psych)
@@ -1010,7 +987,6 @@ print(alpha_result)
 ```{r}
 hardship_environment <- hardship_environment %>% select(COUNTRY, country, avg_risktaking, e_original_gini, e_oth_drinkingwater, e_oth_safewater, e_exp_watersanithyg100k, e_ses_gini, e_ses_school, e_exp_disaster, e_exp_airdeath100k, e_exp_watersanithyg)
 ```
-
 
 ```{r}
 write.csv(hardship_environment, file = file.path(base_path, "hardship_environment.csv"), row.names = FALSE)

@@ -1,0 +1,131 @@
+---
+title: "01_GPS_WVS"
+output: html_document
+date: "2024-05-08"
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, results = 'hide', message = FALSE, warning = FALSE)
+rm(list = ls())
+```
+
+# Set path Laura: ONLY USE FOR LAURA 
+```{r}
+#base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
+
+# Absolute Pfadangabe zum CSV-File
+csv_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/Data_Mata_et_al._2016/countryfacts_selection.csv"
+```
+
+# Library 
+```{r}
+library(tidyverse)  # Includes ggplot2, dplyr, tidyr, readr, and more
+library(readxl)
+library(Hmisc)
+
+```
+
+
+# Data
+## Load data 
+```{r}
+# Countryfacts
+Bazzigher_countryfacts <- read_excel(file.path(base_path, "Hardship_complete_2024.xlsx"))
+# Lese das CSV-File mit read_csv
+Mata_countryfacts <- read_csv(csv_path)
+str(Bazzigher_countryfacts)
+str(Mata_countryfacts)
+```
+
+
+
+```{r}
+library(dplyr)
+library(tidyr)
+
+# Umbenennen der Variablen in Mata_countryfacts
+Mata_countryfacts <- Mata_countryfacts %>%
+  rename_with(~paste("mata", .x, sep = "_"), -all_of(c("code", "label")))
+
+# Überprüfen der neuen Spaltennamen
+print(names(Mata_countryfacts))
+
+# Zusammenführen der Datensätze
+combined_data <- Bazzigher_countryfacts %>%
+  left_join(Mata_countryfacts, by = "code")
+
+# Berechnung der Durchschnittswerte, stellen Sie sicher, dass die Spalten existieren
+if(all(c("mata_homiciderate", "mata_gdp", "mata_infantmortality", "mata_lifeexpectancy", "mata_gini", "mata_femalemale_primedu") %in% names(combined_data))) {
+  combined_data <- combined_data %>%
+    mutate(
+      hardship_index = rowMeans(select(., homiciderate, gdp, infantmortality, lifeexpectancy, gini, femalemale_primedu), na.rm = TRUE),
+      mata_hardship_index = rowMeans(select(., mata_homiciderate, mata_gdp, mata_infantmortality, mata_lifeexpectancy, mata_gini, mata_femalemale_primedu), na.rm = TRUE)
+    )
+} else {
+  stop("One or more required columns are missing.")
+}
+
+# Entfernen nicht-numerischer Spalten vor der Korrelationsberechnung
+numeric_data <- combined_data %>%
+  select(where(is.numeric))
+
+
+# Berechnung der Korrelationsmatrix
+cor_matrix <- cor(numeric_data, use = "complete.obs")
+
+
+# Installieren des Hmisc-Pakets, falls es noch nicht installiert ist
+if (!require(Hmisc)) {
+  install.packages("Hmisc")
+  library(Hmisc)
+} else {
+  library(Hmisc)
+}
+
+# Berechnung der Korrelationsmatrix und Signifikanzniveaus
+cor_results <- rcorr(as.matrix(numeric_data))
+cor_matrix <- cor_results$r
+p_matrix <- cor_results$P
+
+# Print der Korrelationsmatrix
+print(cor_matrix)
+print(p_matrix)
+```
+
+```{r}
+# Extrahieren Sie die Korrelation und das P-Wert zwischen `hardship_index` und `mata_hardship_index`
+cor_value <- cor_matrix['hardship_index', 'mata_hardship_index']
+p_value <- p_matrix['hardship_index', 'mata_hardship_index']
+
+cat(sprintf("Die Korrelation zwischen 'hardship_index' und 'mata_hardship_index' beträgt r = %.3f, p = %.3f.", cor_value, p_value))
+```
+
+
+```{r}
+library(dplyr)
+library(corrplot)
+
+
+# Auswahl aller numerischen Variablen für die Korrelationsmatrix
+numeric_data <- combined_data %>%
+  select(where(is.numeric))
+
+library(corrplot)
+
+# Berechnung der Korrelationsmatrix
+cor_matrix <- cor(numeric_data, use = "complete.obs")
+
+# Erstellen der Korrelations-Heatmap mit Koeffizienten
+corrplot(cor_matrix, method = "color",
+         type = "upper",  # Anzeigen der oberen Dreiecksmatrix
+         order = "hclust",  # Anordnung basierend auf hierarchischer Clusteranalyse
+         addCoef.col = "black",  # Farbe der Korrelationskoeffizienten
+         tl.col = "black",  # Textfarbe für die Variablennamen
+         tl.srt = 45,  # Drehung der Variablennamen für bessere Lesbarkeit
+         number.cex = 0.6,  # Größe der Korrelationskoeffizienten
+         diag = FALSE)  # Diagonale entfernen, falls nicht benötigt
+```
+
+
