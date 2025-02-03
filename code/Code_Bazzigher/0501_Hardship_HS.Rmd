@@ -30,7 +30,6 @@ devtools::install_github("aphp/rgho")
 library(rgho)
 ```
 
-
 # Load dataset to create Hardship-Index
 ```{r}
 risktaking <- read.csv(file.path(base_path, "gps_wvs_combined.csv"), header=TRUE, as.is=TRUE)
@@ -70,7 +69,7 @@ hardship_HS <- hardship_HS %>%
 head(hardship_HS)
 ```
 
-# Copy and rename original hardship-Variables
+## Copy and rename original hardship-Variables
 ```{r}
 # Umformen des 'hardship_Original' Datensatzes
 hardship_HS <- hardship_HS %>%
@@ -88,13 +87,13 @@ hardship_HS <- hardship_HS %>%
 str(hardship_HS)
 ```
 
-
-# Liste aller verfügbaren Dimensionen
+# GHO data
+## Liste aller verfügbaren Dimensionen
 ```{r}
 dimensions <- get_gho_dimensions()
 ```
 
-# Werte für die Dimension "GHO" abrufen
+## Werte für die Dimension "GHO" abrufen
 ```{r}
 gho_values <- get_gho_values("GHO")
 # View(gho_values) # Öffnet die Werte in RStudio
@@ -103,7 +102,7 @@ gho_values <- get_gho_values("GHO")
 gho_values[grepl("SA_0000001699", gho_values$Code), ]
 ```
 
-# Abrufen der Daten für den spezifischen Indikatorcode
+## Abrufen der Daten für den spezifischen Indikatorcode
 ```{r}
 HS_alc_agelim <- get_gho_data(code = "SA_0000001699") # Age limits off-premise sales
 HS_alc_tax <- get_gho_data(code = "SA_0000001550") # Excise tax on alcoholic beverages
@@ -121,7 +120,7 @@ HS_mh_mhhospit <- get_gho_data(code = "MH_18")  # Mental health units in general
 #view(HS_sex_HIV)
 ```
 
-# Select important rows 
+## Select important rows 
 ```{r}
 HS_alc_agelim <- HS_alc_agelim %>% select(IndicatorCode, Value, COUNTRY, YEAR, ALCOHOLTYPE)
 HS_alc_tax <- HS_alc_tax %>% select(IndicatorCode, Value, COUNTRY, YEAR, ALCOHOLTYPE)
@@ -139,7 +138,7 @@ HS_mh_mhhospit <- HS_mh_mhhospit %>% select(IndicatorCode, NumericValue, COUNTRY
 #view(HS_alc_agelim)
 ```
 
-# HS_alc_agelim
+## HS_alc_agelim
 ```{r}
 HS_alc_agelim <- HS_alc_agelim %>%
   pivot_wider(
@@ -231,7 +230,7 @@ HS_alc_agelim_final <- HS_alc_agelim_final %>%
 #view(HS_alc_agelim_final)
 ```
 
-# HS_alc_tax
+## HS_alc_tax
 ```{r}
 # Daten in breites Format umwandeln und gleichzeitig Jahre und Alkoholtypen kombinieren
 HS_alc_tax <- HS_alc_tax %>%
@@ -282,7 +281,7 @@ HS_alc_tax <- HS_alc_tax %>%
 #view(HS_alc_tax)
 ```
 
-# HS_alc_roaddeath
+## HS_alc_roaddeath
 ```{r}
 # Anzeigen der ersten Zeilen der Daten, um die Struktur zu überprüfen
 head(HS_alc_roaddeath)
@@ -323,7 +322,7 @@ HS_alc_roaddeath <- HS_alc_roaddeath %>%
 #head(HS_alc_roaddeath)
 ```
 
-# HS_drg_treatment
+## HS_drg_treatment
 ```{r}
 # Vorher solltest du sicherstellen, dass du die Bibliotheken geladen hast
 library(tidyr)
@@ -365,7 +364,7 @@ HS_drg_treatment <- HS_drg_treatment %>%
 #view(HS_drg_treatment)
 ```
 
-# HS_nic_affordability
+## HS_nic_affordability
 ```{r}
 library(tidyr)
 library(dplyr)
@@ -408,7 +407,7 @@ HS_nic_affordability <- HS_nic_affordability %>%
 #view(HS_nic_affordability)
 ```
 
-# HS_sex_gini
+## HS_sex_gini
 ```{r}
 library(tidyr)
 library(dplyr)
@@ -451,7 +450,7 @@ HS_sex_gini <- HS_sex_gini %>%
 #View(HS_sex_gini)
 ```
 
-# HS_sex_antiretroviral
+## HS_sex_antiretroviral
 ```{r}
 
 # Umwandlung der Daten in ein breites Format
@@ -504,7 +503,7 @@ HS_sex_antiretroviral <- HS_sex_antiretroviral %>%
 #view(HS_sex_antiretroviral)
 ```
 
-# HS_oth_obesity
+## HS_oth_obesity
 ```{r}
 # Einschränken des Datensatzes auf die Jahre 2005 bis 2016
 HS_oth_obesity <- HS_oth_obesity %>%
@@ -558,7 +557,7 @@ HS_oth_obesity <- HS_oth_obesity %>%
 
 
 
-# HS_oth_cleancooking
+## HS_oth_cleancooking
 ```{r}
 # Einschränken des Datensatzes auf die Jahre 2005 bis 2016
 HS_oth_cleancooking <- HS_oth_cleancooking %>%
@@ -607,8 +606,7 @@ HS_oth_cleancooking <- HS_oth_cleancooking %>%
 
 ```
 
-# HS_mh_mhhospit 
-## Rename HS_mh_mhhospit
+## HS_mh_mhhospit 
 ```{r}
 # Rename HS_mh_mhhospit
 HS_mh_mhhospit <- HS_mh_mhhospit %>%
@@ -640,7 +638,7 @@ HS_mh_mhhospit <- HS_mh_mhhospit %>%
 # view(HS_mh_mhhospit)
 ```
 
-# HS_mh_policy
+## HS_mh_policy
 ```{r}
 # Umbenennen der Spalte für Konsistenz
 HS_mh_policy <- HS_mh_policy %>%
@@ -700,7 +698,7 @@ hardship_HS <- hardship_HS %>%
 head(hardship_HS)
 ```
 
-# Missing Countries
+## Missing Countries
 ```{r}
 # Auswahl aller Spalten, die mit "F_" beginnen
 missing_countries <- grep("^HS_", names(hardship_HS), value = TRUE)
@@ -726,7 +724,7 @@ hardship_HS <- hardship_HS %>%
 ```
 
 
-# Standardisieren der Variablen
+## Standardisieren der Variablen
 ```{r}
 library(dplyr)
 
@@ -755,7 +753,7 @@ hardship_HS <- hardship_HS %>% select(COUNTRY, country, avg_risktaking, HS_alc_a
 str(hardship_HS)
 ```
 
-# Missing Countries
+## Missing Countries
 ```{r}
 # Auswahl aller Spalten, die mit "F_" beginnen
 missing_countries <- grep("^HS_", names(hardship_HS), value = TRUE)
@@ -789,8 +787,7 @@ str(hardship_HS)
 ```
 
 # Missing values
-
-# Prüfung auf den Mechanismus des Fehlens von Daten
+## Prüfung auf den Mechanismus des Fehlens von Daten
 ```{r}
 # Laden des Pakets
 library(mice)
@@ -815,6 +812,7 @@ missing_summary <- missing_summary[order(-missing_summary$MissingPercentage), ]
 print(missing_summary)
 ```
 
+## Little's MCAR-Test 
 ```{r}
 # Durchführung von Little's MCAR-Test mit dem 'naniar' Paket
 if (!require("naniar")) install.packages("naniar")
@@ -879,7 +877,7 @@ methods["HS_oth_cleancooking"] <- "pmm"      # Numerisch
 methods["HS_mh_mhhospit"] <- "pmm"           # Numerisch
 methods["HS_sex_antiretroviral"] <- "pmm"    # Numerisch
 ```
-
+# Impute data 
 ```{r}
 # Auswahl nur der numerischen Spalten
 hardship_HS_numeric <- hardship_HS %>%
@@ -905,7 +903,7 @@ summary(imputed_data)
 completed_data <- complete(imputed_data, 1)
 
 # Überprüfung der Struktur des vollständigen Datensatzes
-str(completed_data)
+#str(completed_data)
 ```
 
 
@@ -969,7 +967,7 @@ list(
 ```
 
 
-# Füge die imputierten Variablen zurück in den ursprünglichen Datensatz ein:
+## Füge die imputierten Variablen zurück in den ursprünglichen Datensatz ein:
 ```{r}
 hardship_HS <- hardship_HS %>%
   mutate(
@@ -1076,12 +1074,39 @@ hardship_HS <- hardship_HS %>%
   ) %>%
   rowwise() %>%
   mutate(
-    hardship_HS = mean(c(HS_original_infantmortality, HS_original_genderequality, HS_original_lifeexpectancy,HS_alc_agelim, HS_sex_antiretroviral, HS_oth_cleancooking, HS_mh_mhhospit, HS_alc_tax_wine, HS_alc_roaddeath, HS_nic_affordability, HS_sex_gini, HS_drg_treatment, HS_mh_policy, HS_oth_obesity), na.rm = TRUE)
+    hardship_HS_index = mean(c(HS_original_infantmortality, HS_original_genderequality, HS_original_lifeexpectancy,HS_alc_agelim, HS_sex_antiretroviral, HS_oth_cleancooking, HS_mh_mhhospit, HS_alc_tax_wine, HS_alc_roaddeath, HS_nic_affordability, HS_sex_gini, HS_drg_treatment, HS_mh_policy, HS_oth_obesity), na.rm = TRUE)
   ) %>%
   ungroup()
 
 # View the updated hardship_HS data frame
 #view(hardship_HS)
+```
+
+```{r}
+# Berechnung der Korrelationsmatrix für ausgewählte Variablen
+selected_vars <- hardship_HS %>% 
+  select_if(is.numeric)  # Wählt nur numerische Spalten für die Korrelationsanalyse
+
+cor_matrix <- cor(selected_vars, use = "complete.obs")  # Berechnung der Korrelation unter Ausschluss von NA-Werten
+
+# Umwandlung der Korrelationsmatrix in einen übersichtlichen Datenrahmen
+cor_data_frame <- as.data.frame(as.table(cor_matrix))
+
+# Umbenennen der Spalten für eine bessere Lesbarkeit
+names(cor_data_frame) <- c("Variable1", "Variable2", "Correlation")
+
+# Filtern der Ergebnisse für bessere Übersichtlichkeit, optional
+# cor_data_frame <- cor_data_frame %>% 
+#   filter(Variable1 != Variable2) %>%  # Entfernt Diagonale (1.0 Werte)
+#   arrange(desc(abs(Correlation)))  # Sortiert die Ergebnisse nach der Stärke der Korrelation
+
+# Anzeigen der ersten Zeilen des Datenrahmens
+#view(cor_data_frame)
+```
+
+```{r}
+hardship_HS <- hardship_HS %>%
+  select(-HS_alc_agelim, -HS_original_infantmortality)
 ```
 
 # Correlation Heatmap with all variables 
@@ -1110,6 +1135,9 @@ ggplot(melted_cor_matrix, aes(Var1, Var2, fill = value)) +
 ggsave("correlation_heatmap.pdf", width = 11, height = 9, path = base_path)
 ```
 
+
+
+
 # Corrlation Heatmap with Health/Safety-Hardship
 ```{r}
 # Auswahl relevanter Spalten
@@ -1126,7 +1154,7 @@ melted_cor_matrix <- melt(cor_matrix)
 library(ggplot2)
 ggplot(melted_cor_matrix, aes(Var1, Var2, fill = value)) +
   geom_tile() +  # Zeichnet die Kacheln
-  geom_text(aes(label = sprintf("%.2f", value)), color = "black", size = 3) +  # Fügt die Korrelationskoeffizienten hinzu
+  geom_text(aes(label = sprintf("%.2f", value)), color = "black", size = 2.5) +  # Fügt die Korrelationskoeffizienten hinzu
   scale_fill_gradient2(midpoint = 0, low = "blue", high = "red", mid = "white", limit = c(-1,1)) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1), axis.text.y = element_text(angle = 45, hjust = 1)) +
@@ -1140,12 +1168,10 @@ library(psych)
 
 # Sicherstellen, dass alle relevanten 'HS_'-Spalten ausgewählt werden
 items <- hardship_HS %>%
-  select(HS_original_infantmortality, HS_original_genderequality, HS_original_lifeexpectancy, 
-         HS_alc_agelim, HS_alc_tax_wine, HS_alc_roaddeath, HS_drg_treatment, 
+  select(HS_original_genderequality, HS_original_lifeexpectancy, 
+         HS_alc_tax_wine, HS_alc_roaddeath, HS_drg_treatment, 
          HS_nic_affordability, HS_mh_policy, HS_sex_gini, HS_oth_obesity, 
          HS_oth_cleancooking, HS_mh_mhhospit, HS_sex_antiretroviral)
-
-# ohne original-Variablen liegt Cronbachs Alpha bei .71
 
 # Berechnung von Cronbachs Alpha
 alpha_result <- alpha(items)

@@ -25,10 +25,6 @@ library("tidyverse")
 library("tidyr")
 library("readxl")
 
-
-if (!require("devtools")) install.packages("devtools")
-devtools::install_github("aphp/rgho")
-
 library(rgho)
 ```
 
@@ -546,7 +542,7 @@ mcar_test <- mice::md.pattern(hardship_environment, plot = TRUE)
 print(mcar_test)
 ```
 
-
+# Little's MCAR-Test 
 ```{r}
 # Installieren des naniar Pakets, falls noch nicht geschehen
 if (!require("naniar")) install.packages("naniar")
@@ -643,7 +639,7 @@ summary(imputed_data)
 completed_data <- complete(imputed_data, 1)
 
 # Überprüfung der Struktur des vollständigen Datensatzes
-str(completed_data)
+#str(completed_data)
 ```
 
 
@@ -862,7 +858,7 @@ hardship_environment <- hardship_environment %>%
     e_exp_watersanithyg100k = scale(e_exp_watersanithyg100k),
     e_ses_gini = scale(e_ses_gini), 
     e_ses_school = scale(-e_ses_school),
-    e_exp_disaster = scale(e_exp_disaster),
+    e_exp_disaster = scale(-e_exp_disaster),
     e_exp_airdeath100k = scale(e_exp_airdeath100k),
     e_exp_watersanithyg = scale(e_exp_watersanithyg), 
     e_ses_unemployment = scale(e_ses_unemployment), 
@@ -870,7 +866,7 @@ hardship_environment <- hardship_environment %>%
   ) %>%
   rowwise() %>%
   mutate(
-    hardship_HS = mean(c(e_oth_drinkingwater, e_oth_safewater, e_exp_watersanithyg100k, e_ses_gini, e_ses_school, e_exp_disaster, e_exp_airdeath100k, e_exp_watersanithyg, e_ses_unemployment, e_ses_water), na.rm = TRUE)
+    hardship_environment_index = mean(c(e_oth_drinkingwater, e_oth_safewater, e_exp_watersanithyg100k, e_ses_gini, e_ses_school, e_exp_disaster, e_exp_airdeath100k, e_exp_watersanithyg, e_ses_unemployment, e_ses_water), na.rm = TRUE)
   ) %>%
   ungroup()
 
@@ -905,6 +901,28 @@ ggplot(melted_cor_matrix, aes(Var1, Var2, fill = value)) +
 # Optional: Speichern der Heatmap als PDF
 ggsave("correlation_heatmap.pdf", width = 11, height = 9, path = base_path)
 ```
+```{r}
+# Berechnung der Korrelationsmatrix für ausgewählte Variablen
+selected_vars <- hardship_environment %>% 
+  select_if(is.numeric)  # Wählt nur numerische Spalten für die Korrelationsanalyse
+
+cor_matrix <- cor(selected_vars, use = "complete.obs")  # Berechnung der Korrelation unter Ausschluss von NA-Werten
+
+# Umwandlung der Korrelationsmatrix in einen übersichtlichen Datenrahmen
+cor_data_frame <- as.data.frame(as.table(cor_matrix))
+
+# Umbenennen der Spalten für eine bessere Lesbarkeit
+names(cor_data_frame) <- c("Variable1", "Variable2", "Correlation")
+
+# Filtern der Ergebnisse für bessere Übersichtlichkeit, optional
+# cor_data_frame <- cor_data_frame %>% 
+#   filter(Variable1 != Variable2) %>%  # Entfernt Diagonale (1.0 Werte)
+#   arrange(desc(abs(Correlation)))  # Sortiert die Ergebnisse nach der Stärke der Korrelation
+
+# Anzeigen der ersten Zeilen des Datenrahmens
+#view(cor_data_frame)
+```
+
 
 # Corrlation Heatmap with e_-variables
 ```{r}
@@ -952,7 +970,7 @@ library(reshape2)  # Sollte geladen sein, wenn `melt` verwendet wird
 
 # Auswahl relevanter Spalten, ausschließend e_ses_water und e_ses_unemployment
 selected_vars <- hardship_environment %>%
-  select(avg_risktaking, starts_with("e_"), -e_ses_water, -e_ses_unemployment)
+  select(avg_risktaking, starts_with("e_"), -e_ses_water, -e_ses_unemployment, -e_oth_safewater, -e_original_gini)
 
 # Berechnung der Korrelationsmatrix für ausgewählte Variablen
 cor_matrix <- cor(selected_vars, use = "complete.obs")
@@ -977,7 +995,7 @@ library(psych)
 
 # Sicherstellen, dass alle relevanten 'HS_'-Spalten ausgewählt werden
 items <- hardship_environment %>%
-  select(e_original_gini, e_oth_drinkingwater, e_oth_safewater, e_exp_watersanithyg100k, e_ses_gini, e_ses_school, e_exp_disaster, e_exp_airdeath100k, e_exp_watersanithyg)
+  select(e_oth_drinkingwater, e_exp_watersanithyg100k, e_ses_gini, e_ses_school, e_exp_disaster, e_exp_airdeath100k, e_exp_watersanithyg)
 
 # Berechnung von Cronbachs Alpha
 alpha_result <- alpha(items)
@@ -985,7 +1003,7 @@ print(alpha_result)
 ```
 
 ```{r}
-hardship_environment <- hardship_environment %>% select(COUNTRY, country, avg_risktaking, e_original_gini, e_oth_drinkingwater, e_oth_safewater, e_exp_watersanithyg100k, e_ses_gini, e_ses_school, e_exp_disaster, e_exp_airdeath100k, e_exp_watersanithyg)
+hardship_environment <- hardship_environment %>% select(COUNTRY, country, avg_risktaking, e_oth_drinkingwater, e_exp_watersanithyg100k, e_ses_gini, e_ses_school, e_exp_disaster, e_exp_airdeath100k, e_exp_watersanithyg, hardship_environment_index)
 ```
 
 ```{r}

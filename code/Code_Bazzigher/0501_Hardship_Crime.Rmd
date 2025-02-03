@@ -71,7 +71,7 @@ hardship_Crime <- hardship_Crime %>%
 ```
 
 
-# Copy and rename original hardship-Variables
+## Copy and rename original hardship-Variables
 ```{r}
 # Umformen des 'hardship_Original' Datensatzes
 hardship_Crime <- hardship_Crime %>%
@@ -89,12 +89,13 @@ hardship_Crime <- hardship_Crime %>%
 str(hardship_Crime)
 ```
 
-# Liste aller verfügbaren Dimensionen
+# GHO data
+## Liste aller verfügbaren Dimensionen
 ```{r}
 dimensions <- get_gho_dimensions()
 ```
 
-# Werte für die Dimension "GHO" abrufen
+## Werte für die Dimension "GHO" abrufen
 ```{r}
 gho_values <- get_gho_values("GHO")
 # View(gho_values) # Öffnet die Werte in RStudio
@@ -111,12 +112,12 @@ unique_isocodes <- unique(hardship_Crime$COUNTRY)
 print(unique_isocodes)
 ```
 
-# Liste aller verfügbaren Dimensionen
+## Liste aller verfügbaren Dimensionen
 ```{r}
 dimensions <- get_gho_dimensions()
 ```
 
-# Werte für die Dimension "GHO" abrufen
+## Werte für die Dimension "GHO" abrufen
 ```{r}
 gho_values <- get_gho_values("GHO")
 #View(gho_values) 
@@ -125,19 +126,7 @@ gho_values <- get_gho_values("GHO")
 gho_values[grepl("SA_0000001837", gho_values$Code), ]
 #view(gho_values)
 ```
-# Naming: 
-# Hardship: 
-# - Health / Safety (HS), Crime (C), Financial (F), Environmental (E)
-
-# Factor: 
-# - HS: Alcohol (alc), Drugs (drg), Nicotine (nic), Mental Health (mh), Sex (sex), Other (oth)
-# - C: Bodily harm (bh), Antisocial (anti), Theft/ fraud (theft), Other (oth)
-# - F: Gambling (gam), Investment (inv), Other (oth)
-# - E: Exposure (exp), Socioeconomic (ses), Other (oth)
-
-
-
-# Abrufen der Daten für den spezifischen Indikatorcode
+## Abrufen der Daten für den spezifischen Indikatorcode
 ```{r}
 c_bh_homicide <- get_gho_data(code = "VIOLENCE_HOMICIDERATE") # Estimates of rates of homicides per 100 000 population
 c_bh_childmalt <- get_gho_data(code = "VIOLENCE_EXTENTIMP_CHILDHOMEVISIT")  # Child maltreatment: Extent of implementation of home-visiting programmes
@@ -153,7 +142,7 @@ c_bh_violextchildprot <- get_gho_data(code = "VIOLENCE_EXTENTIMP_CHILDPROTECTION
 # view(c_bh_violextchildprot)
 ```
 
-# Select important rows 
+## Select important rows 
 ```{r}
 c_bh_homicide <- c_bh_homicide %>% select(IndicatorCode, NumericValue, COUNTRY, YEAR, SEX)
 c_bh_childmalt <- c_bh_childmalt %>% select(IndicatorCode, Value, COUNTRY)
@@ -162,7 +151,7 @@ c_bh_elderabuse <- c_bh_elderabuse %>% select(IndicatorCode, Value, COUNTRY)
 c_bh_violextchildprot <- c_bh_violextchildprot %>% select(IndicatorCode, Value, COUNTRY)
 ```
 
-# c_bh_homicide
+## c_bh_homicide
 ```{r}
 # Sicherstellen, dass NumericValue numerisch ist
 c_bh_homicide <- c_bh_homicide %>%
@@ -191,7 +180,7 @@ c_bh_homicide <- c_bh_homicide %>%
 head(c_bh_homicide)
 ```
 
-# c_bh_childmalt
+## c_bh_childmalt
 ```{r}
 # Zuordnung der Werte zu numerischen Kategorien und Umbenennen der Spalte
 c_bh_childmalt <- c_bh_childmalt %>%
@@ -208,7 +197,7 @@ head(c_bh_childmalt)
 ```
 
 
-# c_bh_violextchildprot
+## c_bh_violextchildprot
 ```{r}
 # Zuordnung der Werte zu numerischen Kategorien und Umbenennen der Spalte
 c_bh_violextchildprot <- c_bh_violextchildprot %>%
@@ -225,7 +214,7 @@ c_bh_violextchildprot <- c_bh_violextchildprot %>%
 ```
 
 
-# c_bh_parviolenceprog
+## c_bh_parviolenceprog
 ```{r}
 # Zuordnung der Werte zu numerischen Kategorien und Umbenennen der Spalte
 c_bh_parviolenceprog <- c_bh_parviolenceprog %>%
@@ -243,7 +232,7 @@ c_bh_parviolenceprog <- c_bh_parviolenceprog %>%
 ```
 
 
-# c_bh_elderabuse
+## c_bh_elderabuse
 ```{r}
 # Zuordnung der Werte zu numerischen Kategorien und Umbenennen der Spalte
 c_bh_elderabuse <- c_bh_elderabuse %>%
@@ -260,7 +249,7 @@ c_bh_elderabuse <- c_bh_elderabuse %>%
 #view(c_bh_elderabuse)
 ```
 
-
+# World bank data
 ```{r}
 library("WDI")
 # Suche nach Indikatoren, die das Wort "unemployment" enthalten
@@ -270,7 +259,7 @@ search_results <- WDIsearch(string = "Rule of Law", field = "name")
 print(search_results)
 ```
 
-# c_bh_inthomicide
+## c_bh_inthomicide
 ```{r}
 # Setzen der Länder und Indikatoren
 countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")  
@@ -303,8 +292,8 @@ c_bh_inthomicide <- c_bh_inthomicide %>%
 head(c_bh_inthomicide)
 ```
 
-# c_theft_estcorruption
-## Control of Corruption captures perceptions of the extent to which public power is exercised for private gain, including both petty and grand forms of corruption, as well as "capture" of the state by elites and private interests. Estimate gives the country's score on the aggregate indicator, in units of a standard normal distribution, i.e. ranging from approximately -2.5 to 2.5.
+## c_theft_estcorruption
+### Control of Corruption captures perceptions of the extent to which public power is exercised for private gain, including both petty and grand forms of corruption, as well as "capture" of the state by elites and private interests. Estimate gives the country's score on the aggregate indicator, in units of a standard normal distribution, i.e. ranging from approximately -2.5 to 2.5.
 ```{r}
 # Setzen der Länder und Indikatoren
 countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")  
@@ -334,8 +323,8 @@ head(c_theft_estcorruption)
 ```
 
 
-# c_oth_polstab - Political Stability and Absence of Violence/Terrorism: Estimate(PV.EST) 
-## Political Stability and Absence of Violence/Terrorism measures perceptions of the likelihood of political instability and/or politically-motivated violence, including terrorism. Estimate gives the country's score on the aggregate indicator, in units of a standard normal distribution, i.e. ranging from approximately -2.5 to 2.5.
+## c_oth_polstab - Political Stability and Absence of Violence/Terrorism: Estimate(PV.EST) 
+### Political Stability and Absence of Violence/Terrorism measures perceptions of the likelihood of political instability and/or politically-motivated violence, including terrorism. Estimate gives the country's score on the aggregate indicator, in units of a standard normal distribution, i.e. ranging from approximately -2.5 to 2.5.
 ```{r}
 countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
 indicators <- c("PV.EST") 
@@ -377,7 +366,7 @@ hardship_Crime <- left_join(hardship_Crime, c_oth_polstab[, c("COUNTRY", "c_oth_
 # View(hardship_Crime)
 ```
 
-# Missing Countries
+## Missing Countries
 ```{r}
 # Auswahl aller Spalten, die mit "F_" beginnen
 missing_countries <- grep("^c_", names(hardship_Crime), value = TRUE)
@@ -405,7 +394,7 @@ hardship_Crime <- hardship_Crime %>%
 
 
 
-# select variable of hardship_HS
+## select variable of hardship_HS
 ```{r}
 hardship_Crime <- hardship_Crime %>% select(COUNTRY, country, avg_risktaking, c_bh_homicide, c_bh_childmalt, c_bh_violextchildprot, c_bh_parviolenceprog, c_bh_elderabuse, c_bh_inthomicide, c_theft_estcorruption, c_oth_polstab, c_original_homiciderate)
 str(hardship_Crime)
@@ -414,12 +403,13 @@ str(hardship_Crime)
 ###################################################################
 
 # Missing values
-# Prüfung auf den Mechanismus des Fehlens von Daten
+## Prüfung auf den Mechanismus des Fehlens von Daten
 ```{r}
 # Laden des Pakets
 library(mice)
 ```
 
+# Little's MCAR-Test
 ```{r}
 # Little's MCAR-Test durchführen
 mcar_test <- mice::md.pattern(hardship_Crime, plot = TRUE)
@@ -556,7 +546,7 @@ methods["c_theft_estcorruption"] <- "pmm"              # Numerisch
 methods["c_oth_polstab"] <- "pmm"           # Numerisch
 ```
 
-
+# Impute data
 ```{r}
 # Auswahl nur der numerischen Spalten
 hardship_Crime_numeric <- hardship_Crime %>%
@@ -582,7 +572,7 @@ summary(imputed_data)
 completed_data <- complete(imputed_data, 1)
 
 # Überprüfung der Struktur des vollständigen Datensatzes
-str(completed_data)
+#str(completed_data)
 ```
 
 
@@ -643,7 +633,7 @@ ggplot(comparison_data, aes(x = Variable)) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1))  # Verbessert die Lesbarkeit der x-Achsenbeschriftungen
 ```
 
-# Füge die imputierten Variablen zurück in den ursprünglichen Datensatz ein:
+## Füge die imputierten Variablen zurück in den ursprünglichen Datensatz ein:
 ```{r}
 # Angenommen, 'hardship_Crime' ist dein Hauptdatensatz und 'completed_data' enthält die imputierten Daten
 hardship_Crime <- hardship_Crime %>%
@@ -714,7 +704,7 @@ head(hardship_Crime)
 ```
 
 
-## Reverse Coding - Standardize and create hardship_HS
+## Reverse Coding & Standardize
 ```{r}
 library(dplyr)
 
@@ -767,7 +757,14 @@ ggplot(melted_cor_matrix, aes(Var1, Var2, fill = value)) +
 ggsave("correlation_heatmap.pdf", width = 11, height = 9, path = base_path)
 ```
 
-# Corrlation Heatmap with Health/Safety-Hardship
+```{r}
+str(hardship_Crime)
+hardship_Crime <- hardship_Crime %>%
+  select(COUNTRY, country, avg_risktaking, c_bh_homicide, c_bh_childmalt, c_bh_violextchildprot, c_bh_parviolenceprog, c_bh_elderabuse, c_theft_estcorruption, c_oth_polstab, hardship_Crime_index)
+```
+
+
+# Corrlation Heatmap with Crime-Hardship
 ```{r}
 # Auswahl relevanter Spalten
 selected_vars <- hardship_Crime %>% 
@@ -797,7 +794,7 @@ library(psych)
 
 # Sicherstellen, dass alle relevanten 'HS_'-Spalten ausgewählt werden
 items <- hardship_Crime %>%
-  select(c_bh_homicide, c_bh_childmalt, c_bh_parviolenceprog, c_bh_elderabuse, c_bh_violextchildprot, c_bh_inthomicide, c_theft_estcorruption, c_oth_polstab, c_original_homiciderate)
+  select(c_bh_homicide, c_bh_childmalt, c_bh_parviolenceprog, c_bh_elderabuse, c_bh_violextchildprot, c_theft_estcorruption, c_oth_polstab)
 
 # Berechnung von Cronbachs Alpha
 alpha_result <- alpha(items)

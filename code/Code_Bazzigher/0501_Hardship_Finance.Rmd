@@ -71,7 +71,7 @@ hardship_Finance <- hardship_Finance %>%
 head(hardship_Finance)
 ```
 
-# Copy and rename original hardship-Variables
+## Copy and rename original hardship-Variables
 ```{r}
 # Umformen des 'hardship_Original' Datensatzes
 hardship_Finance <- hardship_Finance %>%
@@ -89,19 +89,8 @@ hardship_Finance <- hardship_Finance %>%
 str(hardship_Finance)
 ```
 
-# Naming: 
-# Hardship: 
-# - Health / Safety (HS), Crime (C), Financial (F), Environmental (E)
-
-# Factor: 
-# - HS: Alcohol (alc), Drugs (drg), Nicotine (nic), Mental Health (mh), Sex (sex), Other (oth)
-# - C: Bodily harm (bh), Antisocial (anti), Theft/ fraud (theft), Other (oth)
-# - F: Gambling (gam), Investment (inv), Other (oth)
-# - E: Exposure (exp), Socioeconomic (ses), Other (oth)
-
-
-# f_oth_grosssaving - Adjusted savings: gross savings (% of GNI)
-## Gross savings are the difference between gross national income and public and private consumption... 
+## f_oth_grosssaving - Adjusted savings: gross savings (% of GNI)
+### Gross savings are the difference between gross national income and public and private consumption... 
 ```{r}
 countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
 indicators <- c("NY.ADJ.ICTR.GN.ZS") 
@@ -137,8 +126,8 @@ f_oth_grosssaving <- f_oth_grosssaving %>%
 #view(f_oth_grosssaving)
 ```
 
-# f_oth_eduexpenditure - Adjusted savings: education expenditure (% of GNI)
-## Education expenditure refers to the current operating expenditures in education, including wages and salaries and excluding capital investments in buildings and equipment.
+## f_oth_eduexpenditure - Adjusted savings: education expenditure (% of GNI)
+### Education expenditure refers to the current operating expenditures in education, including wages and salaries and excluding capital investments in buildings and equipment.
 ```{r}
 countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
 indicators <- c("NY.ADJ.AEDU.GN.ZS") 
@@ -174,8 +163,8 @@ f_oth_eduexpenditure <- f_oth_eduexpenditure %>%
 #view(f_oth_eduexpenditure)
 ```
 
-# f_inv_acctownership_primaryedu - Account ownership at a financial institution or with a mobile-money-service provider, primary education or less (% of population ages 15+)
-## Account denotes the percentage of respondents who report having an account (by themselves or together with someone else) at a bank or another type of financial institution or report personally using a mobile money service in the past 12 months (primary education or less, % of population ages 15+).
+## f_inv_acctownership_primaryedu - Account ownership at a financial institution or with a mobile-money-service provider, primary education or less (% of population ages 15+)
+### Account denotes the percentage of respondents who report having an account (by themselves or together with someone else) at a bank or another type of financial institution or report personally using a mobile money service in the past 12 months (primary education or less, % of population ages 15+).
 ```{r}
 countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
 indicators <- c("FX.OWN.TOTL.PL.ZS") 
@@ -211,8 +200,8 @@ f_inv_acctownership_primaryedu <- f_inv_acctownership_primaryedu %>%
 #view(f_inv_acctownership_primaryedu)
 ```
 
-# f_oth_insfinsvcs_exp - Insurance and financial services (% of service exports, BoP)
-## Insurance and financial services cover various types of insurance provided to nonresidents by resident insurance enterprises and vice versa, and financial intermediary and auxiliary services (except those of insurance enterprises and pension funds) exchanged between residents and nonresidents.
+## f_oth_insfinsvcs_exp - Insurance and financial services (% of service exports, BoP)
+### Insurance and financial services cover various types of insurance provided to nonresidents by resident insurance enterprises and vice versa, and financial intermediary and auxiliary services (except those of insurance enterprises and pension funds) exchanged between residents and nonresidents.
 ```{r}
 countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
 indicators <- c("BX.GSR.INSF.ZS") 
@@ -249,8 +238,8 @@ f_oth_insfinsvcs_exp <- f_oth_insfinsvcs_exp %>%
 ```
 
 
-# f_oth_insfinsvcs_int - Insurance and financial services (% of service imports, BoP)
-## Insurance and financial services cover various types of insurance provided to nonresidents by resident insurance enterprises and vice versa, and financial intermediary and auxiliary services (except those of insurance enterprises and pension funds) exchanged between residents and nonresidents.
+## f_oth_insfinsvcs_int - Insurance and financial services (% of service imports, BoP)
+### Insurance and financial services cover various types of insurance provided to nonresidents by resident insurance enterprises and vice versa, and financial intermediary and auxiliary services (except those of insurance enterprises and pension funds) exchanged between residents and nonresidents.
 ```{r}
 countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
 indicators <- c("BM.GSR.INSF.ZS") 
@@ -286,8 +275,8 @@ f_oth_insfinsvcs_int <- f_oth_insfinsvcs_int %>%
 #view(f_oth_insfinsvcs_int)
 ```
 
-# f_inv_bankfin_invest - Firms using banks to finance investment (% of firms)
-## 	Firms using banks to finance investment are the percentage of firms using banks to finance investments.
+## f_inv_bankfin_invest - Firms using banks to finance investment (% of firms)
+### 	Firms using banks to finance investment are the percentage of firms using banks to finance investments.
 ```{r}
 countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
 indicators <- c("IC.FRM.BNKS.ZS") 
@@ -324,8 +313,8 @@ f_inv_bankfin_invest <- f_inv_bankfin_invest %>%
 ```
 
 
-# f_inv_bankfin_workcap - Firms using banks to finance working capital (% of firms)
-## 	Firms using banks to finance working capital are the percentage of firms using bank loans to finance working capital.
+## f_inv_bankfin_workcap - Firms using banks to finance working capital (% of firms)
+### 	Firms using banks to finance working capital are the percentage of firms using bank loans to finance working capital.
 ```{r}
 countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
 indicators <- c("IC.FRM.BKWC.ZS") 
@@ -362,8 +351,8 @@ f_inv_bankfin_workcap <- f_inv_bankfin_workcap %>%
 ```
 
 
-# f_gov_finconsgdp - General Government Final Consumption Expenditure (% of GDP)
-## General government final consumption expenditure (formerly general government consumption) includes all government current expenditures for purchases of goods and services (including compensation of employees). It also includes most expenditures on national defense and security, but excludes government military expenditures that are part of government capital formation.
+## f_gov_finconsgdp - General Government Final Consumption Expenditure (% of GDP)
+### General government final consumption expenditure (formerly general government consumption) includes all government current expenditures for purchases of goods and services (including compensation of employees). It also includes most expenditures on national defense and security, but excludes government military expenditures that are part of government capital formation.
 countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
 indicators <- c("NE.CON.GOVT.ZS") 
 
@@ -398,8 +387,8 @@ f_gov_finconsgdp <- f_gov_finconsgdp %>%
 #view(f_gov_finconsgdp)
 
 
-# f_bofp_netfinacct - Net Financial Account (BoP, current US$) 
-## The net financial account shows net acquisition and disposal of financial assets and liabilities. It measures how net lending to or borrowing from nonresidents is financed, and is conceptually equal to the sum of the balances on the current and capital accounts. Data are in current U.S. dollars.
+## f_bofp_netfinacct - Net Financial Account (BoP, current US$) 
+### The net financial account shows net acquisition and disposal of financial assets and liabilities. It measures how net lending to or borrowing from nonresidents is financed, and is conceptually equal to the sum of the balances on the current and capital accounts. Data are in current U.S. dollars.
 countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
 indicators <- c("BN.FIN.TOTL.CD") 
 
@@ -434,8 +423,8 @@ f_bofp_netfinacct <- f_bofp_netfinacct %>%
 #view(f_bofp_netfinacct)
 
 
-# f_hs_oopexp10 - Proportion of Population Spending More Than 10% of Household Consumption or Income on Out-of-Pocket Health Care Expenditure (%)
-## Proportion of population spending more than 10% of household consumption or income on out-of-pocket health care expenditure. Out-of-pocket health expenditure is defined as any spending incurred by a household when any member uses a health good or service to receive any type of care (preventive, curative, rehabilitative, long-term or palliative care); provided by any type of provider; for any type of disease, illness or health condition; in any type of setting (outpatient, inpatient, at home).
+## f_hs_oopexp10 - Proportion of Population Spending More Than 10% of Household Consumption or Income on Out-of-Pocket Health Care Expenditure (%)
+### Proportion of population spending more than 10% of household consumption or income on out-of-pocket health care expenditure. Out-of-pocket health expenditure is defined as any spending incurred by a household when any member uses a health good or service to receive any type of care (preventive, curative, rehabilitative, long-term or palliative care); provided by any type of provider; for any type of disease, illness or health condition; in any type of setting (outpatient, inpatient, at home).
 ```{r}
 countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
 indicators <- c("SH.UHC.OOPC.10.ZS") 
@@ -471,8 +460,8 @@ f_hs_oopexp10 <- f_hs_oopexp10 %>%
 #view(f_hs_oopexp10)
 ```
 
-# f_eco_gdpdefl - Inflation, GDP deflator (annual %)
-## 	Inflation as measured by the annual growth rate of the GDP implicit deflator shows the rate of price change in the economy as a whole. The GDP implicit deflator is the ratio of GDP in current local currency to GDP in constant local currency.
+## f_eco_gdpdefl - Inflation, GDP deflator (annual %)
+### 	Inflation as measured by the annual growth rate of the GDP implicit deflator shows the rate of price change in the economy as a whole. The GDP implicit deflator is the ratio of GDP in current local currency to GDP in constant local currency.
 ```{r}
 countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
 indicators <- c("NY.GDP.DEFL.KD.ZG") 
@@ -500,8 +489,8 @@ f_eco_gdpdefl <- f_eco_gdpdefl %>%
 #view(f_eco_gdpdefl)
 ```
 
-# f_eco_gdpdefl_linked - Inflation, GDP deflator: linked series (annual %)
-## Inflation as measured by the annual growth rate of the GDP implicit deflator shows the rate of price change in the economy as a whole. This series has been linked to produce a consistent time series to counteract breaks in series over time due to changes in base years, source data and methodologies. Thus, it may not be comparable with other national accounts series in the database for historical years.
+## f_eco_gdpdefl_linked - Inflation, GDP deflator: linked series (annual %)
+### Inflation as measured by the annual growth rate of the GDP implicit deflator shows the rate of price change in the economy as a whole. This series has been linked to produce a consistent time series to counteract breaks in series over time due to changes in base years, source data and methodologies. Thus, it may not be comparable with other national accounts series in the database for historical years.
 ```{r}
 countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
 indicators <- c("NY.GDP.DEFL.KD.ZG.AD") 
@@ -529,8 +518,8 @@ f_eco_gdpdefl_linked <- f_eco_gdpdefl_linked %>%
 #view(f_eco_gdpdefl_linked)
 ```
 
-# f_hs_oopexp10pc - Proportion of population spending more than 10% of household consumption or income on out-of-pocket health care expenditure (%)
-## Proportion of population spending more than 10% of household consumption or income on out-of-pocket health care expenditure. Out-of-pocket health expenditure is defined as any spending incurred by a household when any member uses a health good or service to receive any type of care (preventive, curative, rehabilitative, long-term or palliative care); provided by any type of provider; for any type of disease, illness or health condition; in any type of setting (outpatient, inpatient, at home).
+## f_hs_oopexp10pc - Proportion of population spending more than 10% of household consumption or income on out-of-pocket health care expenditure (%)
+### Proportion of population spending more than 10% of household consumption or income on out-of-pocket health care expenditure. Out-of-pocket health expenditure is defined as any spending incurred by a household when any member uses a health good or service to receive any type of care (preventive, curative, rehabilitative, long-term or palliative care); provided by any type of provider; for any type of disease, illness or health condition; in any type of setting (outpatient, inpatient, at home).
 ```{r}
 # Setzen der Länder und Indikatoren
 countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")  
@@ -567,8 +556,8 @@ f_hs_oopexp10pc <- f_hs_oopexp10pc %>%
 #view(f_hs_oopexp10pc)
 ```
 
-# f_hs_oopexp_pov215 - Proportion of population pushed below the $2.15 ($ 2017 PPP) poverty line by out-of-pocket health care expenditure (%)
-## This indicator shows the fraction of a country’s population experiencing out-of-pocket health impoverishing expenditures, defined as expenditures without which the household they live in would have been above the $ 2.15 poverty line, but because of the expenditures is below the poverty line. Out-of-pocket health expenditure is defined as any spending incurred by a household when any member uses a health good or service to receive any type of care (preventive, curative, rehabilitative, long-term or palliative care); provided by any type of provider; for any type of disease, illness or health condition; in any type of setting (outpatient, inpatient, at home).
+## f_hs_oopexp_pov215 - Proportion of population pushed below the $2.15 ($ 2017 PPP) poverty line by out-of-pocket health care expenditure (%)
+### This indicator shows the fraction of a country’s population experiencing out-of-pocket health impoverishing expenditures, defined as expenditures without which the household they live in would have been above the $ 2.15 poverty line, but because of the expenditures is below the poverty line. Out-of-pocket health expenditure is defined as any spending incurred by a household when any member uses a health good or service to receive any type of care (preventive, curative, rehabilitative, long-term or palliative care); provided by any type of provider; for any type of disease, illness or health condition; in any type of setting (outpatient, inpatient, at home).
 # Setzen der Länder und Indikatoren
 ```{r}
 countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")  
@@ -601,8 +590,8 @@ f_hs_oopexp_pov215 <- f_hs_oopexp_pov215 %>%
 #view(f_hs_oopexp_pov215)
 ```
 
-# f_eco_cpi - Inflation, consumer prices (annual %)
-## Inflation as measured by the consumer price index reflects the annual percentage change in the cost to the average consumer of acquiring a basket of goods and services that may be fixed or changed at specified intervals, such as yearly. The Laspeyres formula is generally used.
+## f_eco_cpi - Inflation, consumer prices (annual %)
+### Inflation as measured by the consumer price index reflects the annual percentage change in the cost to the average consumer of acquiring a basket of goods and services that may be fixed or changed at specified intervals, such as yearly. The Laspeyres formula is generally used.
 ```{r}
 countries <- c("AFG", "DZA", "AND", "ARG", "ARM", "AUS", "AUT", "AZE", "BGD", "BLR", "BOL", "BIH", "BWA", "BRA", "BGR", "BFA", "KHM", "CMR", "CAN", "CHL", "CHN", "COL", "CRI", "HRV", "CYP", "CZE", "ECU", "EGY", "EST", "ETH", "FIN", "FRA", "GEO", "DEU", "GHA", "GRC", "GTM", "HTI", "HKG", "HUN", "IND", "IDN", "IRN", "IRQ", "ISR", "ITA", "JPN", "JOR", "KAZ", "KEN", "KWT", "KGZ", "LBN", "LBY", "LTU", "MWI", "MYS", "MLI", "MEX", "MDA", "MAR", "NLD", "NZL", "NIC", "NGA", "NOR", "PAK", "PSE", "PER", "PHL", "POL", "PRT", "QAT", "ROU", "RUS", "RWA", "SAU", "SRB", "SGP", "SVN", "ZAF", "KOR", "ESP", "LKA", "SUR", "SWE", "CHE", "TWN", "TZA", "THA", "TTO", "TUN", "TUR", "UGA", "UKR", "ARE", "GBR", "USA", "URY", "UZB", "VEN", "VNM", "YEM", "ZMB", "ZWE")   
 indicators <- c("FP.CPI.TOTL.ZG") 
@@ -676,7 +665,7 @@ hardship_Finance <- hardship_Finance %>%
 #str(hardship_Finance)
 ```
 
-# select variable of hardship_HS
+## select variable of hardship_HS
 ```{r}
 hardship_Finance <- hardship_Finance %>% select(COUNTRY, country, avg_risktaking, f_inv_acctownership_primaryedu,  f_oth_insfinsvcs_int, f_inv_bankfin_invest, f_inv_bankfin_workcap, f_hs_oopexp10, f_eco_gdpdefl_linked, f_hs_oopexp_pov215, f_eco_cpi, f_original_gdp, f_original_gini)
 str(hardship_Finance)
@@ -693,7 +682,7 @@ corrplot(corr_matrix, method = "circle")
 
 ###################################################################
 
-# Prüfung auf den Mechanismus des Fehlens von Daten
+# Missing Data
 ```{r}
 # Laden des Pakets
 library(mice)
@@ -742,7 +731,7 @@ aggr_plot <- aggr(hardship_Finance, col = c('navyblue', 'red'), numbers = TRUE, 
 
 vis_miss(hardship_Finance)
 ```
-
+ 
 ```{r}
 # Fehlende Werte berechnen
 missing_percentages <- sapply(hardship_Finance, function(x) {
@@ -784,9 +773,7 @@ methods["f_inv_bankfin_invest"] <- "pmm"           # Numerisch
 methods["f_inv_bankfin_workcap"] <- "pmm"           # Numerisch
 ```
 
-
-
-
+# Impute data
 ```{r}
 library(mice)
 
@@ -872,7 +859,7 @@ ggplot(comparison_data, aes(x = Variable, y = PreImputation, fill = "Pre")) +
 ```
 
 
-# Füge die imputierten Variablen zurück in den ursprünglichen Datensatz ein:
+## Füge die imputierten Variablen zurück in den ursprünglichen Datensatz ein:
 ```{r}
 hardship_Finance <- hardship_Finance %>%
   mutate(
@@ -910,7 +897,7 @@ hardship_Finance %>%
   geom_histogram(bins = 30) + 
   theme_minimal()
 ```
-# Ausreisser
+## Ausreisser
 ```{r}
 # Winsorisierung nur auf Variablen mit potenziellen Ausreißern
 winsorize <- function(x, lower_quantile = 0.01, upper_quantile = 0.99) {
@@ -927,8 +914,6 @@ hardship_Finance <- hardship_Finance %>%
 # Überprüfen der Struktur nach Transformationen
 #view(hardship_Finance)
 ```
-
-
 
 ## Log Countryfacts 
 ```{r}
@@ -955,7 +940,7 @@ hardship_Finance %>%
   theme_minimal()
 ```
 
-## Reverse Coding - Standardize and create hardship_HS
+## Reverse Coding & Standardize
 ```{r}
 library(dplyr)
 
@@ -979,7 +964,7 @@ hardship_Finance <- hardship_Finance %>%
 head(hardship_Finance)
 ```
 
-# Correlation Heatmap with all variables 
+## Correlation Heatmap with all variables 
 ```{r}
 # Erstellung der Heatmap mit Korrelationskoeffizienten
 library(ggplot2)
@@ -1005,7 +990,7 @@ ggplot(melted_cor_matrix, aes(Var1, Var2, fill = value)) +
 ggsave("correlation_heatmap.pdf", width = 11, height = 9, path = base_path)
 ```
 
-# Corrlation Heatmap with Health/Safety-Hardship
+## Corrlation Heatmap with f_-variables
 ```{r}
 # Auswahl relevanter Spalten
 selected_vars <- hardship_Finance %>% 

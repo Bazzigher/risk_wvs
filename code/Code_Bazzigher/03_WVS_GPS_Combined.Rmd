@@ -106,6 +106,46 @@ participant_counts <- merged_data %>%
 participant_counts
 ```
 
+```{r}
+# Anzahl der Teilnehmenden pro Quelle
+participants_count <- merged_data %>%
+  group_by(source) %>%
+  summarise(Anzahl_Teilnehmende = n())
+
+# Anzahl der Teilnehmenden insgesamt
+total_participants <- sum(participants_count$Anzahl_Teilnehmende)
+
+# Verteilung von Männer/Frauen in %
+gender_distribution <- merged_data %>%
+  group_by(source, gender) %>%
+  summarise(Anzahl = n()) %>%
+  mutate(Prozent = (Anzahl / sum(Anzahl)) * 100)
+
+# Gesamtverteilung von Männer/Frauen in %
+total_gender_distribution <- merged_data %>%
+  group_by(gender) %>%
+  summarise(Total_Amount = n()) %>%
+  mutate(Total_Percent = (Total_Amount / sum(Total_Amount)) * 100)
+
+# Altersbereiche
+age_range <- merged_data %>%
+  group_by(source) %>%
+  summarise(Min_Age = min(age, na.rm = TRUE),
+            Max_Age = max(age, na.rm = TRUE))
+
+# Gesamtalterbereich
+total_age_range <- summarise(merged_data, Total_Min_Age = min(age, na.rm = TRUE),
+                                           Total_Max_Age = max(age, na.rm = TRUE))
+
+# Ausgabe der Ergebnisse
+list(participants_count,
+     total_participants,
+     gender_distribution,
+     total_gender_distribution,
+     age_range,
+     total_age_range)
+```
+
 # Worldmap of the recorded countries
 ```{r}
 library(dplyr)
@@ -237,6 +277,25 @@ participant_table[is.na(participant_table)] <- 0
 print(participant_table)
 ```
 
+```{r}
+# Adding age categories in English
+merged_data$age_category <- cut(merged_data$age,
+                                breaks = c(15, 24, 34, 44, 54, 64, 74, 84, 99),
+                                labels = c("Youth (15-24)", 
+                                           "Young Adults (25-34)", 
+                                           "Middle-aged Adults (35-44)", 
+                                           "Mature Adults (45-54)",
+                                           "Pre-seniors (55-64)",
+                                           "Early Seniors (65-74)",
+                                           "Seniors (75-84)",
+                                           "Elderly (85-99)"),
+                                right = TRUE, include.lowest = TRUE)
+
+# Checking the age categories
+table(merged_data$age_category)
+```
+
+
 # Scale the 'age' variable
 ```{r}
 merged_data$age <- scale(merged_data$age)
@@ -294,6 +353,9 @@ print(summary_model2_combined)
 ```{r}
 anova(model1_combined, model2_combined)
 ```
+```{r}
+anova(model1_combined, model2_combined, test = "Chisq")
+```
 
 
 # Plot Model1
@@ -315,6 +377,43 @@ plot <- ggplot(merged_data, aes(age, risktaking, colour = country, linetype = fa
 # Save the plot as an image file
 ggsave(filename = "Individual_countries_model1_in_one_plot.pdf", plot = plot, width = 40, height = 40)
 head(merged_data)
+```
+
+```{r}
+library(ggplot2)
+
+# Definiere den Plot
+base_plot <- function(data) {
+  ggplot(data, aes(x = age, y = risktaking, colour = country, linetype = factor(gender))) +
+    geom_point(aes(group = interaction(country, gender)), size = 1) +
+    geom_smooth(aes(group = interaction(country, gender)), method = "lm", se = FALSE, size = 1, color = "red") +
+    facet_wrap(~country, scales = "free") +
+    theme_minimal() +
+    theme(axis.text = element_text(size = 10),
+          strip.text = element_text(size = 40, face = "bold"),
+          strip.background = element_blank(),
+          panel.spacing = unit(1, "lines"),
+          legend.position = "bottom") +
+    guides(color = FALSE, linetype = guide_legend(title = "Gender")) +
+    scale_linetype_manual(values = c("solid", "dashed"))
+}
+
+# Daten vorbereiten
+countries <- unique(merged_data$country)
+num_countries_per_page <- 16
+
+# PDF-Datei erstellen
+pdf("Individual_countries_model1_in_multiple_pages.pdf", width = 40, height = 40)
+
+# Plots in das PDF einfügen
+for (i in seq(1, length(countries), by = num_countries_per_page)) {
+  country_subset <- countries[i:min(i + num_countries_per_page - 1, length(countries))]
+  data_subset <- merged_data[merged_data$country %in% country_subset,]
+  current_plot <- base_plot(data_subset)
+  print(current_plot)  # Plot auf der aktuellen PDF-Seite hinzufügen
+}
+
+dev.off()  # Schließe das PDF-Dokument korrekt
 ```
 
 ## Plot all participants regardless of country
@@ -351,6 +450,163 @@ bic_model2_combined <- BIC(model2_combined)
 print(paste("BIC for Model 1 Combined: ", bic_model1_combined))
 print(paste("BIC for Model 2 Combined: ", bic_model2_combined))
 ```
+```{r}
+library(ggplot2)
+library(gridExtra)
+library(dplyr)
+
+# Daten vorbereiten
+median_hardship_by_country <- merged_data %>%
+  group_by(country) %>%
+  summarise(median_hardship = median(hardship_index, na.rm = TRUE))
+
+random_effects <- ranef(model1_combined)$country
+random_effects_df <- as.data.frame(random_effects)
+random_effects_df$country <- row.names(random_effects)
+analysis_df <- merge(random_effects_df, median_hardship_by_country, by = "country", all = TRUE)
+iso_codes <- merged_data %>% select(country, isocode) %>%
+             distinct()
+analysis_df <- merge(analysis_df, iso_codes, by = "country", all.x = TRUE)
+
+# Plot erstellen
+p <- ggplot(analysis_df, aes(x = median_hardship, y = gender, label = isocode)) +
+  geom_text(aes(label = isocode), check_overlap = TRUE, size = 3, vjust = 1) +
+  geom_smooth(method = "lm", color = "black", se = FALSE) +  # Regressionslinie hinzufügen
+  labs(title = "Gender Effect vs. Hardship Index\nR² = 0.17",
+       x = "Hardship Index",
+       y = "Gender Effect") +
+  theme_minimal(base_size = 14) +
+  theme(plot.background = element_rect(fill = "white", colour = "white"),
+        panel.background = element_rect(fill = "white", colour = "white"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank()) +
+  coord_fixed(ratio = 1) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+# Plot anzeigen
+print(p)
+```
+
+```{r}
+library(ggplot2)
+library(gridExtra)
+library(dplyr)
+
+# Daten vorbereiten
+median_hardship_by_country <- merged_data %>%
+  group_by(country) %>%
+  summarise(median_hardship = median(hardship_index, na.rm = TRUE))
+
+random_effects <- ranef(model1_combined)$country
+random_effects_df <- as.data.frame(random_effects)
+random_effects_df$country <- row.names(random_effects)
+analysis_df <- merge(random_effects_df, median_hardship_by_country, by = "country", all = TRUE)
+iso_codes <- merged_data %>% select(country, isocode) %>%
+             distinct()
+analysis_df <- merge(analysis_df, iso_codes, by = "country", all.x = TRUE)
+
+# Plot für Age Effect erstellen
+p_age <- ggplot(analysis_df, aes(x = median_hardship, y = age, label = isocode)) +
+  geom_text(aes(label = isocode), check_overlap = TRUE, size = 3, vjust = 1) +
+  geom_smooth(method = "lm", color = "black", se = FALSE) +  # Regressionslinie hinzufügen
+  labs(title = "Age Effect vs. Hardship Indexn
+       R² = 0.32",
+       x = "Hardship Index",
+       y = "Age Effect") +
+  theme_minimal(base_size = 14) +
+  theme(plot.background = element_rect(fill = "white", colour = "white"),
+        panel.background = element_rect(fill = "white", colour = "white"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank()) +
+  coord_fixed(ratio = 1) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+# Plot anzeigen
+print(p_age)
+
+```
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Daten vorbereiten
+median_hardship_by_country <- merged_data %>%
+  group_by(country) %>%
+  summarise(median_hardship = median(hardship_index, na.rm = TRUE))
+
+random_effects <- ranef(model1_combined)$country
+random_effects_df <- as.data.frame(random_effects)
+random_effects_df$country <- row.names(random_effects)
+analysis_df <- merge(random_effects_df, median_hardship_by_country, by = "country", all = TRUE)
+iso_codes <- merged_data %>% select(country, isocode) %>%
+             distinct()
+analysis_df <- merge(analysis_df, iso_codes, by = "country", all.x = TRUE)
+
+# Intercept of Risktaking Plot anpassen
+p_intercept <- ggplot(analysis_df, aes(x = median_hardship, y = `(Intercept)`, label = isocode)) +
+  geom_text(aes(label = isocode), check_overlap = TRUE, size = 3, vjust = 1) +
+  geom_smooth(method = "lm", color = "black", se = FALSE) +
+  scale_x_continuous(limits = c(-3, 4)) +  # Anpassung der X-Achsen-Grenzen
+scale_y_continuous(limits = c(-2, 4.5)) +
+  labs(title = "Intercept of Risktaking vs. Hardship Index\nR² = 0.03",
+       x = "Hardship Index",
+       y = "Intercept of Risktaking") +
+  theme_minimal() +
+  coord_fixed(ratio = 1)
+
+# Plot anzeigen oder speichern
+print(p_intercept)
+```
+```{r}
+library(dplyr)
+
+# Beispiel: Berechnung von R^2 für das Intercept bezogen auf den Hardship Index
+model_intercept <- lm(`(Intercept)` ~ median_hardship, data = analysis_df)
+summary_intercept <- summary(model_intercept)
+r_squared_intercept <- summary_intercept$r.squared
+
+# Für Age
+model_age <- lm(age ~ median_hardship, data = analysis_df)
+summary_age <- summary(model_age)
+r_squared_age <- summary_age$r.squared
+
+# Für Gender
+model_gender <- lm(gender ~ median_hardship, data = analysis_df)
+summary_gender <- summary(model_gender)
+r_squared_gender <- summary_gender$r.squared
+
+# Ausgabe der R^2 Werte
+print(paste("R^2 for Intercept:", r_squared_intercept))
+print(paste("R^2 for Age:", r_squared_age))
+print(paste("R^2 for Gender:", r_squared_gender))
+```
+
+```{r}
+library(dplyr)
+library(broom)
+
+# Sicherstellen, dass die notwendigen Daten verfügbar sind
+analysis_df <- merge(random_effects_df, median_hardship_by_country, by = "country", all = TRUE)
+
+# Berechnung der Korrelationen
+# Für das Intercept
+cor_intercept <- cor.test(analysis_df$`(Intercept)`, analysis_df$median_hardship)
+print(paste("Korrelation (r) zwischen Intercept und Hardship:", cor_intercept$estimate))
+print(paste("P-Wert für Intercept:", cor_intercept$p.value))
+
+# Für Age Effects
+cor_age <- cor.test(analysis_df$age, analysis_df$median_hardship)
+print(paste("Korrelation (r) zwischen Age Effect und Hardship:", cor_age$estimate))
+print(paste("P-Wert für Age Effect:", cor_age$p.value))
+
+# Für Gender Effects
+cor_gender <- cor.test(analysis_df$gender, analysis_df$median_hardship)
+print(paste("Korrelation (r) zwischen Gender Effect und Hardship:", cor_gender$estimate))
+print(paste("P-Wert für Gender Effect:", cor_gender$p.value))
+```
+
 
 # write cvs
 ## write csv combined data
@@ -358,7 +614,6 @@ print(paste("BIC for Model 2 Combined: ", bic_model2_combined))
 write.csv(merged_data, file = file.path(base_path, "gps_wvs_combined.csv"), row.names = FALSE)
 head(merged_data)
 ```
-```{r}
-#view(merged_data)
-```
+
+
 
