@@ -72,6 +72,30 @@ hardship_combined <- risktaking %>%
 #str(hardship_combined)
 ```
 
+```{r}
+# Stellen Sie sicher, dass die Alterskategorien richtig zugewiesen wurden
+if (!"age_category" %in% names(hardship_combined)) {
+  hardship_combined$age_category <- cut(hardship_combined$age,
+                                        breaks = c(15, 24, 34, 44, 54, 64, 74, 84, 99),
+                                        labels = c("Youth (15-24)", 
+                                                   "Young Adults (25-34)", 
+                                                   "Middle-aged Adults (35-44)", 
+                                                   "Mature Adults (45-54)",
+                                                   "Pre-seniors (55-64)",
+                                                   "Early Seniors (65-74)",
+                                                   "Seniors (75-84)",
+                                                   "Elderly (85-99)"),
+                                        right = TRUE, include.lowest = TRUE)
+}
+
+# Umwandlung der Alterskategorien in numerische Werte
+hardship_combined$age_numeric <- as.integer(factor(hardship_combined$age_category))
+
+# Überprüfung der neuen numerischen Alterskategorien
+table(hardship_combined$age_numeric)
+```
+
+
 # Calculate correlation with risktaking
 ```{r}
 # Berechnung der Korrelation zwischen risktaking und den anderen Variablen
@@ -131,6 +155,10 @@ cor_table %>%
   column_spec(3, background = "lightyellow")
 ```
 
+```{r}
+colnames(hardship_combined)
+```
+
 
 # Setup for specifications
 ```{r}
@@ -140,21 +168,19 @@ library(specr)
 specification <- setup(
   data = hardship_combined,
   y = "risktaking",  # abhängige Variable
-  x = c("HS_alc_agelim", "HS_alc_tax_wine", "HS_alc_roaddeath", 
+  x = c("HS_alc_tax_wine", "HS_alc_roaddeath", 
         "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy",
         "HS_sex_gini", "HS_oth_obesity", "HS_oth_cleancooking",
-        "HS_mh_mhhospit", "HS_sex_antiretroviral", "HS_original_infantmortality",
+        "HS_mh_mhhospit", "HS_sex_antiretroviral",
         "HS_original_lifeexpectancy", "HS_original_genderequality",
-        "hardship_HS", "f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int",
+        "hardship_HS_index", "f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int",
         "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
         "f_original_gdp", "f_original_gini", "hardship_Finance_index",
         "c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot",
-        "c_bh_parviolenceprog", "c_bh_elderabuse", "c_bh_inthomicide",
-        "c_theft_estcorruption", "c_oth_polstab", "c_original_homiciderate",
-        "hardship_Crime_index", "e_original_gini", "e_oth_drinkingwater",
-        "e_oth_safewater", "e_exp_watersanithyg100k", "e_ses_gini",
-        "e_ses_school", "e_exp_disaster", "e_exp_airdeath100k", 
-        "e_exp_watersanithyg"),
+        "c_bh_parviolenceprog", "c_bh_elderabuse", "c_theft_estcorruption",
+        "c_oth_polstab", "hardship_Crime_index", "e_oth_drinkingwater",
+        "e_exp_watersanithyg100k", "e_ses_gini", "e_ses_school", "e_exp_disaster", 
+        "e_exp_airdeath100k", "e_exp_watersanithyg"),
   model = "lm"
 )
 
@@ -211,21 +237,19 @@ specification_males <- setup(
   data = hardship_combined %>%
            filter(gender == 1),  # Filter for males
   y = "risktaking",
-  x = c("HS_alc_agelim", "HS_alc_tax_wine", "HS_alc_roaddeath", 
+  x = c("HS_alc_tax_wine", "HS_alc_roaddeath", 
         "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy",
         "HS_sex_gini", "HS_oth_obesity", "HS_oth_cleancooking",
-        "HS_mh_mhhospit", "HS_sex_antiretroviral", "HS_original_infantmortality",
+        "HS_mh_mhhospit", "HS_sex_antiretroviral",
         "HS_original_lifeexpectancy", "HS_original_genderequality",
-        "hardship_HS", "f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int",
+        "hardship_HS_index", "f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int",
         "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
         "f_original_gdp", "f_original_gini", "hardship_Finance_index",
         "c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot",
-        "c_bh_parviolenceprog", "c_bh_elderabuse", "c_bh_inthomicide",
-        "c_theft_estcorruption", "c_oth_polstab", "c_original_homiciderate",
-        "hardship_Crime_index", "e_original_gini", "e_oth_drinkingwater",
-        "e_oth_safewater", "e_exp_watersanithyg100k", "e_ses_gini",
-        "e_ses_school", "e_exp_disaster", "e_exp_airdeath100k", 
-        "e_exp_watersanithyg"),
+        "c_bh_parviolenceprog", "c_bh_elderabuse", "c_theft_estcorruption",
+        "c_oth_polstab", "hardship_Crime_index", "e_oth_drinkingwater",
+        "e_exp_watersanithyg100k", "e_ses_gini", "e_ses_school", "e_exp_disaster", 
+        "e_exp_airdeath100k", "e_exp_watersanithyg"),
   model = "lm"
 )
 
@@ -268,21 +292,19 @@ specification_females <- setup(
   data = hardship_combined %>%
            filter(gender == 0),  # Filter for females
   y = "risktaking",
-  x = c("HS_alc_agelim", "HS_alc_tax_wine", "HS_alc_roaddeath", 
+  x = c("HS_alc_tax_wine", "HS_alc_roaddeath", 
         "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy",
         "HS_sex_gini", "HS_oth_obesity", "HS_oth_cleancooking",
-        "HS_mh_mhhospit", "HS_sex_antiretroviral", "HS_original_infantmortality",
+        "HS_mh_mhhospit", "HS_sex_antiretroviral",
         "HS_original_lifeexpectancy", "HS_original_genderequality",
-        "hardship_HS", "f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int",
+        "hardship_HS_index", "f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int",
         "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
         "f_original_gdp", "f_original_gini", "hardship_Finance_index",
         "c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot",
-        "c_bh_parviolenceprog", "c_bh_elderabuse", "c_bh_inthomicide",
-        "c_theft_estcorruption", "c_oth_polstab", "c_original_homiciderate",
-        "hardship_Crime_index", "e_original_gini", "e_oth_drinkingwater",
-        "e_oth_safewater", "e_exp_watersanithyg100k", "e_ses_gini",
-        "e_ses_school", "e_exp_disaster", "e_exp_airdeath100k", 
-        "e_exp_watersanithyg"),
+        "c_bh_parviolenceprog", "c_bh_elderabuse", "c_theft_estcorruption",
+        "c_oth_polstab", "hardship_Crime_index", "e_oth_drinkingwater",
+        "e_exp_watersanithyg100k", "e_ses_gini", "e_ses_school", "e_exp_disaster", 
+        "e_exp_airdeath100k", "e_exp_watersanithyg"),
   model = "lm"
 )
 
@@ -318,6 +340,70 @@ plot(specification_results_females, type = "boxplot") +
   labs(x = "Effect size", fill = "")
 ```
 
+# Subsetting data for age-categories 
+```{r}
+run_specification_for_age <- function(data, age_id, age_label) {
+  # Daten für die spezifische Altersgruppe filtern
+  data_subset <- data %>%
+    filter(age_numeric == age_id)
+  
+  # Setup für die Spezifikationen durchführen
+  specification <- setup(
+    data = data_subset,
+    y = "risktaking",
+    x = c("HS_alc_tax_wine", "HS_alc_roaddeath", 
+          "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy",
+          "HS_sex_gini", "HS_oth_obesity", "HS_oth_cleancooking",
+          "HS_mh_mhhospit", "HS_sex_antiretroviral",
+          "HS_original_lifeexpectancy", "HS_original_genderequality",
+          "hardship_HS_index", "f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int",
+          "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
+          "f_original_gdp", "f_original_gini", "hardship_Finance_index",
+          "c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot",
+          "c_bh_parviolenceprog", "c_bh_elderabuse", "c_theft_estcorruption",
+          "c_oth_polstab", "hardship_Crime_index", "e_oth_drinkingwater",
+          "e_exp_watersanithyg100k", "e_ses_gini", "e_ses_school", "e_exp_disaster", 
+          "e_exp_airdeath100k", "e_exp_watersanithyg"),
+    model = "lm"
+  )
+
+  # Spezifikationsergebnisse berechnen
+  specification_results <- specr(specification)
+
+  # Statistische Auswertungen drucken mit Alterskategorie-Titel
+  cat("\nStatistische Ergebnisse für die Alterskategorie:", age_label, "\n")
+  print(summary(specification_results, digits = 5))
+
+  # Grafiken für die spezifische Altersgruppe erzeugen und anzeigen
+  plot_list <- list(
+    plot_a = plot(specification_results, type = "curve", ci = FALSE, ribbon = TRUE) + 
+             geom_point(size = 4) + ggtitle(paste("Curve Plot -", age_label)),
+    plot_b = plot(specification_results, type = "choices", choices = c("x", "y", "model", "controls")) + 
+             geom_point(size = 2, shape = 4) + ggtitle(paste("Choices Plot -", age_label)),
+    plot_c = plot(specification_results, type = "samplesizes") + ylim(0, 400) +
+             ggtitle(paste("Sample Sizes Plot -", age_label)),
+    plot_d = plot(specification_results, type = "boxplot") + 
+             geom_point(alpha = .4) + scale_fill_brewer(palette = "Pastel2") + 
+             labs(x = "Effect size", fill = "") + ggtitle(paste("Boxplot -", age_label))
+  )
+
+  # Rückgabe der Ergebnisse und Plots
+  return(list(summary = summary(specification_results, digits = 5), plots = plot_list))
+}
+
+# Funktion für jede Altersgruppe aufrufen und sowohl statistische Zusammenfassungen als auch Plots ausgeben
+for (i in 1:8) {
+  results <- run_specification_for_age(hardship_combined, i, paste("Age Group", i))
+  print(results$summary)  # Drucke die Zusammenfassung der Ergebnisse
+  print(results$plots$plot_a)
+  print(results$plots$plot_b)
+  print(results$plots$plot_c)
+  print(results$plots$plot_d)
+}
+```
+
+
+
 # Hardship Health/Safety
 ## Setup for specifications
 ```{r}
@@ -327,12 +413,12 @@ library(specr)
 specification <- setup(
   data = hardship_combined,
   y = "risktaking",  # abhängige Variable
-  x = c("HS_alc_agelim", "HS_alc_tax_wine", "HS_alc_roaddeath", 
-        "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy",
-        "HS_sex_gini", "HS_oth_obesity", "HS_oth_cleancooking",
-        "HS_mh_mhhospit", "HS_sex_antiretroviral", "HS_original_infantmortality",
-        "HS_original_lifeexpectancy", "HS_original_genderequality",
-        "hardship_HS"),
+    x = c("HS_alc_tax_wine", "HS_alc_roaddeath", 
+          "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy",
+          "HS_sex_gini", "HS_oth_obesity", "HS_oth_cleancooking",
+          "HS_mh_mhhospit", "HS_sex_antiretroviral",
+          "HS_original_lifeexpectancy", "HS_original_genderequality",
+          "hardship_HS_index"),
   model = "lm"
 )
 
@@ -388,12 +474,12 @@ specification_males <- setup(
   data = hardship_combined %>%
            filter(gender == 1),  # Filter for males
   y = "risktaking",
-  x = c("HS_alc_agelim", "HS_alc_tax_wine", "HS_alc_roaddeath", 
-        "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy",
-        "HS_sex_gini", "HS_oth_obesity", "HS_oth_cleancooking",
-        "HS_mh_mhhospit", "HS_sex_antiretroviral", "HS_original_infantmortality",
-        "HS_original_lifeexpectancy", "HS_original_genderequality",
-        "hardship_HS"),
+    x = c("HS_alc_tax_wine", "HS_alc_roaddeath", 
+          "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy",
+          "HS_sex_gini", "HS_oth_obesity", "HS_oth_cleancooking",
+          "HS_mh_mhhospit", "HS_sex_antiretroviral",
+          "HS_original_lifeexpectancy", "HS_original_genderequality",
+          "hardship_HS_index"),
   model = "lm"
 )
 
@@ -436,12 +522,12 @@ specification_females <- setup(
   data = hardship_combined %>%
            filter(gender == 0),  # Filter for females
   y = "risktaking",
-  x = c("HS_alc_agelim", "HS_alc_tax_wine", "HS_alc_roaddeath", 
-        "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy",
-        "HS_sex_gini", "HS_oth_obesity", "HS_oth_cleancooking",
-        "HS_mh_mhhospit", "HS_sex_antiretroviral", "HS_original_infantmortality",
-        "HS_original_lifeexpectancy", "HS_original_genderequality",
-        "hardship_HS"),
+    x = c("HS_alc_tax_wine", "HS_alc_roaddeath", 
+          "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy",
+          "HS_sex_gini", "HS_oth_obesity", "HS_oth_cleancooking",
+          "HS_mh_mhhospit", "HS_sex_antiretroviral",
+          "HS_original_lifeexpectancy", "HS_original_genderequality",
+          "hardship_HS_index"),
   model = "lm"
 )
 
@@ -477,6 +563,60 @@ plot(specification_results_females, type = "boxplot") +
   labs(x = "Effect size", fill = "")
 ```
 
+# Subsetting data for age-categories 
+```{r}
+run_specification_for_age <- function(data, age_id, age_label) {
+  # Daten für die spezifische Altersgruppe filtern
+  data_subset <- data %>%
+    filter(age_numeric == age_id)
+  
+  # Setup für die Spezifikationen durchführen
+  specification <- setup(
+    data = data_subset,
+    y = "risktaking",
+    x = c("HS_alc_tax_wine", "HS_alc_roaddeath", 
+          "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy",
+          "HS_sex_gini", "HS_oth_obesity", "HS_oth_cleancooking",
+          "HS_mh_mhhospit", "HS_sex_antiretroviral",
+          "HS_original_lifeexpectancy", "HS_original_genderequality",
+          "hardship_HS_index"),
+    model = "lm"
+  )
+
+  # Spezifikationsergebnisse berechnen
+  specification_results <- specr(specification)
+
+  # Statistische Auswertungen drucken mit Alterskategorie-Titel
+  cat("\nStatistische Ergebnisse für die Alterskategorie:", age_label, "\n")
+  print(summary(specification_results, digits = 5))
+
+  # Grafiken für die spezifische Altersgruppe erzeugen und anzeigen
+  plot_list <- list(
+    plot_a = plot(specification_results, type = "curve", ci = FALSE, ribbon = TRUE) + 
+             geom_point(size = 4) + ggtitle(paste("Curve Plot -", age_label)),
+    plot_b = plot(specification_results, type = "choices", choices = c("x", "y", "model", "controls")) + 
+             geom_point(size = 2, shape = 4) + ggtitle(paste("Choices Plot -", age_label)),
+    plot_c = plot(specification_results, type = "samplesizes") + ylim(0, 400) +
+             ggtitle(paste("Sample Sizes Plot -", age_label)),
+    plot_d = plot(specification_results, type = "boxplot") + 
+             geom_point(alpha = .4) + scale_fill_brewer(palette = "Pastel2") + 
+             labs(x = "Effect size", fill = "") + ggtitle(paste("Boxplot -", age_label))
+  )
+
+  # Rückgabe der Ergebnisse und Plots
+  return(list(summary = summary(specification_results, digits = 5), plots = plot_list))
+}
+
+# Funktion für jede Altersgruppe aufrufen und sowohl statistische Zusammenfassungen als auch Plots ausgeben
+for (i in 1:8) {
+  results <- run_specification_for_age(hardship_combined, i, paste("Age Group", i))
+  print(results$summary)  # Drucke die Zusammenfassung der Ergebnisse
+  print(results$plots$plot_a)
+  print(results$plots$plot_b)
+  print(results$plots$plot_c)
+  print(results$plots$plot_d)
+}
+```
 
 # Hardship Finance
 ## Setup for specifications
@@ -487,9 +627,9 @@ library(specr)
 specification <- setup(
   data = hardship_combined,
   y = "risktaking",  # abhängige Variable
-  x = c("f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int",
-        "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
-        "f_original_gdp", "f_original_gini", "hardship_Finance_index"),
+    x = c("f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int",
+          "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
+          "f_original_gdp", "f_original_gini", "hardship_Finance_index"),
   model = "lm"
 )
 
@@ -545,10 +685,9 @@ specification_males <- setup(
   data = hardship_combined %>%
            filter(gender == 1),  # Filter for males
   y = "risktaking",
-  x = c("f_oth_insfinsvcs_int",
-        "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
-        "f_original_gdp", "f_original_gini", "hardship_Finance_index"
-        ),
+    x = c("f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int",
+          "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
+          "f_original_gdp", "f_original_gini", "hardship_Finance_index"),
   model = "lm"
 )
 
@@ -591,10 +730,9 @@ specification_females <- setup(
   data = hardship_combined %>%
            filter(gender == 0),  # Filter for females
   y = "risktaking",
-  x = c("f_oth_insfinsvcs_int",
-        "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
-        "f_original_gdp", "f_original_gini", "hardship_Finance_index"
-        ),
+    x = c("f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int",
+          "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
+          "f_original_gdp", "f_original_gini", "hardship_Finance_index"),
   model = "lm"
 )
 
@@ -630,6 +768,57 @@ plot(specification_results_females, type = "boxplot") +
   labs(x = "Effect size", fill = "")
 ```
 
+# Subsetting data for age-categories 
+```{r}
+run_specification_for_age <- function(data, age_id, age_label) {
+  # Daten für die spezifische Altersgruppe filtern
+  data_subset <- data %>%
+    filter(age_numeric == age_id)
+  
+  # Setup für die Spezifikationen durchführen
+  specification <- setup(
+    data = data_subset,
+    y = "risktaking",
+    x = c("f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int",
+          "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
+          "f_original_gdp", "f_original_gini", "hardship_Finance_index"),
+    model = "lm"
+  )
+
+  # Spezifikationsergebnisse berechnen
+  specification_results <- specr(specification)
+
+  # Statistische Auswertungen drucken mit Alterskategorie-Titel
+  cat("\nStatistische Ergebnisse für die Alterskategorie:", age_label, "\n")
+  print(summary(specification_results, digits = 5))
+
+  # Grafiken für die spezifische Altersgruppe erzeugen und anzeigen
+  plot_list <- list(
+    plot_a = plot(specification_results, type = "curve", ci = FALSE, ribbon = TRUE) + 
+             geom_point(size = 4) + ggtitle(paste("Curve Plot -", age_label)),
+    plot_b = plot(specification_results, type = "choices", choices = c("x", "y", "model", "controls")) + 
+             geom_point(size = 2, shape = 4) + ggtitle(paste("Choices Plot -", age_label)),
+    plot_c = plot(specification_results, type = "samplesizes") + ylim(0, 400) +
+             ggtitle(paste("Sample Sizes Plot -", age_label)),
+    plot_d = plot(specification_results, type = "boxplot") + 
+             geom_point(alpha = .4) + scale_fill_brewer(palette = "Pastel2") + 
+             labs(x = "Effect size", fill = "") + ggtitle(paste("Boxplot -", age_label))
+  )
+
+  # Rückgabe der Ergebnisse und Plots
+  return(list(summary = summary(specification_results, digits = 5), plots = plot_list))
+}
+
+# Funktion für jede Altersgruppe aufrufen und sowohl statistische Zusammenfassungen als auch Plots ausgeben
+for (i in 1:8) {
+  results <- run_specification_for_age(hardship_combined, i, paste("Age Group", i))
+  print(results$summary)  # Drucke die Zusammenfassung der Ergebnisse
+  print(results$plots$plot_a)
+  print(results$plots$plot_b)
+  print(results$plots$plot_c)
+  print(results$plots$plot_d)
+}
+```
 
 # Hardship Crime
 ## Setup for specifications
@@ -640,10 +829,9 @@ library(specr)
 specification <- setup(
   data = hardship_combined,
   y = "risktaking",  # abhängige Variable
-  x = c("c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot",
-        "c_bh_parviolenceprog", "c_bh_elderabuse", "c_bh_inthomicide",
-        "c_theft_estcorruption", "c_oth_polstab", "c_original_homiciderate",
-        "hardship_Crime_index"),
+    x = c("c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot",
+          "c_bh_parviolenceprog", "c_bh_elderabuse", "c_theft_estcorruption",
+          "c_oth_polstab", "hardship_Crime_index"),
   model = "lm"
 )
 
@@ -699,10 +887,9 @@ specification_males <- setup(
   data = hardship_combined %>%
            filter(gender == 1),  # Filter for males
   y = "risktaking",
-  x = c("c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot",
-        "c_bh_parviolenceprog", "c_bh_elderabuse", "c_bh_inthomicide",
-        "c_theft_estcorruption", "c_oth_polstab", "c_original_homiciderate",
-        "hardship_Crime_index"),
+    x = c("c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot",
+          "c_bh_parviolenceprog", "c_bh_elderabuse", "c_theft_estcorruption",
+          "c_oth_polstab", "hardship_Crime_index"),
   model = "lm"
 )
 
@@ -745,10 +932,9 @@ specification_females <- setup(
   data = hardship_combined %>%
            filter(gender == 0),  # Filter for females
   y = "risktaking",
-  x = c("c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot",
-        "c_bh_parviolenceprog", "c_bh_elderabuse", "c_bh_inthomicide",
-        "c_theft_estcorruption", "c_oth_polstab", "c_original_homiciderate",
-        "hardship_Crime_index"),
+    x = c("c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot",
+          "c_bh_parviolenceprog", "c_bh_elderabuse", "c_theft_estcorruption",
+          "c_oth_polstab", "hardship_Crime_index"),
   model = "lm"
 )
 
@@ -784,6 +970,57 @@ plot(specification_results_females, type = "boxplot") +
   labs(x = "Effect size", fill = "")
 ```
 
+# Subsetting data for age-categories 
+```{r}
+run_specification_for_age <- function(data, age_id, age_label) {
+  # Daten für die spezifische Altersgruppe filtern
+  data_subset <- data %>%
+    filter(age_numeric == age_id)
+  
+  # Setup für die Spezifikationen durchführen
+  specification <- setup(
+    data = data_subset,
+    y = "risktaking",
+    x = c("c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot",
+          "c_bh_parviolenceprog", "c_bh_elderabuse", "c_theft_estcorruption",
+          "c_oth_polstab", "hardship_Crime_index"),
+    model = "lm"
+  )
+
+  # Spezifikationsergebnisse berechnen
+  specification_results <- specr(specification)
+
+  # Statistische Auswertungen drucken mit Alterskategorie-Titel
+  cat("\nStatistische Ergebnisse für die Alterskategorie:", age_label, "\n")
+  print(summary(specification_results, digits = 5))
+
+  # Grafiken für die spezifische Altersgruppe erzeugen und anzeigen
+  plot_list <- list(
+    plot_a = plot(specification_results, type = "curve", ci = FALSE, ribbon = TRUE) + 
+             geom_point(size = 4) + ggtitle(paste("Curve Plot -", age_label)),
+    plot_b = plot(specification_results, type = "choices", choices = c("x", "y", "model", "controls")) + 
+             geom_point(size = 2, shape = 4) + ggtitle(paste("Choices Plot -", age_label)),
+    plot_c = plot(specification_results, type = "samplesizes") + ylim(0, 400) +
+             ggtitle(paste("Sample Sizes Plot -", age_label)),
+    plot_d = plot(specification_results, type = "boxplot") + 
+             geom_point(alpha = .4) + scale_fill_brewer(palette = "Pastel2") + 
+             labs(x = "Effect size", fill = "") + ggtitle(paste("Boxplot -", age_label))
+  )
+
+  # Rückgabe der Ergebnisse und Plots
+  return(list(summary = summary(specification_results, digits = 5), plots = plot_list))
+}
+
+# Funktion für jede Altersgruppe aufrufen und sowohl statistische Zusammenfassungen als auch Plots ausgeben
+for (i in 1:8) {
+  results <- run_specification_for_age(hardship_combined, i, paste("Age Group", i))
+  print(results$summary)  # Drucke die Zusammenfassung der Ergebnisse
+  print(results$plots$plot_a)
+  print(results$plots$plot_b)
+  print(results$plots$plot_c)
+  print(results$plots$plot_d)
+}
+```
 
 # Hardship Environment
 ## Setup for specifications
@@ -794,10 +1031,9 @@ library(specr)
 specification <- setup(
   data = hardship_combined,
   y = "risktaking",  # abhängige Variable
-  x = c("e_original_gini", "e_oth_drinkingwater",
-        "e_oth_safewater", "e_exp_watersanithyg100k", "e_ses_gini",
-        "e_ses_school", "e_exp_disaster", "e_exp_airdeath100k", 
-        "e_exp_watersanithyg"),
+    x = c("e_oth_drinkingwater",
+          "e_exp_watersanithyg100k", "e_ses_gini", "e_ses_school", "e_exp_disaster", 
+          "e_exp_airdeath100k", "e_exp_watersanithyg", "hardship_environment_index"),
   model = "lm"
 )
 
@@ -853,10 +1089,9 @@ specification_males <- setup(
   data = hardship_combined %>%
            filter(gender == 1),  # Filter for males
   y = "risktaking",
-  x = c("e_original_gini", "e_oth_drinkingwater",
-        "e_oth_safewater", "e_exp_watersanithyg100k", "e_ses_gini",
-        "e_ses_school", "e_exp_disaster", "e_exp_airdeath100k", 
-        "e_exp_watersanithyg"),
+    x = c("e_oth_drinkingwater",
+          "e_exp_watersanithyg100k", "e_ses_gini", "e_ses_school", "e_exp_disaster", 
+          "e_exp_airdeath100k", "e_exp_watersanithyg", "hardship_environment_index"),
   model = "lm"
 )
 
@@ -899,10 +1134,9 @@ specification_females <- setup(
   data = hardship_combined %>%
            filter(gender == 0),  # Filter for females
   y = "risktaking",
-  x = c("e_original_gini", "e_oth_drinkingwater",
-        "e_oth_safewater", "e_exp_watersanithyg100k", "e_ses_gini",
-        "e_ses_school", "e_exp_disaster", "e_exp_airdeath100k", 
-        "e_exp_watersanithyg"),
+    x = c("e_oth_drinkingwater",
+          "e_exp_watersanithyg100k", "e_ses_gini", "e_ses_school", "e_exp_disaster", 
+          "e_exp_airdeath100k", "e_exp_watersanithyg", "hardship_environment_index"),
   model = "lm"
 )
 
@@ -938,3 +1172,54 @@ plot(specification_results_females, type = "boxplot") +
   labs(x = "Effect size", fill = "")
 ```
 
+# Subsetting data for age-categories 
+```{r}
+run_specification_for_age <- function(data, age_id, age_label) {
+  # Daten für die spezifische Altersgruppe filtern
+  data_subset <- data %>%
+    filter(age_numeric == age_id)
+  
+  # Setup für die Spezifikationen durchführen
+  specification <- setup(
+    data = data_subset,
+    y = "risktaking",
+    x = c("e_oth_drinkingwater",
+          "e_exp_watersanithyg100k", "e_ses_gini", "e_ses_school", "e_exp_disaster", 
+          "e_exp_airdeath100k", "e_exp_watersanithyg", "hardship_environment_index"),
+    model = "lm"
+  )
+
+  # Spezifikationsergebnisse berechnen
+  specification_results <- specr(specification)
+
+  # Statistische Auswertungen drucken mit Alterskategorie-Titel
+  cat("\nStatistische Ergebnisse für die Alterskategorie:", age_label, "\n")
+  print(summary(specification_results, digits = 5))
+
+  # Grafiken für die spezifische Altersgruppe erzeugen und anzeigen
+  plot_list <- list(
+    plot_a = plot(specification_results, type = "curve", ci = FALSE, ribbon = TRUE) + 
+             geom_point(size = 4) + ggtitle(paste("Curve Plot -", age_label)),
+    plot_b = plot(specification_results, type = "choices", choices = c("x", "y", "model", "controls")) + 
+             geom_point(size = 2, shape = 4) + ggtitle(paste("Choices Plot -", age_label)),
+    plot_c = plot(specification_results, type = "samplesizes") + ylim(0, 400) +
+             ggtitle(paste("Sample Sizes Plot -", age_label)),
+    plot_d = plot(specification_results, type = "boxplot") + 
+             geom_point(alpha = .4) + scale_fill_brewer(palette = "Pastel2") + 
+             labs(x = "Effect size", fill = "") + ggtitle(paste("Boxplot -", age_label))
+  )
+
+  # Rückgabe der Ergebnisse und Plots
+  return(list(summary = summary(specification_results, digits = 5), plots = plot_list))
+}
+
+# Funktion für jede Altersgruppe aufrufen und sowohl statistische Zusammenfassungen als auch Plots ausgeben
+for (i in 1:8) {
+  results <- run_specification_for_age(hardship_combined, i, paste("Age Group", i))
+  print(results$summary)  # Drucke die Zusammenfassung der Ergebnisse
+  print(results$plots$plot_a)
+  print(results$plots$plot_b)
+  print(results$plots$plot_c)
+  print(results$plots$plot_d)
+}
+```
