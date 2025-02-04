@@ -1,0 +1,417 @@
+---
+title: "4_Hardship_specification_curve_v2"
+output: 
+  html_document:
+    code_folding: hide
+date: "2024-05-08"
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+rm(list = ls())
+```
+
+# Set path Laura: ONLY USE FOR LAURA 
+```{r}
+# base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
+```
+
+# Library 
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(specr)
+library(specr)
+library(readxl)
+library(ggthemes)
+library(cowplot)
+library(dplyr)
+library(knitr)
+library(kableExtra)
+library(Hmisc)
+remotes::install_github("masurp/specr")
+```
+
+# Load all data
+# Load dataset to create Hardship-Index
+```{r}
+risktaking <- read.csv(file.path(base_path, "Test_Specification_curve"), header=TRUE, as.is=TRUE)
+hardship_Original <- read.csv(file.path(base_path, "countryfacts_cleaned.csv"), header=TRUE, as.is=TRUE)
+
+#view(risktaking)
+str(risktaking)
+str(hardship_Original)
+```
+
+# Hardship Countrylist
+```{r}
+# Benenne 'code' in 'isocode' im zweiten Datensatz um
+hardship_Original <- hardship_Original %>%
+  rename(isocode = code)
+
+# Verwende 'left_join' um alle Daten aus 'risktaking' zu behalten und passende aus 'hardship_Original' hinzuzufügen
+combined_data <- risktaking %>%
+  left_join(hardship_Original, by = "isocode")
+# Überprüfe die ersten Zeilen des kombinierten Datensatzes
+head(combined_data)
+
+# Überprüfe die Struktur des kombinierten Datensatzes, um sicherzustellen, dass keine Daten verloren gegangen sind
+str(combined_data)
+```
+
+
+```{r}
+hardship_combined <- combined_data %>% select(country.x , isocode, risktaking, age, gender, infantmortality, lifeexpectancy, gini, homiciderate, gdp, femalemale_primedu)
+str(hardship_combined)
+
+# Entferne alle Zeilen mit fehlenden Daten in den für die Analyse relevanten Spalten
+hardship_combined <- hardship_combined %>%
+  filter(complete.cases(gender, infantmortality, lifeexpectancy, gini, homiciderate, gdp, femalemale_primedu))
+```
+
+```{r}
+# Stellen Sie sicher, dass die Alterskategorien richtig zugewiesen wurden
+if (!"age_category" %in% names(hardship_combined)) {
+  hardship_combined$age_category <- cut(hardship_combined$age,
+                                        breaks = c(15, 24, 34, 44, 54, 64, 74, 84, 99),
+                                        labels = c("Youth (15-24)", 
+                                                   "Young Adults (25-34)", 
+                                                   "Middle-aged Adults (35-44)", 
+                                                   "Mature Adults (45-54)",
+                                                   "Pre-seniors (55-64)",
+                                                   "Early Seniors (65-74)",
+                                                   "Seniors (75-84)",
+                                                   "Elderly (85-99)"),
+                                        right = TRUE, include.lowest = TRUE)
+}
+
+# Umwandlung der Alterskategorien in numerische Werte
+hardship_combined$age_numeric <- as.integer(factor(hardship_combined$age_category))
+
+# Überprüfung der neuen numerischen Alterskategorien
+table(hardship_combined$age_numeric)
+```
+
+
+# Calculate correlation with risktaking
+```{r}
+# Berechnung der Korrelation zwischen risktaking und den anderen Variablen
+correlation_results <- cor(hardship_combined[, sapply(hardship_combined, is.numeric)], use = "complete.obs")
+
+# Korrelationstabelle für risktaking extrahieren
+risktaking_correlations <- correlation_results["risktaking", ]
+
+# Konvertierung der Korrelationsergebnisse in ein formatiertes Datenframe
+correlation_table <- data.frame(
+  Variable = names(risktaking_correlations),
+  Correlation = risktaking_correlations
+)
+
+# Entfernen der Korrelation von risktaking mit sich selbst
+correlation_table <- correlation_table[correlation_table$Variable != "risktaking", ]
+
+# Sortieren der Ergebnisse nach dem Betrag der Korrelation, absteigend
+correlation_table <- correlation_table[order(-abs(correlation_table$Correlation)), ]
+
+# Anzeigen der Tabelle
+kable(correlation_table, caption = "Korrelationen zwischen risktaking und anderen Variablen") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+
+
+# Table with Correlation hardship factors and risktaking 
+```{r}
+# Laden notwendiger Bibliotheken
+library(Hmisc)
+library(kableExtra)
+
+# Auswahl aller numerischen Variablen
+numeric_vars <- hardship_combined %>%
+  select(where(is.numeric))
+
+# Berechnen der Korrelationsmatrix und der p-Werte
+cor_results <- rcorr(as.matrix(numeric_vars))
+
+# Korrelationen und p-Werte spezifisch für 'risktaking' extrahieren
+correlations <- cor_results$r[, "risktaking"]  # Korrelationen zu 'risktaking'
+p_values <- cor_results$P[, "risktaking"]      # p-Werte zu 'risktaking'
+
+# Datenrahmen für die Darstellung erstellen
+cor_table <- data.frame(
+  Variable = rownames(cor_results$r),  # Namen der Variablen
+  Correlation = round(correlations, 5),  # Korrelationswerte, gerundet auf 5 Dezimalstellen
+  P_value = format(p_values, scientific = TRUE),  # p-Werte in wissenschaftlicher Notation
+  Significant = ifelse(p_values < 0.05, "Yes", "No")  # Signifikanzflag, basierend auf p-Wert
+)
+
+# Tabellendarstellung mit 'kable' und 'kableExtra'
+cor_table %>%
+  kable("html", caption = "Correlations with Risktaking: Summary of Results") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>%
+  column_spec(2, bold = TRUE) %>%
+  column_spec(3, background = "lightyellow")
+```
+
+```{r}
+colnames(hardship_combined)
+```
+
+
+# Setup for specifications
+```{r}
+library(specr)
+
+# Setup für die Spezifikationen mit einer umfassenderen Auswahl von Variablen
+specification <- setup(
+  data = hardship_combined,
+  y = "risktaking",  # abhängige Variable
+  x = c("infantmortality", 
+        "lifeexpectancy", "gini", "homiciderate",
+        "gdp", "femalemale_primedu"),
+  model = "lm"
+)
+
+# Zusammenfassung der Spezifikationen
+summary(specification)
+```
+# run specifications
+```{r}
+specification_results <- specr(specification)
+specification_results
+
+summary(specification_results, digits = 5)
+```
+
+# summarizing the parameter distribution
+```{r}
+summary(specification_results, type = "curve")
+
+summary(specification_results, 
+        type = "curve", 
+        group = "x",           
+        stats = c("median", "mean", "min", "max"))  # Statistiken in einem Vektor auflisten
+```
+
+# Plots
+```{r}
+plot(specification_results)
+
+(a <- plot(specification_results, type = "curve", ci = F, ribbon = T) + 
+   geom_point(size = 4))
+
+
+(b <- plot(specification_results, type = "choices", choices = c("x", "y", "model", "controls")) +
+   geom_point(size = 2, shape = 4)) 
+
+(c <- plot(specification_results, type = "samplesizes") + ylim(0, 400))
+
+
+plot_grid(a, b, c, ncol = 1,
+          align = "v",
+          rel_heights = c(1.5, 2, 0.8),
+          axis = "rbl")
+
+plot(specification_results, type = "boxplot") + 
+  geom_point(alpha = .4) + 
+  scale_fill_brewer(palette = "Pastel2") +
+  labs(x = "Effect size", fill = "")
+```
+
+
+```{r}
+# Überprüfe alle Spalten auf NA-Werte nach dem Filtern
+sapply(hardship_combined, function(x) sum(is.na(x)))
+
+# Überprüfe, ob alle Zeilen komplett sind
+sum(!complete.cases(hardship_combined))
+
+# Überprüfe, ob die Daten, die an specr übergeben werden, komplett sind
+if(anyNA(hardship_combined)) {
+  stop("Es gibt noch NA-Werte in den Daten.")
+}
+
+# Falls kein Fehler auftritt, führe specr aus
+specification_results <- specr(specification)
+summary(specification_results, digits = 5)
+
+# Überprüfe die Daten in den Summary-Aufrufen
+if(anyNA(specification_results$estimate)) {
+  stop("Es gibt NA-Werte in den Schätzungen.")
+}
+
+summary(specification_results, type = "curve")
+```
+
+
+# Subsetting data for males 
+```{r}
+specification_males <- setup(
+  data = hardship_combined %>%
+           filter(gender == 1),  # Filter for males
+  y = "risktaking",
+  x = c("infantmortality", 
+        "lifeexpectancy", "gini", "homiciderate",
+        "gdp", "femalemale_primedu"),
+  model = "lm"
+)
+
+# Run the specifications for males
+specification_results_males <- specr(specification_males)
+
+# Anpassen der Summary-Funktion, um mit NA-Werten umzugehen
+safe_summary <- function(spec_results) {
+  tryCatch({
+    med <- median(spec_results$estimate, na.rm = TRUE)
+    q25 <- quantile(spec_results$estimate, 0.25, na.rm = TRUE)
+    q75 <- quantile(spec_results$estimate, 0.75, na.rm = TRUE)
+    data.frame(median = med, Q25 = q25, Q75 = q75)
+  }, error = function(e) {
+    message("Fehler beim Berechnen der Zusammenfassung: ", e$message)
+  })
+}
+
+# Run the specifications for males
+specification_results_males <- specr(specification_males)
+
+# View the summary of the results
+summary(specification_results_males)
+```
+
+# Plots for male subset results
+```{r}
+plot(specification_results_males)
+
+(a_male <- plot(specification_results_males, type = "curve", ci = F, ribbon = T) + 
+   geom_point(size = 4))
+
+
+(b_male <- plot(specification_results_males, type = "choices", choices = c("x", "y", "model", "controls")) +
+   geom_point(size = 2, shape = 4)) 
+
+(c_male <- plot(specification_results_males, type = "samplesizes") + ylim(0, 400))
+
+
+plot_grid(a_male, b_male, c_male, ncol = 1,
+          align = "v",
+          rel_heights = c(1.5, 2, 0.8),
+          axis = "rbl")
+
+plot(specification_results_males, type = "boxplot") + 
+  geom_point(alpha = .4) + 
+  scale_fill_brewer(palette = "Pastel2") +
+  labs(x = "Effect size", fill = "")
+```
+
+
+# Subsetting data for females 
+```{r}
+specification_females <- setup(
+  data = hardship_combined %>%
+           filter(gender == 0),  # Filter for females
+  y = "risktaking",
+  x = c("infantmortality", 
+        "lifeexpectancy", "gini", "homiciderate",
+        "gdp", "femalemale_primedu"),
+  model = "lm"
+)
+
+# Run the specifications for females
+specification_results_females <- specr(specification_females)
+
+# Anpassen der Summary-Funktion, um mit NA-Werten umzugehen
+safe_summary <- function(spec_results) {
+  tryCatch({
+    med <- median(spec_results$estimate, na.rm = TRUE)
+    q25 <- quantile(spec_results$estimate, 0.25, na.rm = TRUE)
+    q75 <- quantile(spec_results$estimate, 0.75, na.rm = TRUE)
+    data.frame(median = med, Q25 = q25, Q75 = q75)
+  }, error = function(e) {
+    message("Fehler beim Berechnen der Zusammenfassung: ", e$message)
+  })
+}
+
+# Run the specifications for females
+specification_results_females <- specr(specification_females)
+
+# View the summary of the results
+summary(specification_results_females)
+```
+
+# Plots for female subset results
+```{r}
+plot(specification_results_females)
+
+(a_female <- plot(specification_results_females, type = "curve", ci = F, ribbon = T) + 
+   geom_point(size = 4))
+
+
+(b_female <- plot(specification_results_females, type = "choices", choices = c("x", "y", "model", "controls")) +
+   geom_point(size = 2, shape = 4)) 
+
+(c_female <- plot(specification_results_females, type = "samplesizes") + ylim(0, 400))
+
+
+plot_grid(a_female, b_female, c_female, ncol = 1,
+          align = "v",
+          rel_heights = c(1.5, 2, 0.8),
+          axis = "rbl")
+
+plot(specification_results_females, type = "boxplot") + 
+  geom_point(alpha = .4) + 
+  scale_fill_brewer(palette = "Pastel2") +
+  labs(x = "Effect size", fill = "")
+```
+
+# Subsetting data for age-categories 
+```{r}
+run_specification_for_age <- function(data, age_id, age_label) {
+  # Daten für die spezifische Altersgruppe filtern
+  data_subset <- data %>%
+    filter(age_numeric == age_id)
+  
+  # Setup für die Spezifikationen durchführen
+  specification <- setup(
+    data = data_subset,
+    y = "risktaking",
+  x = c("infantmortality", 
+        "lifeexpectancy", "gini", "homiciderate",
+        "gdp", "femalemale_primedu"),
+    model = "lm"
+  )
+
+  # Spezifikationsergebnisse berechnen
+  specification_results <- specr(specification)
+
+  # Statistische Auswertungen drucken mit Alterskategorie-Titel
+  cat("\nStatistische Ergebnisse für die Alterskategorie:", age_label, "\n")
+  print(summary(specification_results, digits = 5))
+
+  # Grafiken für die spezifische Altersgruppe erzeugen und anzeigen
+  plot_list <- list(
+    plot_a = plot(specification_results, type = "curve", ci = FALSE, ribbon = TRUE) + 
+             geom_point(size = 4) + ggtitle(paste("Curve Plot -", age_label)),
+    plot_b = plot(specification_results, type = "choices", choices = c("x", "y", "model", "controls")) + 
+             geom_point(size = 2, shape = 4) + ggtitle(paste("Choices Plot -", age_label)),
+    plot_c = plot(specification_results, type = "samplesizes") + ylim(0, 400) +
+             ggtitle(paste("Sample Sizes Plot -", age_label)),
+    plot_d = plot(specification_results, type = "boxplot") + 
+             geom_point(alpha = .4) + scale_fill_brewer(palette = "Pastel2") + 
+             labs(x = "Effect size", fill = "") + ggtitle(paste("Boxplot -", age_label))
+  )
+
+  # Rückgabe der Ergebnisse und Plots
+  return(list(summary = summary(specification_results, digits = 5), plots = plot_list))
+}
+
+# Funktion für jede Altersgruppe aufrufen und sowohl statistische Zusammenfassungen als auch Plots ausgeben
+for (i in 1:8) {
+  results <- run_specification_for_age(hardship_combined, i, paste("Age Group", i))
+  print(results$summary)  # Drucke die Zusammenfassung der Ergebnisse
+  print(results$plots$plot_a)
+  print(results$plots$plot_b)
+  print(results$plots$plot_c)
+  print(results$plots$plot_d)
+}
+```

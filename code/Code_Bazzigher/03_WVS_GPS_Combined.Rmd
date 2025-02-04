@@ -79,6 +79,11 @@ merged_data$worldmap <- ifelse(merged_data$country %in% GPS_data$country & merge
 merged_data
 ```
 
+```{r}
+write.csv(merged_data, file = file.path(base_path, "Specification_curve.csv"), row.names = FALSE)
+```
+
+
 # Number of countries 
 ```{r}
 # Anzahl der einzigartigen Länder im Datensatz ermitteln
@@ -277,8 +282,8 @@ participant_table[is.na(participant_table)] <- 0
 print(participant_table)
 ```
 
+# Adding age categories
 ```{r}
-# Adding age categories in English
 merged_data$age_category <- cut(merged_data$age,
                                 breaks = c(15, 24, 34, 44, 54, 64, 74, 84, 99),
                                 labels = c("Youth (15-24)", 

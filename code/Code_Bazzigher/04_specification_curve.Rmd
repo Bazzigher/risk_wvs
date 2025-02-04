@@ -32,12 +32,14 @@ library(knitr)
 library(kableExtra)
 library(Hmisc)
 remotes::install_github("masurp/specr")
+library(ggplot2)
+library(cowplot)
 ```
 
 # Load all data
 ```{r}
 # Combined GPS WVS
-risktaking <- read.csv(file.path(base_path, "gps_wvs_combined.csv"), header=TRUE, as.is=TRUE)
+risktaking <- read.csv(file.path(base_path, "Specification_curve.csv"), header=TRUE, as.is=TRUE)
 
 # Umbenennen von 'isocode' zu 'COUNTRY' in risktaking
 risktaking <- risktaking %>%
@@ -70,10 +72,11 @@ hardship_combined <- risktaking %>%
 
 # Überprüfung der Struktur des kombinierten Datensatzes
 #str(hardship_combined)
+head(hardship_combined)
+head(hardship_combined)
 ```
 
 ```{r}
-# Stellen Sie sicher, dass die Alterskategorien richtig zugewiesen wurden
 if (!"age_category" %in% names(hardship_combined)) {
   hardship_combined$age_category <- cut(hardship_combined$age,
                                         breaks = c(15, 24, 34, 44, 54, 64, 74, 84, 99),
@@ -94,6 +97,23 @@ hardship_combined$age_numeric <- as.integer(factor(hardship_combined$age_categor
 # Überprüfung der neuen numerischen Alterskategorien
 table(hardship_combined$age_numeric)
 ```
+
+```{r}
+get_variable_categories <- function() {
+  list(
+    "Health/Safety" = c("HS_alc_tax_wine", "HS_alc_roaddeath", "HS_drg_treatment", "HS_nic_affordability",
+                        "HS_mh_policy", "HS_sex_gini", "HS_oth_obesity", "HS_oth_cleancooking", "HS_mh_mhhospit",
+                        "HS_sex_antiretroviral", "HS_original_lifeexpectancy", "HS_original_genderequality", "hardship_HS_index"),
+    "Finance" = c("f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int", "f_hs_oopexp10", "f_eco_gdpdefl_linked",
+                  "f_eco_cpi", "f_original_gdp", "f_original_gini", "hardship_Finance_index", "c_bh_homicide"),
+    "Crime" = c("c_bh_childmalt", "c_bh_violextchildprot", "c_bh_parviolenceprog", "c_bh_elderabuse",
+                "c_theft_estcorruption", "c_oth_polstab", "hardship_Crime_index"),
+    "Environment" = c("e_oth_drinkingwater", "e_exp_watersanithyg100k", "e_ses_gini", "e_ses_school",
+                      "e_exp_disaster", "e_exp_airdeath100k", "e_exp_watersanithyg", "hardship_environment_index")
+  )
+}
+```
+
 
 
 # Calculate correlation with risktaking
@@ -155,16 +175,11 @@ cor_table %>%
   column_spec(3, background = "lightyellow")
 ```
 
-```{r}
-colnames(hardship_combined)
-```
-
 
 # Setup for specifications
 ```{r}
 library(specr)
 
-# Setup für die Spezifikationen mit einer umfassenderen Auswahl von Variablen
 specification <- setup(
   data = hardship_combined,
   y = "risktaking",  # abhängige Variable
@@ -526,8 +541,7 @@ specification_females <- setup(
           "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy",
           "HS_sex_gini", "HS_oth_obesity", "HS_oth_cleancooking",
           "HS_mh_mhhospit", "HS_sex_antiretroviral",
-          "HS_original_lifeexpectancy", "HS_original_genderequality",
-          "hardship_HS_index"),
+          "HS_original_lifeexpectancy", "HS_original_genderequality"),
   model = "lm"
 )
 
