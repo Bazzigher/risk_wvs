@@ -1,0 +1,303 @@
+---
+title: "4_Hardship_specification_curve_v2"
+output: 
+  html_document:
+    code_folding: hide
+date: "2024-05-08"
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+rm(list = ls())
+```
+
+## Set path Laura: ONLY USE FOR LAURA 
+```{r}
+# base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
+```
+
+## Library 
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(specr)
+library(specr)
+library(readxl)
+library(ggthemes)
+library(cowplot)
+library(dplyr)
+library(knitr)
+library(kableExtra)
+library(Hmisc)
+remotes::install_github("masurp/specr")
+library(ggplot2)
+library(cowplot)
+```
+
+## Load all data
+```{r}
+# Combined GPS WVS
+risktaking <- read.csv(file.path(base_path, "Specification_curve.csv"), header=TRUE, as.is=TRUE)
+
+# Umbenennen von 'isocode' zu 'COUNTRY' in risktaking
+risktaking <- risktaking %>%
+  rename(COUNTRY = isocode)
+
+risktaking <- risktaking %>%
+  select(-hardship_index, -worldmap, -source)
+
+hardship_hs <- read.csv(file.path(base_path, "hardship_HS.csv"))
+hardship_finance <- read.csv(file.path(base_path, "hardship_finance.csv"))
+hardship_crime <- read.csv(file.path(base_path, "hardship_crime.csv"))
+hardship_environment <- read.csv(file.path(base_path, "hardship_environment.csv"))
+
+# Entfernen der nicht benötigten Spalten aus den Datensätzen vor dem Zusammenführen
+hardship_hs <- hardship_hs %>%
+  select(-country, -avg_risktaking)
+hardship_finance <- hardship_finance %>%
+  select(-country, -avg_risktaking)
+hardship_crime <- hardship_crime %>%
+  select(-country, -avg_risktaking)
+hardship_environment <- hardship_environment %>%
+  select(-country, -avg_risktaking)
+
+# Zusammenführen der Datensätze
+hardship_combined <- risktaking %>%
+  left_join(hardship_hs, by = "COUNTRY") %>%
+  left_join(hardship_finance, by = "COUNTRY") %>%
+  left_join(hardship_crime, by = "COUNTRY") %>%
+  left_join(hardship_environment, by = "COUNTRY")
+
+#str(hardship_combined)
+head(hardship_combined)
+```
+
+## Age categories
+```{r}
+# Neue Alterskategorien definieren
+hardship_combined$age_category <- cut(hardship_combined$age,
+                                      breaks = c(15, 25, 45, 65, 99),  
+                                      labels = c("Young Adults (15-25)", 
+                                                 "Adults (26-45)", 
+                                                 "Middle-aged Adults (46-65)", 
+                                                 "Seniors (66-99)"),
+                                      right = TRUE, include.lowest = TRUE)
+
+# Umwandlung der Alterskategorien in numerische Werte
+hardship_combined$age_numeric <- as.integer(factor(hardship_combined$age_category))
+
+# Überprüfung der neuen numerischen Alterskategorien
+table(hardship_combined$age_category)
+```
+
+```{r}
+# Fehlende Werte entfernen
+hardship_combined <- na.omit(hardship_combined)
+
+# Faktorvariablen korrekt setzen
+hardship_combined$gender <- as.factor(hardship_combined$gender)
+hardship_combined$age_category <- as.factor(hardship_combined$age_category)
+hardship_combined$COUNTRY <- as.factor(hardship_combined$COUNTRY)
+hardship_combined$COUNTRY_NUM <- as.numeric(as.factor(hardship_combined$COUNTRY))
+head(hardship_combined)
+```
+
+
+# SCA with subset gender
+```{r}
+# 📌 Liste von Kontrollvariablen definieren
+controls <- list(
+  "no_controls" = "",
+  "country_control" = "+ COUNTRY_NUM"
+)
+
+# 📌 Liste von Risikofaktoren definieren
+risk_factors <- list(
+  "drinking_water" = "e_oth_drinkingwater",
+  "water_sanitation" = "e_exp_watersanithyg100k",
+  "gini" = "e_ses_gini",
+  "school" = "e_ses_school",
+  "disaster" = "e_exp_disaster",
+  "airdeath" = "e_exp_airdeath100k"
+)
+
+# 📌 Alle Modellformeln aus Risikofaktoren und Kontrollvariablen generieren
+formulas <- expand_grid(
+  risk_factor = names(risk_factors),
+  control = names(controls)
+) %>%
+  mutate(
+    formula = map2_chr(risk_factor, control, 
+                       ~ paste("risktaking ~", risk_factors[[.x]], controls[[.y]]))
+  ) %>%
+  pull(formula)  # Extrahiert die vollständigen Formeln als Vektor
+
+# 📌 OLS-Regression (lm)
+models <- list(
+  lm = function(formula, data) lm(as.formula(formula), data = data)
+)
+
+# 📌 Erstelle Subsets nach Geschlecht und Alterskategorie
+subsets <- expand_grid(
+  gender = c("Male", "Female"),
+  age_category = unique(hardship_combined$age_category)
+) %>%
+  mutate(
+    subset_data = pmap(list(gender, age_category), 
+                       ~ hardship_combined %>%
+                           filter(gender == ifelse(..1 == "Male", 1, 0), 
+                                  age_category == ..2))
+  ) %>%
+  filter(map_int(subset_data, nrow) > 0)  # Entfernt leere Kombinationen
+
+# 📌 Erstelle die vollständige Spezifikationen-Tabelle
+specifications <- expand_grid(
+  subset = subsets$subset_data,  
+  formula = formulas,
+  model_name = names(models)
+) %>%
+  mutate(
+    gender = map_chr(subset, ~ ifelse(unique(.x$gender) == 1, "Male", "Female")),  # Extrahiert Geschlecht
+    age_category = map_chr(subset, ~ as.character(unique(.x$age_category))),  # Extrahiert Altersgruppe
+    model = pmap(list(formula, model_name, subset), 
+                 ~ models[[..2]](..1, data = ..3)),  # Modell berechnen
+    summary = map(model, broom::tidy),
+    conf_int = map(model, ~ broom::confint_tidy(.x))  # Konfidenzintervalle berechnen
+  ) %>%
+  unnest(c(summary, conf_int))  # Entpackt die Modellzusammenfassung
+
+# 📌 Prüfen, ob die Anzahl der Spezifikationen jetzt höher ist
+n_specifications <- nrow(specifications)
+print(paste("Anzahl der berechneten Spezifikationen:", n_specifications))
+
+# 📌 Überprüfen, ob ALLE Gruppen korrekt erfasst wurden
+print(table(specifications$gender, specifications$age_category))
+
+# 📌 Prüfen, ob die Variablen korrekt gespeichert wurden
+print(names(specifications))
+
+```
+
+
+```{r}
+# 📌 Ergebnisse in eine vollständige Tabelle speichern
+results_table <- specifications %>%
+  select(
+    gender,          # Geschlecht
+    age_category,    # Altersgruppe
+    formula,         # Modellformel
+    term,            # Unabhängige Variable
+    estimate,        # Effektgröße
+    std.error,       # Standardfehler
+    conf.low,        # 95%-Konfidenzintervall (untere Grenze)
+    conf.high,       # 95%-Konfidenzintervall (obere Grenze)
+    p.value          # p-Wert
+  ) %>%
+  mutate(
+    significant = ifelse(p.value < 0.05, "yes", "no")  # Markierung für Signifikanz
+  ) %>%
+  arrange(gender, age_category, formula, term)  # Sortierung für bessere Lesbarkeit
+
+# 📌 Erste 20 Zeilen der Tabelle anzeigen
+print(head(results_table, 200))
+
+# 📌 Anzahl der berechneten Spezifikationen
+n_results <- nrow(results_table)
+print(paste("Anzahl der Ergebnisse in der Tabelle:", n_results))
+
+# 📌 Speichern als CSV für spätere Analyse
+# write.csv(results_table, "Complete_Regression_Results.csv", row.names = FALSE)
+```
+
+
+```{r}
+# 📌 Pakete laden
+library(tidyverse)
+library(ggplot2)
+library(broom)
+library(purrr)
+library(cowplot)
+
+# 📌 Sicherstellen, dass das Modell-Spezifikations-Dataset existiert
+if (!exists("specifications")) {
+  stop("Das Objekt 'specifications' existiert nicht. Bitte zuerst die Spezifikationen berechnen.")
+}
+
+# 📌 Daten für die Visualisierung vorbereiten
+plot_data <- specifications %>%
+  arrange(estimate) %>%
+  mutate(
+    specification = row_number(),  # ID für jede Spezifikation
+    significant = ifelse(p.value < 0.05, "yes", "no"),  # Signifikanz bestimmen
+    x = term,  # Variablen für Achsenlabel
+    controls = formula,
+    gender = factor(gender, levels = c("Male", "Female")),  # Reihenfolge sicherstellen
+    age_category = factor(age_category, levels = c("Young Adults (15-25)", "Adults (26-45)", 
+                                                   "Middle-aged Adults (46-65)", "Seniors (66-99)"))  # Altersgruppen als Faktor
+  )
+
+# 📌 Farben definieren
+sig_colors <- c("no" = "red", "yes" = "black")
+
+# 📌 Anzahl der Spezifikationen berechnen
+n_specifications <- nrow(plot_data)
+
+# 📌 Panel A: Specification Curve (Effekte mit Konfidenzintervallen)
+p1 <- ggplot(plot_data, aes(x = specification, y = estimate, color = significant)) +
+  geom_point(alpha = 0.8, size = 3) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2, alpha = 0.5) +
+  scale_color_manual(values = sig_colors) +
+  labs(y = "Estimate", x = paste0("Specification (n = ", n_specifications, ")"), color = "Significance") +
+  theme_minimal() +
+  theme(legend.position = "right")
+
+### **📌 PLOT B: Gender Subsets (Männer vs. Frauen)**
+p2 <- ggplot(plot_data, aes(x = specification, y = gender, fill = significant)) +
+  geom_tile() +
+  scale_fill_manual(values = sig_colors) +
+  labs(x = "Specification", y = "Gender Groups", fill = "Significance") +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_blank(),
+    legend.position = "right"
+  )
+
+### **📌 PLOT C: Risk Factors Übersicht**
+risk_factors <- c("e_oth_drinkingwater", "e_exp_watersanithyg100k", "e_ses_gini",
+                  "e_ses_school", "e_exp_disaster", "e_exp_airdeath100k")
+
+p3 <- ggplot(plot_data %>% filter(x %in% risk_factors), 
+             aes(x = specification, y = x, fill = significant)) +
+  geom_tile() +
+  scale_fill_manual(values = sig_colors) +
+  labs(x = "Specification", y = "Risk Factors", fill = "Significance") +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_blank(),
+    legend.position = "right"
+  )
+
+### **📌 PLOT D: Alterskategorien Übersicht**
+p4 <- ggplot(plot_data, aes(x = specification, y = age_category, fill = significant)) +
+  geom_tile() +
+  scale_fill_manual(values = sig_colors) +
+  labs(x = "Specification", y = "Age Categories", fill = "Significance") +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_blank(),
+    legend.position = "right"
+  )
+
+### **📌 FINALE KOMBINIERTE VISUALISIERUNG**
+final_plot <- plot_grid(p1, p2, p4, p3, ncol = 1, rel_heights = c(2, 1, 1, 1))
+
+# 📌 Visualisierung anzeigen
+print(final_plot)
+```
+
+

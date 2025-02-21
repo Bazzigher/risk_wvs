@@ -1,0 +1,263 @@
+---
+title: "4_Hardship_specification_curve_v2"
+output: 
+  html_document:
+    code_folding: hide
+date: "2024-05-08"
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+rm(list = ls())
+```
+
+## Set path Laura: ONLY USE FOR LAURA 
+```{r}
+# base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
+```
+
+## Library 
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(specr)
+library(specr)
+library(readxl)
+library(ggthemes)
+library(cowplot)
+library(dplyr)
+library(knitr)
+library(kableExtra)
+library(Hmisc)
+remotes::install_github("masurp/specr")
+library(ggplot2)
+library(cowplot)
+library(writexl)
+```
+
+## Load all data
+```{r}
+# Combined GPS WVS
+risktaking <- read.csv(file.path(base_path, "Specification_curve.csv"), header=TRUE, as.is=TRUE)
+
+# Umbenennen von 'isocode' zu 'COUNTRY' in risktaking
+risktaking <- risktaking %>%
+  rename(COUNTRY = isocode)
+
+risktaking <- risktaking %>%
+  select(-hardship_index, -worldmap, -source)
+
+hardship_hs <- read.csv(file.path(base_path, "hardship_HS.csv"))
+hardship_finance <- read.csv(file.path(base_path, "hardship_finance.csv"))
+hardship_crime <- read.csv(file.path(base_path, "hardship_crime.csv"))
+hardship_environment <- read.csv(file.path(base_path, "hardship_environment.csv"))
+
+# Entfernen der nicht benötigten Spalten aus den Datensätzen vor dem Zusammenführen
+hardship_hs <- hardship_hs %>%
+  select(-country, -avg_risktaking)
+hardship_finance <- hardship_finance %>%
+  select(-country, -avg_risktaking)
+hardship_crime <- hardship_crime %>%
+  select(-country, -avg_risktaking)
+hardship_environment <- hardship_environment %>%
+  select(-country, -avg_risktaking)
+
+# Zusammenführen der Datensätze
+hardship_combined <- risktaking %>%
+  left_join(hardship_hs, by = "COUNTRY") %>%
+  left_join(hardship_finance, by = "COUNTRY") %>%
+  left_join(hardship_crime, by = "COUNTRY") %>%
+  left_join(hardship_environment, by = "COUNTRY")
+
+#str(hardship_combined)
+head(hardship_combined)
+```
+
+## Age categories
+```{r}
+# Neue Alterskategorien definieren
+hardship_combined$age_category <- cut(hardship_combined$age,
+                                      breaks = c(15, 25, 45, 65, 99),  
+                                      labels = c("Young Adults (15-25)", 
+                                                 "Adults (26-45)", 
+                                                 "Middle-aged Adults (46-65)", 
+                                                 "Seniors (66-99)"),
+                                      right = TRUE, include.lowest = TRUE)
+
+# Umwandlung der Alterskategorien in numerische Werte
+hardship_combined$age_numeric <- as.integer(factor(hardship_combined$age_category))
+
+# Überprüfung der neuen numerischen Alterskategorien
+table(hardship_combined$age_category)
+```
+
+```{r}
+# Fehlende Werte entfernen
+hardship_combined <- na.omit(hardship_combined)
+
+# Faktorvariablen korrekt setzen
+hardship_combined$gender <- as.factor(hardship_combined$gender)
+hardship_combined$age_category <- as.factor(hardship_combined$age_category)
+hardship_combined$COUNTRY <- as.factor(hardship_combined$COUNTRY)
+hardship_combined$COUNTRY_NUM <- as.numeric(as.factor(hardship_combined$COUNTRY))
+head(hardship_combined)
+```
+
+
+# SCA with subset gender
+```{r}
+controls <- list(
+  "no_controls" = "",
+  "country_control" = "+ COUNTRY_NUM"
+)
+
+risk_factors <- list(
+  "acctownership" = "f_inv_acctownership_primaryedu",
+  "insfinsvcs" = "f_oth_insfinsvcs_int",
+  "oopexp" = "f_hs_oopexp10",
+  "gdpdefl" = "f_eco_gdpdefl_linked",
+  "cpi" = "f_eco_cpi",
+  "original_gdp" = "f_original_gdp",
+  "original_gini" = "f_original_gini"
+)
+
+formulas <- expand_grid(
+  risk_factor = names(risk_factors),
+  control = names(controls)
+) %>%
+  mutate(
+    formula = map2_chr(risk_factor, control, 
+                       ~ paste("risktaking ~", risk_factors[[.x]], controls[[.y]]))
+  ) %>%
+  pull(formula)
+
+models <- list(
+  lm = function(formula, data) lm(as.formula(formula), data = data)
+)
+
+subsets <- expand_grid(
+  gender = c("Male", "Female"),
+  age_category = unique(hardship_combined$age_category)
+) %>%
+  mutate(
+    subset_data = pmap(list(gender, age_category), 
+                       ~ hardship_combined %>%
+                           filter(gender == ifelse(..1 == "Male", 1, 0), 
+                                  age_category == ..2))
+  ) %>%
+  filter(map_int(subset_data, nrow) > 0)
+
+specifications <- expand_grid(
+  subset = subsets$subset_data,  
+  formula = formulas,
+  model_name = names(models)
+) %>%
+  mutate(
+    gender = map_chr(subset, ~ ifelse(unique(.x$gender) == 1, "Male", "Female")),
+    age_category = map_chr(subset, ~ as.character(unique(.x$age_category))),
+    model = pmap(list(formula, model_name, subset), 
+                 ~ models[[..2]](..1, data = ..3)),
+    summary = map(model, broom::tidy),
+    conf_int = map(model, ~ broom::confint_tidy(.x))
+  ) %>%
+  unnest(c(summary, conf_int))
+
+print(nrow(specifications))
+print(table(specifications$gender, specifications$age_category))
+print(names(specifications))
+```
+
+
+```{r}
+results_table <- specifications %>%
+  select(
+    gender,          # Geschlecht
+    age_category,    # Altersgruppe
+    formula,         # Modellformel
+    term,            # Unabhängige Variable
+    estimate,        # Effektgröße
+    std.error,       # Standardfehler
+    conf.low,        # 95%-Konfidenzintervall (untere Grenze)
+    conf.high,       # 95%-Konfidenzintervall (obere Grenze)
+    p.value          # p-Wert
+  ) %>%
+  mutate(
+    significant = ifelse(p.value < 0.05, "yes", "no")  # Markierung für Signifikanz
+  ) %>%
+  arrange(gender, age_category, formula, term)  # Sortierung für bessere Lesbarkeit
+
+# 📌 Erste 20 Zeilen der Tabelle anzeigen
+print(head(results_table, 200))
+
+# 📌 Anzahl der berechneten Spezifikationen
+n_results <- nrow(results_table)
+print(paste("Anzahl der Ergebnisse in der Tabelle:", n_results))
+
+# 📌 Speichern als Excel-Datei
+write_xlsx(results_table, "Finance_Regression_Results.xlsx")
+
+print("Finance_Regression_Results.xlsx wurde erfolgreich gespeichert!")
+```
+
+
+```{r}
+library(broom)
+library(purrr)
+
+plot_data <- specifications %>%
+  arrange(estimate) %>%
+  mutate(
+    specification = row_number(),
+    significant = ifelse(p.value < 0.05, "yes", "no"),
+    x = term,
+    gender = factor(gender, levels = c("Male", "Female")),
+    age_category = factor(age_category, levels = c("Young Adults (15-25)", "Adults (26-45)", 
+                                                   "Middle-aged Adults (46-65)", "Seniors (66-99)"))
+  )
+
+sig_colors <- c("no" = "red", "yes" = "black")
+n_specifications <- nrow(plot_data)
+
+p1 <- ggplot(plot_data, aes(x = specification, y = estimate, color = significant)) +
+  geom_point(alpha = 0.8, size = 3) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2, alpha = 0.5) +
+  scale_color_manual(values = sig_colors) +
+  labs(y = "Estimate", x = paste0("Specification (n = ", n_specifications, ")"), color = "Significance") +
+  theme_minimal() +
+  theme(legend.position = "right")
+
+p2 <- ggplot(plot_data, aes(x = specification, y = gender, fill = significant)) +
+  geom_tile() +
+  scale_fill_manual(values = sig_colors) +
+  labs(x = "Specification", y = "Gender Groups", fill = "Significance") +
+  theme_minimal()
+
+p3 <- ggplot(plot_data, aes(x = specification, y = age_category, fill = significant)) +
+  geom_tile() +
+  scale_fill_manual(values = sig_colors) +
+  labs(x = "Specification", y = "Age Categories", fill = "Significance") +
+  theme_minimal()
+
+# 📌 PLOT C: Finance-Faktoren Übersicht
+finance_factors <- c("f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int", "f_hs_oopexp10",
+                     "f_eco_gdpdefl_linked", "f_eco_cpi", "f_original_gdp", "f_original_gini")
+
+p4 <- ggplot(plot_data %>% filter(x %in% finance_factors), 
+             aes(x = specification, y = x, fill = significant)) +
+  geom_tile() +
+  scale_fill_manual(values = sig_colors) +
+  labs(x = "Specification", y = "Finance Factors", fill = "Significance") +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_blank(),
+    legend.position = "right"
+  )
+
+final_plot <- plot_grid(p1, p2, p3, p4, ncol = 1, rel_heights = c(2, 1, 1, 1))
+print(final_plot)
+```
+
+

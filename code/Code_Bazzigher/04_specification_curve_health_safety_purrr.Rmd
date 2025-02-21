@@ -1,0 +1,279 @@
+---
+title: "4_Hardship_specification_curve_v2"
+output: 
+  html_document:
+    code_folding: hide
+date: "2024-05-08"
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+rm(list = ls())
+```
+
+## Set path Laura: ONLY USE FOR LAURA 
+```{r}
+# base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
+```
+
+## Library 
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(specr)
+library(specr)
+library(readxl)
+library(ggthemes)
+library(cowplot)
+library(dplyr)
+library(knitr)
+library(kableExtra)
+library(Hmisc)
+remotes::install_github("masurp/specr")
+library(ggplot2)
+library(cowplot)
+library(writexl)
+```
+
+## Load all data
+```{r}
+# Combined GPS WVS
+risktaking <- read.csv(file.path(base_path, "Specification_curve.csv"), header=TRUE, as.is=TRUE)
+
+# Umbenennen von 'isocode' zu 'COUNTRY' in risktaking
+risktaking <- risktaking %>%
+  rename(COUNTRY = isocode)
+
+risktaking <- risktaking %>%
+  select(-hardship_index, -worldmap, -source)
+
+hardship_hs <- read.csv(file.path(base_path, "hardship_HS.csv"))
+hardship_finance <- read.csv(file.path(base_path, "hardship_finance.csv"))
+hardship_crime <- read.csv(file.path(base_path, "hardship_crime.csv"))
+hardship_environment <- read.csv(file.path(base_path, "hardship_environment.csv"))
+
+# Entfernen der nicht benötigten Spalten aus den Datensätzen vor dem Zusammenführen
+hardship_hs <- hardship_hs %>%
+  select(-country, -avg_risktaking)
+hardship_finance <- hardship_finance %>%
+  select(-country, -avg_risktaking)
+hardship_crime <- hardship_crime %>%
+  select(-country, -avg_risktaking)
+hardship_environment <- hardship_environment %>%
+  select(-country, -avg_risktaking)
+
+# Zusammenführen der Datensätze
+hardship_combined <- risktaking %>%
+  left_join(hardship_hs, by = "COUNTRY") %>%
+  left_join(hardship_finance, by = "COUNTRY") %>%
+  left_join(hardship_crime, by = "COUNTRY") %>%
+  left_join(hardship_environment, by = "COUNTRY")
+
+#str(hardship_combined)
+head(hardship_combined)
+```
+
+## Age categories
+```{r}
+# Neue Alterskategorien definieren
+hardship_combined$age_category <- cut(hardship_combined$age,
+                                      breaks = c(15, 25, 45, 65, 99),  
+                                      labels = c("Young Adults (15-25)", 
+                                                 "Adults (26-45)", 
+                                                 "Middle-aged Adults (46-65)", 
+                                                 "Seniors (66-99)"),
+                                      right = TRUE, include.lowest = TRUE)
+
+# Umwandlung der Alterskategorien in numerische Werte
+hardship_combined$age_numeric <- as.integer(factor(hardship_combined$age_category))
+
+# Überprüfung der neuen numerischen Alterskategorien
+table(hardship_combined$age_category)
+```
+
+```{r}
+# Fehlende Werte entfernen
+hardship_combined <- na.omit(hardship_combined)
+
+# Faktorvariablen korrekt setzen
+hardship_combined$gender <- as.factor(hardship_combined$gender)
+hardship_combined$age_category <- as.factor(hardship_combined$age_category)
+hardship_combined$COUNTRY <- as.factor(hardship_combined$COUNTRY)
+hardship_combined$COUNTRY_NUM <- as.numeric(as.factor(hardship_combined$COUNTRY))
+head(hardship_combined)
+```
+
+
+# SCA with subset gender
+```{r}
+# SCA with subset gender for Health / Safety Hardship Index
+controls <- list(
+  "no_controls" = "",
+  "country_control" = "+ COUNTRY_NUM"
+)
+
+# Hardship Health / Safety Faktoren
+health_safety_factors <- list(
+  "alc_tax_wine" = "HS_alc_tax_wine",
+  "alc_roaddeath" = "HS_alc_roaddeath",
+  "drg_treatment" = "HS_drg_treatment",
+  "nic_affordability" = "HS_nic_affordability",
+  "mh_policy" = "HS_mh_policy",
+  "sex_gini" = "HS_sex_gini",
+  "oth_obesity" = "HS_oth_obesity",
+  "oth_cleancooking" = "HS_oth_cleancooking",
+  "mh_mhhospit" = "HS_mh_mhhospit",
+  "sex_antiretroviral" = "HS_sex_antiretroviral",
+  "original_lifeexpectancy" = "HS_original_lifeexpectancy",
+  "original_genderequality" = "HS_original_genderequality"
+)
+
+# Erstellen der Formeln für die Regression
+formulas <- expand_grid(
+  risk_factor = names(health_safety_factors),
+  control = names(controls)
+) %>%
+  mutate(
+    formula = map2_chr(risk_factor, control, 
+                       ~ paste("risktaking ~", health_safety_factors[[.x]], controls[[.y]]))
+  ) %>%
+  pull(formula)
+
+# Modelle definieren
+models <- list(
+  lm = function(formula, data) lm(as.formula(formula), data = data)
+)
+
+# Subsets für Gender und Altersgruppen erstellen
+subsets <- expand_grid(
+  gender = c("Male", "Female"),
+  age_category = unique(hardship_combined$age_category)
+) %>%
+  mutate(
+    subset_data = pmap(list(gender, age_category), 
+                       ~ hardship_combined %>%
+                           filter(gender == ifelse(..1 == "Male", 1, 0), 
+                                  age_category == ..2))
+  ) %>%
+  filter(map_int(subset_data, nrow) > 0)
+
+# Spezifikationen erstellen und Modelle schätzen
+specifications <- expand_grid(
+  subset = subsets$subset_data,  
+  formula = formulas,
+  model_name = names(models)
+) %>%
+  mutate(
+    gender = map_chr(subset, ~ ifelse(unique(.x$gender) == 1, "Male", "Female")),
+    age_category = map_chr(subset, ~ as.character(unique(.x$age_category))),
+    model = pmap(list(formula, model_name, subset), 
+                 ~ models[[..2]](..1, data = ..3)),
+    summary = map(model, broom::tidy),
+    conf_int = map(model, ~ broom::confint_tidy(.x))
+  ) %>%
+  unnest(c(summary, conf_int))
+
+print(nrow(specifications))
+print(table(specifications$gender, specifications$age_category))
+print(names(specifications))
+```
+
+
+```{r}
+# Ergebnisse als Tabelle speichern
+results_table <- specifications %>%
+  select(
+    gender,          
+    age_category,    
+    formula,         
+    term,            
+    estimate,        
+    std.error,       
+    conf.low,        
+    conf.high,       
+    p.value          
+  ) %>%
+  mutate(
+    significant = ifelse(p.value < 0.05, "yes", "no")  
+  ) %>%
+  arrange(gender, age_category, formula, term)  
+
+print(head(results_table, 2000))
+
+# Speichern der Ergebnisse als Excel-Datei
+write_xlsx(results_table, "HealthSafety_Regression_Results.xlsx")
+print("HealthSafety_Regression_Results.xlsx wurde erfolgreich gespeichert!")
+```
+
+
+```{r}
+library(broom)
+library(purrr)
+library(ggplot2)
+library(cowplot)
+
+# Sicherstellen, dass die Variablen als Zeichenkette interpretiert werden
+health_safety_factor_names <- unlist(health_safety_factors, use.names = FALSE)
+
+# Plot-Dataframe anpassen
+plot_data <- specifications %>%
+  arrange(estimate) %>%
+  mutate(
+    specification = row_number(),
+    significant = ifelse(p.value < 0.05, "yes", "no"),
+    term = as.character(term),  # Falls `term` ein Faktor ist, umwandeln
+    gender = factor(gender, levels = c("Male", "Female")),
+    age_category = factor(age_category, levels = c("Young Adults (15-25)", "Adults (26-45)", 
+                                                   "Middle-aged Adults (46-65)", "Seniors (66-99)"))
+  )
+
+# Farben für Signifikanz
+sig_colors <- c("no" = "red", "yes" = "black")
+n_specifications <- nrow(plot_data)
+
+# PLOT 1: Estimate mit Konfidenzintervallen
+p1 <- ggplot(plot_data, aes(x = specification, y = estimate, color = significant)) +
+  geom_point(alpha = 0.8, size = 3) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2, alpha = 0.5) +
+  scale_color_manual(values = sig_colors) +
+  labs(y = "Estimate", x = paste0("Specification (n = ", n_specifications, ")"), color = "Significance") +
+  theme_minimal() +
+  theme(legend.position = "right")
+
+# PLOT 2: Gender Übersicht
+p2 <- ggplot(plot_data, aes(x = specification, y = gender, fill = significant)) +
+  geom_tile() +
+  scale_fill_manual(values = sig_colors) +
+  labs(x = "Specification", y = "Gender Groups", fill = "Significance") +
+  theme_minimal()
+
+# PLOT 3: Altersgruppen Übersicht
+p3 <- ggplot(plot_data, aes(x = specification, y = age_category, fill = significant)) +
+  geom_tile() +
+  scale_fill_manual(values = sig_colors) +
+  labs(x = "Specification", y = "Age Categories", fill = "Significance") +
+  theme_minimal()
+
+# PLOT 4: Health / Safety Faktoren Übersicht
+p4 <- ggplot(plot_data %>% filter(term %in% health_safety_factor_names), 
+             aes(x = specification, y = term, fill = significant)) +
+  geom_tile() +
+  scale_fill_manual(values = sig_colors) +
+  scale_y_discrete(expand = expansion(mult = c(0.2, 0.2))) +  # Größerer Abstand zwischen Zeilen
+  labs(x = "Specification", y = "Health / Safety Factors", fill = "Significance") +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 10, margin = margin(r = 10)),  # Größerer Abstand zur Achse
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    legend.position = "right"
+  )
+
+# Alle Plots zusammenführen
+final_plot <- plot_grid(p1, p2, p3, p4, ncol = 1, rel_heights = c(2, 1, 1, 1))
+
+# Plot ausgeben
+print(final_plot)
+```

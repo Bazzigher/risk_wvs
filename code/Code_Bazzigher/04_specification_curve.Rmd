@@ -12,13 +12,13 @@ knitr::opts_chunk$set(message = FALSE, warning = FALSE)
 rm(list = ls())
 ```
 
-# Set path Laura: ONLY USE FOR LAURA 
+## Set path Laura: ONLY USE FOR LAURA 
 ```{r}
 # base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
 base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
 ```
 
-# Library 
+## Library 
 ```{r}
 library(tidyverse)
 library(ggplot2)
@@ -36,7 +36,7 @@ library(ggplot2)
 library(cowplot)
 ```
 
-# Load all data
+## Load all data
 ```{r}
 # Combined GPS WVS
 risktaking <- read.csv(file.path(base_path, "Specification_curve.csv"), header=TRUE, as.is=TRUE)
@@ -70,79 +70,111 @@ hardship_combined <- risktaking %>%
   left_join(hardship_crime, by = "COUNTRY") %>%
   left_join(hardship_environment, by = "COUNTRY")
 
-# Überprüfung der Struktur des kombinierten Datensatzes
 #str(hardship_combined)
-head(hardship_combined)
 head(hardship_combined)
 ```
 
+## Corrlation Heatmap 
 ```{r}
-if (!"age_category" %in% names(hardship_combined)) {
-  hardship_combined$age_category <- cut(hardship_combined$age,
-                                        breaks = c(15, 24, 34, 44, 54, 64, 74, 84, 99),
-                                        labels = c("Youth (15-24)", 
-                                                   "Young Adults (25-34)", 
-                                                   "Middle-aged Adults (35-44)", 
-                                                   "Mature Adults (45-54)",
-                                                   "Pre-seniors (55-64)",
-                                                   "Early Seniors (65-74)",
-                                                   "Seniors (75-84)",
-                                                   "Elderly (85-99)"),
-                                        right = TRUE, include.lowest = TRUE)
-}
+library(reshape2)
+
+# Auswahl relevanter Spalten
+selected_vars <- hardship_combined %>% 
+  select(risktaking, "HS_alc_tax_wine", "HS_alc_roaddeath", "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy", "HS_sex_gini",
+        "HS_oth_obesity", "HS_oth_cleancooking", "HS_mh_mhhospit", "HS_sex_antiretroviral", "HS_original_lifeexpectancy",
+        "HS_original_genderequality",
+        "f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int", "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
+        "f_original_gdp", "f_original_gini",
+        "c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot", "c_bh_parviolenceprog", "c_bh_elderabuse",
+        "c_theft_estcorruption", "c_oth_polstab", 
+        "e_oth_drinkingwater", "e_exp_watersanithyg100k", "e_ses_gini", "e_ses_school", "e_exp_disaster",  "e_exp_airdeath100k",
+        "e_exp_watersanithyg")
+
+# Berechnung der Korrelationsmatrix für ausgewählte Variablen
+cor_matrix <- cor(selected_vars, use = "complete.obs")
+
+# Umwandlung der Korrelationsmatrix in einen Datensatz für ggplot
+melted_cor_matrix <- melt(cor_matrix)
+
+# Erstellung der Heatmap mit Korrelationskoeffizienten
+library(ggplot2)
+ggplot(melted_cor_matrix, aes(Var1, Var2, fill = value)) +
+  geom_tile() +  # Zeichnet die Kacheln
+  geom_text(aes(label = sprintf("%.2f", value)), color = "black", size = 2.5) +  # Fügt die Korrelationskoeffizienten hinzu
+  scale_fill_gradient2(midpoint = 0, low = "blue", high = "red", mid = "white", limit = c(-1,1)) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8), axis.text.y = element_text(angle = 45, hjust = 1, size = 8)) +
+  labs(fill = "Korrelation", x = NULL, y = NULL) +
+  coord_fixed()
+
+ggsave("correlation_heatmap.png", width = 12, height = 10, dpi = 300)
+
+```
+
+
+## Age categories
+```{r}
+# Neue Alterskategorien definieren
+hardship_combined$age_category <- cut(hardship_combined$age,
+                                      breaks = c(15, 25, 45, 65, 99),  
+                                      labels = c("Young Adults (15-25)", 
+                                                 "Adults (26-45)", 
+                                                 "Middle-aged Adults (46-65)", 
+                                                 "Seniors (66-99)"),
+                                      right = TRUE, include.lowest = TRUE)
 
 # Umwandlung der Alterskategorien in numerische Werte
 hardship_combined$age_numeric <- as.integer(factor(hardship_combined$age_category))
 
 # Überprüfung der neuen numerischen Alterskategorien
-table(hardship_combined$age_numeric)
+table(hardship_combined$age_category)
+```
+
+## Variance of age categories
+```{r}
+age_variance <- hardship_combined %>%
+  group_by(age_category) %>%
+  summarise(Varianz = var(age, na.rm = TRUE))
+
+print(age_variance)
 ```
 
 ```{r}
-get_variable_categories <- function() {
-  list(
-    "Health/Safety" = c("HS_alc_tax_wine", "HS_alc_roaddeath", "HS_drg_treatment", "HS_nic_affordability",
-                        "HS_mh_policy", "HS_sex_gini", "HS_oth_obesity", "HS_oth_cleancooking", "HS_mh_mhhospit",
-                        "HS_sex_antiretroviral", "HS_original_lifeexpectancy", "HS_original_genderequality", "hardship_HS_index"),
-    "Finance" = c("f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int", "f_hs_oopexp10", "f_eco_gdpdefl_linked",
-                  "f_eco_cpi", "f_original_gdp", "f_original_gini", "hardship_Finance_index", "c_bh_homicide"),
-    "Crime" = c("c_bh_childmalt", "c_bh_violextchildprot", "c_bh_parviolenceprog", "c_bh_elderabuse",
-                "c_theft_estcorruption", "c_oth_polstab", "hardship_Crime_index"),
-    "Environment" = c("e_oth_drinkingwater", "e_exp_watersanithyg100k", "e_ses_gini", "e_ses_school",
-                      "e_exp_disaster", "e_exp_airdeath100k", "e_exp_watersanithyg", "hardship_environment_index")
+age_sd <- hardship_combined %>%
+  group_by(age_category) %>%
+  summarise(Standardabweichung = sd(age, na.rm = TRUE))
+
+print(age_sd)
+```
+```{r}
+library(ggplot2)
+
+ggplot(hardship_combined, aes(x = age_category, y = age)) +
+  geom_boxplot() +
+  labs(title = "Altersverteilung nach Alterskategorie", x = "Age category", y = "Age") +
+  theme_minimal()
+```
+
+## Aggregate data
+```{r}
+hardship_combined_agg <- hardship_combined %>%
+  group_by(COUNTRY, gender, age_numeric) %>%  # Gruppierung nach Land, Geschlecht, Alter
+  summarise(
+    risktaking = mean(risktaking, na.rm = TRUE),
+    across(starts_with("HS_"), mean, na.rm = TRUE),
+    across(starts_with("f_"), mean, na.rm = TRUE),
+    across(starts_with("e_"), mean, na.rm = TRUE),
+    across(starts_with("c_"), mean, na.rm = TRUE),
+    age_scale = mean(age_scale, na.rm = TRUE),
+    n = n(),  # Anzahl der Personen pro Gruppe
+    .groups = "drop"
   )
-}
+
+hardship_combined_agg <- hardship_combined_agg %>%
+  mutate(across(where(is.numeric), ~replace_na(.x, mean(.x, na.rm = TRUE))))
 ```
 
-
-
-# Calculate correlation with risktaking
-```{r}
-# Berechnung der Korrelation zwischen risktaking und den anderen Variablen
-correlation_results <- cor(hardship_combined[, sapply(hardship_combined, is.numeric)], use = "complete.obs")
-
-# Korrelationstabelle für risktaking extrahieren
-risktaking_correlations <- correlation_results["risktaking", ]
-
-# Konvertierung der Korrelationsergebnisse in ein formatiertes Datenframe
-correlation_table <- data.frame(
-  Variable = names(risktaking_correlations),
-  Correlation = risktaking_correlations
-)
-
-# Entfernen der Korrelation von risktaking mit sich selbst
-correlation_table <- correlation_table[correlation_table$Variable != "risktaking", ]
-
-# Sortieren der Ergebnisse nach dem Betrag der Korrelation, absteigend
-correlation_table <- correlation_table[order(-abs(correlation_table$Correlation)), ]
-
-# Anzeigen der Tabelle
-kable(correlation_table, caption = "Korrelationen zwischen risktaking und anderen Variablen") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
-```
-
-
-# Table with Correlation hardship factors and risktaking 
+## Table with Correlation hardship factors and risktaking 
 ```{r}
 # Laden notwendiger Bibliotheken
 library(Hmisc)
@@ -176,33 +208,31 @@ cor_table %>%
 ```
 
 
-# Setup for specifications
+
+# Setup for specifications - all specifications
 ```{r}
 library(specr)
 
 specification <- setup(
   data = hardship_combined,
   y = "risktaking",  # abhängige Variable
-  x = c("HS_alc_tax_wine", "HS_alc_roaddeath", 
-        "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy",
-        "HS_sex_gini", "HS_oth_obesity", "HS_oth_cleancooking",
-        "HS_mh_mhhospit", "HS_sex_antiretroviral",
-        "HS_original_lifeexpectancy", "HS_original_genderequality",
-        "hardship_HS_index", "f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int",
-        "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
-        "f_original_gdp", "f_original_gini", "hardship_Finance_index",
-        "c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot",
-        "c_bh_parviolenceprog", "c_bh_elderabuse", "c_theft_estcorruption",
-        "c_oth_polstab", "hardship_Crime_index", "e_oth_drinkingwater",
-        "e_exp_watersanithyg100k", "e_ses_gini", "e_ses_school", "e_exp_disaster", 
-        "e_exp_airdeath100k", "e_exp_watersanithyg"),
+  x = c("HS_alc_tax_wine", "HS_alc_roaddeath", "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy", "HS_sex_gini",
+        "HS_oth_obesity", "HS_oth_cleancooking", "HS_mh_mhhospit", "HS_sex_antiretroviral", "HS_original_lifeexpectancy",
+        "HS_original_genderequality",
+        "f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int", "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
+        "f_original_gdp", "f_original_gini",
+        "c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot", "c_bh_parviolenceprog", "c_bh_elderabuse",
+        "c_theft_estcorruption", "c_oth_polstab", 
+        "e_oth_drinkingwater", "e_exp_watersanithyg100k", "e_ses_gini", "e_ses_school", "e_exp_disaster",  "e_exp_airdeath100k",
+        "e_exp_watersanithyg"),
+  controls = c("age_scale", "COUNTRY"), 
   model = "lm"
 )
 
 # Zusammenfassung der Spezifikationen
 summary(specification)
 ```
-# run specifications
+## run specifications
 ```{r}
 specification_results <- specr(specification)
 specification_results
@@ -210,7 +240,7 @@ specification_results
 summary(specification_results, digits = 5)
 ```
 
-# summarizing the parameter distribution
+## summarizing the parameter distribution
 ```{r}
 summary(specification_results, type = "curve")
 
@@ -220,7 +250,7 @@ summary(specification_results,
         stats = c("median", "mean", "min", "max"))  # Statistiken in einem Vektor auflisten
 ```
 
-# Plots
+## Plots
 ```{r}
 plot(specification_results)
 
@@ -252,19 +282,16 @@ specification_males <- setup(
   data = hardship_combined %>%
            filter(gender == 1),  # Filter for males
   y = "risktaking",
-  x = c("HS_alc_tax_wine", "HS_alc_roaddeath", 
-        "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy",
-        "HS_sex_gini", "HS_oth_obesity", "HS_oth_cleancooking",
-        "HS_mh_mhhospit", "HS_sex_antiretroviral",
-        "HS_original_lifeexpectancy", "HS_original_genderequality",
-        "hardship_HS_index", "f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int",
-        "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
-        "f_original_gdp", "f_original_gini", "hardship_Finance_index",
-        "c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot",
-        "c_bh_parviolenceprog", "c_bh_elderabuse", "c_theft_estcorruption",
-        "c_oth_polstab", "hardship_Crime_index", "e_oth_drinkingwater",
-        "e_exp_watersanithyg100k", "e_ses_gini", "e_ses_school", "e_exp_disaster", 
-        "e_exp_airdeath100k", "e_exp_watersanithyg"),
+  x = c("HS_alc_tax_wine", "HS_alc_roaddeath", "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy", "HS_sex_gini",
+        "HS_oth_obesity", "HS_oth_cleancooking", "HS_mh_mhhospit", "HS_sex_antiretroviral", "HS_original_lifeexpectancy",
+        "HS_original_genderequality",
+        "f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int", "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
+        "f_original_gdp", "f_original_gini",
+        "c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot", "c_bh_parviolenceprog", "c_bh_elderabuse",
+        "c_theft_estcorruption", "c_oth_polstab", 
+        "e_oth_drinkingwater", "e_exp_watersanithyg100k", "e_ses_gini", "e_ses_school", "e_exp_disaster",  "e_exp_airdeath100k",
+        "e_exp_watersanithyg"),
+  controls = c("age_scale", "COUNTRY"), 
   model = "lm"
 )
 
@@ -275,7 +302,7 @@ specification_results_males <- specr(specification_males)
 summary(specification_results_males)
 ```
 
-# Plots for male subset results
+## Plots for male subset results
 ```{r}
 plot(specification_results_males)
 
@@ -307,19 +334,16 @@ specification_females <- setup(
   data = hardship_combined %>%
            filter(gender == 0),  # Filter for females
   y = "risktaking",
-  x = c("HS_alc_tax_wine", "HS_alc_roaddeath", 
-        "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy",
-        "HS_sex_gini", "HS_oth_obesity", "HS_oth_cleancooking",
-        "HS_mh_mhhospit", "HS_sex_antiretroviral",
-        "HS_original_lifeexpectancy", "HS_original_genderequality",
-        "hardship_HS_index", "f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int",
-        "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
-        "f_original_gdp", "f_original_gini", "hardship_Finance_index",
-        "c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot",
-        "c_bh_parviolenceprog", "c_bh_elderabuse", "c_theft_estcorruption",
-        "c_oth_polstab", "hardship_Crime_index", "e_oth_drinkingwater",
-        "e_exp_watersanithyg100k", "e_ses_gini", "e_ses_school", "e_exp_disaster", 
-        "e_exp_airdeath100k", "e_exp_watersanithyg"),
+  x = c("HS_alc_tax_wine", "HS_alc_roaddeath", "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy", "HS_sex_gini",
+        "HS_oth_obesity", "HS_oth_cleancooking", "HS_mh_mhhospit", "HS_sex_antiretroviral", "HS_original_lifeexpectancy",
+        "HS_original_genderequality",
+        "f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int", "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
+        "f_original_gdp", "f_original_gini",
+        "c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot", "c_bh_parviolenceprog", "c_bh_elderabuse",
+        "c_theft_estcorruption", "c_oth_polstab", 
+        "e_oth_drinkingwater", "e_exp_watersanithyg100k", "e_ses_gini", "e_ses_school", "e_exp_disaster",  "e_exp_airdeath100k",
+        "e_exp_watersanithyg"),
+  controls = c("age_scale", "COUNTRY"), 
   model = "lm"
 )
 
@@ -330,7 +354,7 @@ specification_results_females <- specr(specification_females)
 summary(specification_results_females)
 ```
 
-# Plots for female subset results
+## Plots for female subset results
 ```{r}
 plot(specification_results_females)
 
@@ -366,19 +390,16 @@ run_specification_for_age <- function(data, age_id, age_label) {
   specification <- setup(
     data = data_subset,
     y = "risktaking",
-    x = c("HS_alc_tax_wine", "HS_alc_roaddeath", 
-          "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy",
-          "HS_sex_gini", "HS_oth_obesity", "HS_oth_cleancooking",
-          "HS_mh_mhhospit", "HS_sex_antiretroviral",
-          "HS_original_lifeexpectancy", "HS_original_genderequality",
-          "hardship_HS_index", "f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int",
-          "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
-          "f_original_gdp", "f_original_gini", "hardship_Finance_index",
-          "c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot",
-          "c_bh_parviolenceprog", "c_bh_elderabuse", "c_theft_estcorruption",
-          "c_oth_polstab", "hardship_Crime_index", "e_oth_drinkingwater",
-          "e_exp_watersanithyg100k", "e_ses_gini", "e_ses_school", "e_exp_disaster", 
-          "e_exp_airdeath100k", "e_exp_watersanithyg"),
+    x = c("HS_alc_tax_wine", "HS_alc_roaddeath", "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy", "HS_sex_gini",
+        "HS_oth_obesity", "HS_oth_cleancooking", "HS_mh_mhhospit", "HS_sex_antiretroviral", "HS_original_lifeexpectancy",
+        "HS_original_genderequality",
+        "f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int", "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
+        "f_original_gdp", "f_original_gini",
+        "c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot", "c_bh_parviolenceprog", "c_bh_elderabuse",
+        "c_theft_estcorruption", "c_oth_polstab", 
+        "e_oth_drinkingwater", "e_exp_watersanithyg100k", "e_ses_gini", "e_ses_school", "e_exp_disaster",  "e_exp_airdeath100k",
+        "e_exp_watersanithyg"),
+    controls = c("age_scale", "COUNTRY"), 
     model = "lm"
   )
 
@@ -407,7 +428,7 @@ run_specification_for_age <- function(data, age_id, age_label) {
 }
 
 # Funktion für jede Altersgruppe aufrufen und sowohl statistische Zusammenfassungen als auch Plots ausgeben
-for (i in 1:8) {
+for (i in 1:4) {
   results <- run_specification_for_age(hardship_combined, i, paste("Age Group", i))
   print(results$summary)  # Drucke die Zusammenfassung der Ergebnisse
   print(results$plots$plot_a)
@@ -419,9 +440,11 @@ for (i in 1:8) {
 
 
 
+################################################################################
 # Hardship Health/Safety
 ## Setup for specifications
 ```{r}
+library(dplyr)
 library(specr)
 
 # Setup für die Spezifikationen mit einer umfassenderen Auswahl von Variablen
@@ -432,14 +455,39 @@ specification <- setup(
           "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy",
           "HS_sex_gini", "HS_oth_obesity", "HS_oth_cleancooking",
           "HS_mh_mhhospit", "HS_sex_antiretroviral",
-          "HS_original_lifeexpectancy", "HS_original_genderequality",
-          "hardship_HS_index"),
-  model = "lm"
+          "HS_original_lifeexpectancy", "HS_original_genderequality"),
+  controls = c("age_scale", "COUNTRY"), 
+  model = "lm", 
+  subsets = list(
+    male = hardship_combined$gender == 1,  
+    female = hardship_combined$gender == 0)
 )
 
 # Zusammenfassung der Spezifikationen
 summary(specification)
 ```
+
+```{r}
+library(dplyr)
+library(specr)
+
+specification <- setup(
+  data = hardship_combined_agg,
+  y = "risktaking",  # abhängige Variable
+    x = c("HS_alc_tax_wine", "HS_alc_roaddeath"),
+  controls = c("COUNTRY"), 
+  model = "lm", 
+  subsets = list(
+    male = hardship_combined_agg$gender == 1,  
+    female = hardship_combined_agg$gender == 0, 
+  age_numeric_youth = hardship_combined_agg$age_numeric == 1)
+)
+
+# Zusammenfassung der Spezifikationen
+summary(specification)
+```
+
+
 ## run specifications
 ```{r}
 specification_results <- specr(specification)
@@ -483,6 +531,31 @@ plot(specification_results, type = "boxplot") +
   labs(x = "Effect size", fill = "")
 ```
 
+```{r}
+library(dplyr)
+
+# Prüfe, ob mehrere Werte pro Kombination existieren
+check_counts <- results_df %>%
+  count(x, controls)
+
+print(check_counts)  # Sollte für jede Kombination mehr als 1 zeigen
+
+# Falls genügend Werte pro Variable vorhanden sind, berechne die Statistiken korrekt
+summary_table <- results_df %>%
+  group_by(x, controls) %>%  # Gruppiere nach Variablen und Kontrollvariablen
+  summarise(
+    Median = round(median(estimate, na.rm = TRUE), 5),  # Berechne echten Median
+    Q25 = round(quantile(estimate, 0.25, na.rm = TRUE), 5),  # 25. Perzentil
+    Q75 = round(quantile(estimate, 0.75, na.rm = TRUE), 5),  # 75. Perzentil
+    Significant_Perc = round(mean(p.value < 0.05, na.rm = TRUE) * 100, 2)  # Anteil signifikanter Werte
+  ) %>%
+  arrange(desc(Significant_Perc))  # Sortiere nach Signifikanzrate
+
+# Zeige die Tabelle an
+print(summary_table)
+```
+
+
 ## Subsetting data for males 
 ```{r}
 specification_males <- setup(
@@ -493,8 +566,8 @@ specification_males <- setup(
           "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy",
           "HS_sex_gini", "HS_oth_obesity", "HS_oth_cleancooking",
           "HS_mh_mhhospit", "HS_sex_antiretroviral",
-          "HS_original_lifeexpectancy", "HS_original_genderequality",
-          "hardship_HS_index"),
+          "HS_original_lifeexpectancy", "HS_original_genderequality"),
+  controls = c("age_scale", "COUNTRY"), 
   model = "lm"
 )
 
@@ -530,6 +603,45 @@ plot(specification_results_males, type = "boxplot") +
   labs(x = "Effect size", fill = "")
 ```
 
+```{r}
+# Lade die notwendigen Pakete
+library(dplyr)
+library(flextable)
+library(officer)
+
+# Extrahiere die Ergebnisse aus dem specr-Objekt
+results_df <- specification_results_males$data
+
+# Erstelle die Zusammenfassung der Spezifikationsanalyse
+summary_table <- results_df %>%
+  group_by(x, controls) %>%  # Gruppiere nach Risikofaktor (x) und Kontrollvariablen (controls)
+  summarise(
+    Median = round(median(estimate, na.rm = TRUE), 5),
+    Min = round(min(estimate, na.rm = TRUE), 5),
+    Max = round(max(estimate, na.rm = TRUE), 5),
+    Q25 = round(quantile(estimate, 0.25, na.rm = TRUE), 5),
+    Q75 = round(quantile(estimate, 0.75, na.rm = TRUE), 5),
+    Significant_Perc = round(mean(p.value < 0.05, na.rm = TRUE) * 100, 5)  # Prozentualer Anteil signifikanter Werte
+  ) %>%
+  arrange(desc(Significant_Perc))  # Sortiere nach Signifikanzrate
+
+# Erstelle eine formatierte flextable
+summary_flextable <- flextable(summary_table) %>%
+  theme_vanilla() %>%  # Optische Gestaltung
+  set_table_properties(width = 1, layout = "autofit") %>%
+  align(align = "center", part = "all") %>%
+  bold(part = "header") %>%
+  autofit()
+
+# Erstelle ein neues Word-Dokument
+doc <- read_docx()
+
+# Füge die Tabelle in das Dokument ein
+doc <- body_add_flextable(doc, summary_flextable)
+
+# Speichere das Dokument
+print(doc, target = "Specification_Summary_HS_male.docx")
+```
 
 ## Subsetting data for females 
 ```{r}
@@ -542,6 +654,7 @@ specification_females <- setup(
           "HS_sex_gini", "HS_oth_obesity", "HS_oth_cleancooking",
           "HS_mh_mhhospit", "HS_sex_antiretroviral",
           "HS_original_lifeexpectancy", "HS_original_genderequality"),
+  controls = c("age_scale", "COUNTRY"), 
   model = "lm"
 )
 
@@ -576,8 +689,47 @@ plot(specification_results_females, type = "boxplot") +
   scale_fill_brewer(palette = "Pastel2") +
   labs(x = "Effect size", fill = "")
 ```
+```{r}
+# Lade die notwendigen Pakete
+library(dplyr)
+library(flextable)
+library(officer)
 
-# Subsetting data for age-categories 
+# Extrahiere die Ergebnisse aus dem specr-Objekt
+results_df <- specification_results_females$data
+
+# Erstelle die Zusammenfassung der Spezifikationsanalyse
+summary_table <- results_df %>%
+  group_by(x, controls) %>%  # Gruppiere nach Risikofaktor (x) und Kontrollvariablen (controls)
+  summarise(
+    Median = round(median(estimate, na.rm = TRUE), 5),
+    Min = round(min(estimate, na.rm = TRUE), 5),
+    Max = round(max(estimate, na.rm = TRUE), 5),
+    Q25 = round(quantile(estimate, 0.25, na.rm = TRUE), 5),
+    Q75 = round(quantile(estimate, 0.75, na.rm = TRUE), 5),
+    Significant_Perc = round(mean(p.value < 0.05, na.rm = TRUE) * 100, 5)  # Prozentualer Anteil signifikanter Werte
+  ) %>%
+  arrange(desc(Significant_Perc))  # Sortiere nach Signifikanzrate
+
+# Erstelle eine formatierte flextable
+summary_flextable <- flextable(summary_table) %>%
+  theme_vanilla() %>%  # Optische Gestaltung
+  set_table_properties(width = 1, layout = "autofit") %>%
+  align(align = "center", part = "all") %>%
+  bold(part = "header") %>%
+  autofit()
+
+# Erstelle ein neues Word-Dokument
+doc <- read_docx()
+
+# Füge die Tabelle in das Dokument ein
+doc <- body_add_flextable(doc, summary_flextable)
+
+# Speichere das Dokument
+print(doc, target = "Specification_Summary_HS_female.docx")
+```
+
+## Subsetting data for age-categories 
 ```{r}
 run_specification_for_age <- function(data, age_id, age_label) {
   # Daten für die spezifische Altersgruppe filtern
@@ -592,8 +744,8 @@ run_specification_for_age <- function(data, age_id, age_label) {
           "HS_drg_treatment", "HS_nic_affordability", "HS_mh_policy",
           "HS_sex_gini", "HS_oth_obesity", "HS_oth_cleancooking",
           "HS_mh_mhhospit", "HS_sex_antiretroviral",
-          "HS_original_lifeexpectancy", "HS_original_genderequality",
-          "hardship_HS_index"),
+          "HS_original_lifeexpectancy", "HS_original_genderequality"),
+    controls = c("age_scale", "COUNTRY"), 
     model = "lm"
   )
 
@@ -622,7 +774,7 @@ run_specification_for_age <- function(data, age_id, age_label) {
 }
 
 # Funktion für jede Altersgruppe aufrufen und sowohl statistische Zusammenfassungen als auch Plots ausgeben
-for (i in 1:8) {
+for (i in 1:4) {
   results <- run_specification_for_age(hardship_combined, i, paste("Age Group", i))
   print(results$summary)  # Drucke die Zusammenfassung der Ergebnisse
   print(results$plots$plot_a)
@@ -643,7 +795,8 @@ specification <- setup(
   y = "risktaking",  # abhängige Variable
     x = c("f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int",
           "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
-          "f_original_gdp", "f_original_gini", "hardship_Finance_index"),
+          "f_original_gdp", "f_original_gini"),
+  controls = c("age_scale", "COUNTRY"), 
   model = "lm"
 )
 
@@ -692,6 +845,46 @@ plot(specification_results, type = "boxplot") +
   scale_fill_brewer(palette = "Pastel2") +
   labs(x = "Effect size", fill = "")
 ```
+```{r}
+# Lade die notwendigen Pakete
+library(dplyr)
+library(flextable)
+library(officer)
+
+# Extrahiere die Ergebnisse aus dem specr-Objekt
+results_df <- specification_results$data
+
+# Erstelle die Zusammenfassung der Spezifikationsanalyse
+summary_table <- results_df %>%
+  group_by(x, controls) %>%  # Gruppiere nach Risikofaktor (x) und Kontrollvariablen (controls)
+  summarise(
+    Median = round(median(estimate, na.rm = TRUE), 5),
+    Min = round(min(estimate, na.rm = TRUE), 5),
+    Max = round(max(estimate, na.rm = TRUE), 5),
+    Q25 = round(quantile(estimate, 0.25, na.rm = TRUE), 5),
+    Q75 = round(quantile(estimate, 0.75, na.rm = TRUE), 5),
+    Significant_Perc = round(mean(p.value < 0.05, na.rm = TRUE) * 100, 5)  # Prozentualer Anteil signifikanter Werte
+  ) %>%
+  arrange(desc(Significant_Perc))  # Sortiere nach Signifikanzrate
+
+# Erstelle eine formatierte flextable
+summary_flextable <- flextable(summary_table) %>%
+  theme_vanilla() %>%  # Optische Gestaltung
+  set_table_properties(width = 1, layout = "autofit") %>%
+  align(align = "center", part = "all") %>%
+  bold(part = "header") %>%
+  autofit()
+
+# Erstelle ein neues Word-Dokument
+doc <- read_docx()
+
+# Füge die Tabelle in das Dokument ein
+doc <- body_add_flextable(doc, summary_flextable)
+
+# Speichere das Dokument
+print(doc, target = "Specification_Summary_f_all.docx")
+```
+
 
 ## Subsetting data for males 
 ```{r}
@@ -701,7 +894,8 @@ specification_males <- setup(
   y = "risktaking",
     x = c("f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int",
           "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
-          "f_original_gdp", "f_original_gini", "hardship_Finance_index"),
+          "f_original_gdp", "f_original_gini"),
+  controls = c("age_scale", "COUNTRY"), 
   model = "lm"
 )
 
@@ -737,6 +931,45 @@ plot(specification_results_males, type = "boxplot") +
   labs(x = "Effect size", fill = "")
 ```
 
+```{r}
+# Lade die notwendigen Pakete
+library(dplyr)
+library(flextable)
+library(officer)
+
+# Extrahiere die Ergebnisse aus dem specr-Objekt
+results_df <- specification_results_males$data
+
+# Erstelle die Zusammenfassung der Spezifikationsanalyse
+summary_table <- results_df %>%
+  group_by(x, controls) %>%  # Gruppiere nach Risikofaktor (x) und Kontrollvariablen (controls)
+  summarise(
+    Median = round(median(estimate, na.rm = TRUE), 5),
+    Min = round(min(estimate, na.rm = TRUE), 5),
+    Max = round(max(estimate, na.rm = TRUE), 5),
+    Q25 = round(quantile(estimate, 0.25, na.rm = TRUE), 5),
+    Q75 = round(quantile(estimate, 0.75, na.rm = TRUE), 5),
+    Significant_Perc = round(mean(p.value < 0.05, na.rm = TRUE) * 100, 5)  # Prozentualer Anteil signifikanter Werte
+  ) %>%
+  arrange(desc(Significant_Perc))  # Sortiere nach Signifikanzrate
+
+# Erstelle eine formatierte flextable
+summary_flextable <- flextable(summary_table) %>%
+  theme_vanilla() %>%  # Optische Gestaltung
+  set_table_properties(width = 1, layout = "autofit") %>%
+  align(align = "center", part = "all") %>%
+  bold(part = "header") %>%
+  autofit()
+
+# Erstelle ein neues Word-Dokument
+doc <- read_docx()
+
+# Füge die Tabelle in das Dokument ein
+doc <- body_add_flextable(doc, summary_flextable)
+
+# Speichere das Dokument
+print(doc, target = "Specification_Summary_f_male.docx")
+```
 
 ## Subsetting data for females 
 ```{r}
@@ -746,7 +979,8 @@ specification_females <- setup(
   y = "risktaking",
     x = c("f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int",
           "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
-          "f_original_gdp", "f_original_gini", "hardship_Finance_index"),
+          "f_original_gdp", "f_original_gini"),
+  controls = c("age_scale", "COUNTRY"), 
   model = "lm"
 )
 
@@ -782,6 +1016,46 @@ plot(specification_results_females, type = "boxplot") +
   labs(x = "Effect size", fill = "")
 ```
 
+```{r}
+# Lade die notwendigen Pakete
+library(dplyr)
+library(flextable)
+library(officer)
+
+# Extrahiere die Ergebnisse aus dem specr-Objekt
+results_df <- specification_results_females$data
+
+# Erstelle die Zusammenfassung der Spezifikationsanalyse
+summary_table <- results_df %>%
+  group_by(x, controls) %>%  # Gruppiere nach Risikofaktor (x) und Kontrollvariablen (controls)
+  summarise(
+    Median = round(median(estimate, na.rm = TRUE), 5),
+    Min = round(min(estimate, na.rm = TRUE), 5),
+    Max = round(max(estimate, na.rm = TRUE), 5),
+    Q25 = round(quantile(estimate, 0.25, na.rm = TRUE), 5),
+    Q75 = round(quantile(estimate, 0.75, na.rm = TRUE), 5),
+    Significant_Perc = round(mean(p.value < 0.05, na.rm = TRUE) * 100, 5)  # Prozentualer Anteil signifikanter Werte
+  ) %>%
+  arrange(desc(Significant_Perc))  # Sortiere nach Signifikanzrate
+
+# Erstelle eine formatierte flextable
+summary_flextable <- flextable(summary_table) %>%
+  theme_vanilla() %>%  # Optische Gestaltung
+  set_table_properties(width = 1, layout = "autofit") %>%
+  align(align = "center", part = "all") %>%
+  bold(part = "header") %>%
+  autofit()
+
+# Erstelle ein neues Word-Dokument
+doc <- read_docx()
+
+# Füge die Tabelle in das Dokument ein
+doc <- body_add_flextable(doc, summary_flextable)
+
+# Speichere das Dokument
+print(doc, target = "Specification_Summary_f_female.docx")
+```
+
 # Subsetting data for age-categories 
 ```{r}
 run_specification_for_age <- function(data, age_id, age_label) {
@@ -795,7 +1069,8 @@ run_specification_for_age <- function(data, age_id, age_label) {
     y = "risktaking",
     x = c("f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int",
           "f_hs_oopexp10", "f_eco_gdpdefl_linked", "f_eco_cpi",
-          "f_original_gdp", "f_original_gini", "hardship_Finance_index"),
+          "f_original_gdp", "f_original_gini"),
+  controls = c("age_scale", "COUNTRY"), 
     model = "lm"
   )
 
@@ -824,7 +1099,7 @@ run_specification_for_age <- function(data, age_id, age_label) {
 }
 
 # Funktion für jede Altersgruppe aufrufen und sowohl statistische Zusammenfassungen als auch Plots ausgeben
-for (i in 1:8) {
+for (i in 1:4) {
   results <- run_specification_for_age(hardship_combined, i, paste("Age Group", i))
   print(results$summary)  # Drucke die Zusammenfassung der Ergebnisse
   print(results$plots$plot_a)
@@ -845,7 +1120,8 @@ specification <- setup(
   y = "risktaking",  # abhängige Variable
     x = c("c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot",
           "c_bh_parviolenceprog", "c_bh_elderabuse", "c_theft_estcorruption",
-          "c_oth_polstab", "hardship_Crime_index"),
+          "c_oth_polstab"),
+  controls = c("age_scale", "COUNTRY"), 
   model = "lm"
 )
 
@@ -895,6 +1171,46 @@ plot(specification_results, type = "boxplot") +
   labs(x = "Effect size", fill = "")
 ```
 
+```{r}
+# Lade die notwendigen Pakete
+library(dplyr)
+library(flextable)
+library(officer)
+
+# Extrahiere die Ergebnisse aus dem specr-Objekt
+results_df <- specification_results$data
+
+# Erstelle die Zusammenfassung der Spezifikationsanalyse
+summary_table <- results_df %>%
+  group_by(x, controls) %>%  # Gruppiere nach Risikofaktor (x) und Kontrollvariablen (controls)
+  summarise(
+    Median = round(median(estimate, na.rm = TRUE), 5),
+    Min = round(min(estimate, na.rm = TRUE), 5),
+    Max = round(max(estimate, na.rm = TRUE), 5),
+    Q25 = round(quantile(estimate, 0.25, na.rm = TRUE), 5),
+    Q75 = round(quantile(estimate, 0.75, na.rm = TRUE), 5),
+    Significant_Perc = round(mean(p.value < 0.05, na.rm = TRUE) * 100, 5)  # Prozentualer Anteil signifikanter Werte
+  ) %>%
+  arrange(desc(Significant_Perc))  # Sortiere nach Signifikanzrate
+
+# Erstelle eine formatierte flextable
+summary_flextable <- flextable(summary_table) %>%
+  theme_vanilla() %>%  # Optische Gestaltung
+  set_table_properties(width = 1, layout = "autofit") %>%
+  align(align = "center", part = "all") %>%
+  bold(part = "header") %>%
+  autofit()
+
+# Erstelle ein neues Word-Dokument
+doc <- read_docx()
+
+# Füge die Tabelle in das Dokument ein
+doc <- body_add_flextable(doc, summary_flextable)
+
+# Speichere das Dokument
+print(doc, target = "Specification_Summary_c_all.docx")
+```
+
 ## Subsetting data for males 
 ```{r}
 specification_males <- setup(
@@ -903,7 +1219,8 @@ specification_males <- setup(
   y = "risktaking",
     x = c("c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot",
           "c_bh_parviolenceprog", "c_bh_elderabuse", "c_theft_estcorruption",
-          "c_oth_polstab", "hardship_Crime_index"),
+          "c_oth_polstab"),
+  controls = c("age_scale", "COUNTRY"), 
   model = "lm"
 )
 
@@ -940,6 +1257,46 @@ plot(specification_results_males, type = "boxplot") +
 ```
 
 
+```{r}
+# Lade die notwendigen Pakete
+library(dplyr)
+library(flextable)
+library(officer)
+
+# Extrahiere die Ergebnisse aus dem specr-Objekt
+results_df <- specification_results_males$data
+
+# Erstelle die Zusammenfassung der Spezifikationsanalyse
+summary_table <- results_df %>%
+  group_by(x, controls) %>%  # Gruppiere nach Risikofaktor (x) und Kontrollvariablen (controls)
+  summarise(
+    Median = round(median(estimate, na.rm = TRUE), 5),
+    Min = round(min(estimate, na.rm = TRUE), 5),
+    Max = round(max(estimate, na.rm = TRUE), 5),
+    Q25 = round(quantile(estimate, 0.25, na.rm = TRUE), 5),
+    Q75 = round(quantile(estimate, 0.75, na.rm = TRUE), 5),
+    Significant_Perc = round(mean(p.value < 0.05, na.rm = TRUE) * 100, 5)  # Prozentualer Anteil signifikanter Werte
+  ) %>%
+  arrange(desc(Significant_Perc))  # Sortiere nach Signifikanzrate
+
+# Erstelle eine formatierte flextable
+summary_flextable <- flextable(summary_table) %>%
+  theme_vanilla() %>%  # Optische Gestaltung
+  set_table_properties(width = 1, layout = "autofit") %>%
+  align(align = "center", part = "all") %>%
+  bold(part = "header") %>%
+  autofit()
+
+# Erstelle ein neues Word-Dokument
+doc <- read_docx()
+
+# Füge die Tabelle in das Dokument ein
+doc <- body_add_flextable(doc, summary_flextable)
+
+# Speichere das Dokument
+print(doc, target = "Specification_Summary_c_male.docx")
+```
+
 ## Subsetting data for females 
 ```{r}
 specification_females <- setup(
@@ -948,7 +1305,8 @@ specification_females <- setup(
   y = "risktaking",
     x = c("c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot",
           "c_bh_parviolenceprog", "c_bh_elderabuse", "c_theft_estcorruption",
-          "c_oth_polstab", "hardship_Crime_index"),
+          "c_oth_polstab"),
+  controls = c("age_scale", "COUNTRY"), 
   model = "lm"
 )
 
@@ -984,6 +1342,46 @@ plot(specification_results_females, type = "boxplot") +
   labs(x = "Effect size", fill = "")
 ```
 
+```{r}
+# Lade die notwendigen Pakete
+library(dplyr)
+library(flextable)
+library(officer)
+
+# Extrahiere die Ergebnisse aus dem specr-Objekt
+results_df <- specification_results_females$data
+
+# Erstelle die Zusammenfassung der Spezifikationsanalyse
+summary_table <- results_df %>%
+  group_by(x, controls) %>%  # Gruppiere nach Risikofaktor (x) und Kontrollvariablen (controls)
+  summarise(
+    Median = round(median(estimate, na.rm = TRUE), 5),
+    Min = round(min(estimate, na.rm = TRUE), 5),
+    Max = round(max(estimate, na.rm = TRUE), 5),
+    Q25 = round(quantile(estimate, 0.25, na.rm = TRUE), 5),
+    Q75 = round(quantile(estimate, 0.75, na.rm = TRUE), 5),
+    Significant_Perc = round(mean(p.value < 0.05, na.rm = TRUE) * 100, 5)  # Prozentualer Anteil signifikanter Werte
+  ) %>%
+  arrange(desc(Significant_Perc))  # Sortiere nach Signifikanzrate
+
+# Erstelle eine formatierte flextable
+summary_flextable <- flextable(summary_table) %>%
+  theme_vanilla() %>%  # Optische Gestaltung
+  set_table_properties(width = 1, layout = "autofit") %>%
+  align(align = "center", part = "all") %>%
+  bold(part = "header") %>%
+  autofit()
+
+# Erstelle ein neues Word-Dokument
+doc <- read_docx()
+
+# Füge die Tabelle in das Dokument ein
+doc <- body_add_flextable(doc, summary_flextable)
+
+# Speichere das Dokument
+print(doc, target = "Specification_Summary_c_female.docx")
+```
+
 # Subsetting data for age-categories 
 ```{r}
 run_specification_for_age <- function(data, age_id, age_label) {
@@ -997,7 +1395,8 @@ run_specification_for_age <- function(data, age_id, age_label) {
     y = "risktaking",
     x = c("c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot",
           "c_bh_parviolenceprog", "c_bh_elderabuse", "c_theft_estcorruption",
-          "c_oth_polstab", "hardship_Crime_index"),
+          "c_oth_polstab"),
+    controls = c("age_scale", "COUNTRY"), 
     model = "lm"
   )
 
@@ -1026,7 +1425,7 @@ run_specification_for_age <- function(data, age_id, age_label) {
 }
 
 # Funktion für jede Altersgruppe aufrufen und sowohl statistische Zusammenfassungen als auch Plots ausgeben
-for (i in 1:8) {
+for (i in 1:4) {
   results <- run_specification_for_age(hardship_combined, i, paste("Age Group", i))
   print(results$summary)  # Drucke die Zusammenfassung der Ergebnisse
   print(results$plots$plot_a)
@@ -1047,7 +1446,8 @@ specification <- setup(
   y = "risktaking",  # abhängige Variable
     x = c("e_oth_drinkingwater",
           "e_exp_watersanithyg100k", "e_ses_gini", "e_ses_school", "e_exp_disaster", 
-          "e_exp_airdeath100k", "e_exp_watersanithyg", "hardship_environment_index"),
+          "e_exp_airdeath100k", "e_exp_watersanithyg"),
+  controls = c("age_scale", "COUNTRY"), 
   model = "lm"
 )
 
@@ -1097,6 +1497,46 @@ plot(specification_results, type = "boxplot") +
   labs(x = "Effect size", fill = "")
 ```
 
+```{r}
+# Lade die notwendigen Pakete
+library(dplyr)
+library(flextable)
+library(officer)
+
+# Extrahiere die Ergebnisse aus dem specr-Objekt
+results_df <- specification_results$data
+
+# Erstelle die Zusammenfassung der Spezifikationsanalyse
+summary_table <- results_df %>%
+  group_by(x, controls) %>%  # Gruppiere nach Risikofaktor (x) und Kontrollvariablen (controls)
+  summarise(
+    Median = round(median(estimate, na.rm = TRUE), 5),
+    Min = round(min(estimate, na.rm = TRUE), 5),
+    Max = round(max(estimate, na.rm = TRUE), 5),
+    Q25 = round(quantile(estimate, 0.25, na.rm = TRUE), 5),
+    Q75 = round(quantile(estimate, 0.75, na.rm = TRUE), 5),
+    Significant_Perc = round(mean(p.value < 0.05, na.rm = TRUE) * 100, 5)  # Prozentualer Anteil signifikanter Werte
+  ) %>%
+  arrange(desc(Significant_Perc))  # Sortiere nach Signifikanzrate
+
+# Erstelle eine formatierte flextable
+summary_flextable <- flextable(summary_table) %>%
+  theme_vanilla() %>%  # Optische Gestaltung
+  set_table_properties(width = 1, layout = "autofit") %>%
+  align(align = "center", part = "all") %>%
+  bold(part = "header") %>%
+  autofit()
+
+# Erstelle ein neues Word-Dokument
+doc <- read_docx()
+
+# Füge die Tabelle in das Dokument ein
+doc <- body_add_flextable(doc, summary_flextable)
+
+# Speichere das Dokument
+print(doc, target = "Specification_Summary_e_all.docx")
+```
+
 ## Subsetting data for males 
 ```{r}
 specification_males <- setup(
@@ -1105,7 +1545,8 @@ specification_males <- setup(
   y = "risktaking",
     x = c("e_oth_drinkingwater",
           "e_exp_watersanithyg100k", "e_ses_gini", "e_ses_school", "e_exp_disaster", 
-          "e_exp_airdeath100k", "e_exp_watersanithyg", "hardship_environment_index"),
+          "e_exp_airdeath100k", "e_exp_watersanithyg"),
+  controls = c("age_scale", "COUNTRY"), 
   model = "lm"
 )
 
@@ -1141,6 +1582,46 @@ plot(specification_results_males, type = "boxplot") +
   labs(x = "Effect size", fill = "")
 ```
 
+```{r}
+# Lade die notwendigen Pakete
+library(dplyr)
+library(flextable)
+library(officer)
+
+# Extrahiere die Ergebnisse aus dem specr-Objekt
+results_df <- specification_results_males$data
+
+# Erstelle die Zusammenfassung der Spezifikationsanalyse
+summary_table <- results_df %>%
+  group_by(x, controls) %>%  # Gruppiere nach Risikofaktor (x) und Kontrollvariablen (controls)
+  summarise(
+    Median = round(median(estimate, na.rm = TRUE), 5),
+    Min = round(min(estimate, na.rm = TRUE), 5),
+    Max = round(max(estimate, na.rm = TRUE), 5),
+    Q25 = round(quantile(estimate, 0.25, na.rm = TRUE), 5),
+    Q75 = round(quantile(estimate, 0.75, na.rm = TRUE), 5),
+    Significant_Perc = round(mean(p.value < 0.05, na.rm = TRUE) * 100, 5)  # Prozentualer Anteil signifikanter Werte
+  ) %>%
+  arrange(desc(Significant_Perc))  # Sortiere nach Signifikanzrate
+
+# Erstelle eine formatierte flextable
+summary_flextable <- flextable(summary_table) %>%
+  theme_vanilla() %>%  # Optische Gestaltung
+  set_table_properties(width = 1, layout = "autofit") %>%
+  align(align = "center", part = "all") %>%
+  bold(part = "header") %>%
+  autofit()
+
+# Erstelle ein neues Word-Dokument
+doc <- read_docx()
+
+# Füge die Tabelle in das Dokument ein
+doc <- body_add_flextable(doc, summary_flextable)
+
+# Speichere das Dokument
+print(doc, target = "Specification_Summary_e_male.docx")
+```
+
 
 ## Subsetting data for females 
 ```{r}
@@ -1150,7 +1631,8 @@ specification_females <- setup(
   y = "risktaking",
     x = c("e_oth_drinkingwater",
           "e_exp_watersanithyg100k", "e_ses_gini", "e_ses_school", "e_exp_disaster", 
-          "e_exp_airdeath100k", "e_exp_watersanithyg", "hardship_environment_index"),
+          "e_exp_airdeath100k", "e_exp_watersanithyg"),
+  controls = c("age_scale", "COUNTRY"), 
   model = "lm"
 )
 
@@ -1186,6 +1668,8 @@ plot(specification_results_females, type = "boxplot") +
   labs(x = "Effect size", fill = "")
 ```
 
+
+
 # Subsetting data for age-categories 
 ```{r}
 run_specification_for_age <- function(data, age_id, age_label) {
@@ -1199,7 +1683,8 @@ run_specification_for_age <- function(data, age_id, age_label) {
     y = "risktaking",
     x = c("e_oth_drinkingwater",
           "e_exp_watersanithyg100k", "e_ses_gini", "e_ses_school", "e_exp_disaster", 
-          "e_exp_airdeath100k", "e_exp_watersanithyg", "hardship_environment_index"),
+          "e_exp_airdeath100k", "e_exp_watersanithyg"),
+    controls = c("age_scale", "COUNTRY"), 
     model = "lm"
   )
 
@@ -1228,7 +1713,7 @@ run_specification_for_age <- function(data, age_id, age_label) {
 }
 
 # Funktion für jede Altersgruppe aufrufen und sowohl statistische Zusammenfassungen als auch Plots ausgeben
-for (i in 1:8) {
+for (i in 1:4) {
   results <- run_specification_for_age(hardship_combined, i, paste("Age Group", i))
   print(results$summary)  # Drucke die Zusammenfassung der Ergebnisse
   print(results$plots$plot_a)

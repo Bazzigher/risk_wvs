@@ -1,0 +1,325 @@
+---
+title: "4_Hardship_specification_curve_v2"
+output: 
+  html_document:
+    code_folding: hide
+date: "2024-05-08"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+rm(list = ls())
+```
+
+## Set path Laura: ONLY USE FOR LAURA 
+```{r}
+# base_path <- "//home.kt.ktzh.ch/B117T23$/Desktop/Riskktaking/Data"
+base_path <- "/Users/laurabazzigher/Documents/GitHub/risk_wvs/data/dataset/Data_S3"
+```
+
+## Library 
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(specr)
+library(specr)
+library(readxl)
+library(ggthemes)
+library(cowplot)
+library(dplyr)
+library(knitr)
+library(kableExtra)
+library(Hmisc)
+remotes::install_github("masurp/specr")
+library(ggplot2)
+library(cowplot)
+library(writexl)
+```
+
+## Load all data
+```{r}
+# Combined GPS WVS
+risktaking <- read.csv(file.path(base_path, "Specification_curve.csv"), header=TRUE, as.is=TRUE)
+
+# Umbenennen von 'isocode' zu 'COUNTRY' in risktaking
+risktaking <- risktaking %>%
+  rename(COUNTRY = isocode)
+
+risktaking <- risktaking %>%
+  select(-hardship_index, -worldmap, -source)
+
+hardship_hs <- read.csv(file.path(base_path, "hardship_HS.csv"))
+hardship_finance <- read.csv(file.path(base_path, "hardship_finance.csv"))
+hardship_crime <- read.csv(file.path(base_path, "hardship_crime.csv"))
+hardship_environment <- read.csv(file.path(base_path, "hardship_environment.csv"))
+
+# Entfernen der nicht benötigten Spalten aus den Datensätzen vor dem Zusammenführen
+hardship_hs <- hardship_hs %>%
+  select(-country, -avg_risktaking)
+hardship_finance <- hardship_finance %>%
+  select(-country, -avg_risktaking)
+hardship_crime <- hardship_crime %>%
+  select(-country, -avg_risktaking)
+hardship_environment <- hardship_environment %>%
+  select(-country, -avg_risktaking)
+
+# Zusammenführen der Datensätze
+hardship_combined <- risktaking %>%
+  left_join(hardship_hs, by = "COUNTRY") %>%
+  left_join(hardship_finance, by = "COUNTRY") %>%
+  left_join(hardship_crime, by = "COUNTRY") %>%
+  left_join(hardship_environment, by = "COUNTRY")
+
+#str(hardship_combined)
+head(hardship_combined)
+```
+
+## Age categories
+```{r}
+# Neue Alterskategorien definieren
+hardship_combined$age_category <- cut(hardship_combined$age,
+                                      breaks = c(15, 25, 45, 65, 99),  
+                                      labels = c("Young Adults (15-25)", 
+                                                 "Adults (26-45)", 
+                                                 "Middle-aged Adults (46-65)", 
+                                                 "Seniors (66-99)"),
+                                      right = TRUE, include.lowest = TRUE)
+
+# Umwandlung der Alterskategorien in numerische Werte
+hardship_combined$age_numeric <- as.integer(factor(hardship_combined$age_category))
+
+# Überprüfung der neuen numerischen Alterskategorien
+table(hardship_combined$age_category)
+```
+
+```{r}
+# Fehlende Werte entfernen
+hardship_combined <- na.omit(hardship_combined)
+
+# Faktorvariablen korrekt setzen
+hardship_combined$gender <- as.factor(hardship_combined$gender)
+hardship_combined$age_category <- as.factor(hardship_combined$age_category)
+hardship_combined$COUNTRY <- as.factor(hardship_combined$COUNTRY)
+hardship_combined$COUNTRY_NUM <- as.numeric(as.factor(hardship_combined$COUNTRY))
+head(hardship_combined)
+```
+
+
+# SCA with subset gender
+```{r}
+# 📌 Sicherstellen, dass alle benötigten Pakete geladen sind
+library(tidyverse)
+library(broom)
+library(purrr)
+
+# 📌 Liste von Kontrollvariablen definieren
+controls <- list(
+  "no_controls" = "",
+  "country_control" = "+ COUNTRY_NUM"
+)
+
+# 📌 Liste von Crime-Faktoren definieren
+crime_factors <- list(
+  "homicide" = "c_bh_homicide",
+  "child_maltreatment" = "c_bh_childmalt",
+  "violent_child_protection" = "c_bh_violextchildprot",
+  "partner_violence_programs" = "c_bh_parviolenceprog",
+  "elder_abuse" = "c_bh_elderabuse",
+  "theft_corruption" = "c_theft_estcorruption",
+  "political_stability" = "c_oth_polstab"
+)
+
+# 📌 Alle Modellformeln aus Crime-Faktoren und Kontrollvariablen generieren
+formulas_crime <- expand_grid(
+  crime_factor = names(crime_factors),
+  control = names(controls)
+) %>%
+  mutate(
+    formula = map2_chr(crime_factor, control, 
+                       ~ trimws(paste("risktaking ~", crime_factors[[.x]], controls[[.y]])))
+  ) %>%
+  pull(formula)  # Extrahiert die vollständigen Formeln als Vektor
+
+# 📌 OLS-Regression (lm)
+models <- list(
+  lm = function(formula, data) lm(as.formula(formula), data = data)
+)
+
+# 🔍 Sicherstellen, dass `gender` als `character` vorliegt
+hardship_combined$gender <- as.character(hardship_combined$gender)
+
+# 📌 Erstelle Subsets nach Geschlecht und Alterskategorie
+subsets <- expand_grid(
+  gender = unique(hardship_combined$gender),  # Direkt aus den Daten nehmen
+  age_category = unique(hardship_combined$age_category)
+) %>%
+  mutate(
+    subset_data = pmap(list(gender, age_category), 
+                       ~ hardship_combined %>%
+                           filter(gender == ..1, age_category == ..2))
+  ) %>%
+  filter(map_int(subset_data, nrow) > 0)  # Entfernt leere Kombinationen
+
+# 🔍 Debugging: Prüfen, ob Subsets gefüllt sind
+print("Anzahl der Zeilen pro Subset:")
+print(map_int(subsets$subset_data, nrow))
+
+# 📌 Erstelle die vollständige Spezifikationen-Tabelle für Crime
+specifications_crime <- expand_grid(
+  subset = subsets$subset_data,  
+  formula = formulas_crime,
+  model_name = names(models)
+) %>%
+  mutate(
+    gender = map_chr(subset, ~ unique(as.character(.x$gender))),  # Sicherstellen, dass `gender` ein `character` ist
+    age_category = map_chr(subset, ~ as.character(unique(.x$age_category))),  
+    model = pmap(list(formula, model_name, subset), 
+                 ~ models[[..2]](..1, data = ..3)),  
+    summary = map(model, broom::tidy),
+    conf_int = map(model, ~ broom::confint_tidy(.x))  
+  ) %>%
+  unnest(c(summary, conf_int))  
+
+# 📌 Prüfen, ob die Anzahl der Spezifikationen jetzt höher ist
+n_specifications <- nrow(specifications_crime)
+print(paste("Anzahl der berechneten Spezifikationen:", n_specifications))
+
+# 📌 Überprüfen, ob ALLE Gruppen korrekt erfasst wurden
+print("Tabelle der erfassten Gruppen:")
+print(table(specifications_crime$gender, specifications_crime$age_category))
+
+# 📌 Prüfen, ob die Variablen korrekt gespeichert wurden
+print("Namen der gespeicherten Variablen:")
+print(names(specifications_crime))
+```
+
+
+```{r}
+# 📌 Ergebnisse in eine vollständige Tabelle speichern (nur für Crime)
+results_table_crime <- specifications_crime %>%
+  select(
+    gender,          # Geschlecht
+    age_category,    # Altersgruppe
+    formula,         # Modellformel
+    term,            # Unabhängige Variable
+    estimate,        # Effektgröße
+    std.error,       # Standardfehler
+    conf.low,        # 95%-Konfidenzintervall (untere Grenze)
+    conf.high,       # 95%-Konfidenzintervall (obere Grenze)
+    p.value          # p-Wert
+  ) %>%
+  mutate(
+    significant = ifelse(p.value < 0.05, "yes", "no")  # Markierung für Signifikanz
+  ) %>%
+  arrange(gender, age_category, formula, term)  # Sortierung für bessere Lesbarkeit
+
+# 📌 Debugging: Überprüfen, ob die Tabelle gefüllt ist
+print("Erste 20 Zeilen der Crime-Ergebnistabelle:")
+print(head(results_table_crime, 200))
+
+# 📌 Anzahl der berechneten Spezifikationen
+n_results_crime <- nrow(results_table_crime)
+print(paste("Anzahl der Ergebnisse in der Crime-Tabelle:", n_results_crime))
+
+# 📌 Speichern als Excel-Datei
+write_xlsx(results_table_crime, "Crime_Regression_Results.xlsx")
+
+print("Crime_Regression_Results.xlsx wurde erfolgreich gespeichert!")
+```
+
+
+```{r}
+# 📌 Pakete laden
+library(tidyverse)
+library(ggplot2)
+library(broom)
+library(purrr)
+library(cowplot)
+
+# 📌 Sicherstellen, dass das Crime-Spezifikations-Dataset existiert
+if (!exists("specifications_crime")) {
+  stop("Das Objekt 'specifications_crime' existiert nicht. Bitte zuerst die Crime-Spezifikationen berechnen.")
+}
+
+# 📌 Daten für die Visualisierung vorbereiten
+plot_data_crime <- specifications_crime %>%
+  arrange(estimate) %>%
+  mutate(
+    specification = row_number(),  # ID für jede Spezifikation
+    significant = ifelse(p.value < 0.05, "yes", "no"),  # Signifikanz bestimmen
+    x = term,  # Variablen für Achsenlabel
+    controls = formula,
+    gender = factor(gender, levels = c("Male", "Female")),  # Reihenfolge sicherstellen
+    age_category = factor(age_category, levels = c("Young Adults (15-25)", "Adults (26-45)", 
+                                                   "Middle-aged Adults (46-65)", "Seniors (66-99)"))  # Altersgruppen als Faktor
+  )
+
+# 📌 Farben definieren
+sig_colors <- c("no" = "red", "yes" = "black")
+
+# 📌 Anzahl der Crime-Spezifikationen berechnen
+n_specifications_crime <- nrow(plot_data_crime)
+
+# 📌 Panel A: Specification Curve (Effekte mit Konfidenzintervallen)
+p1 <- ggplot(plot_data_crime, aes(x = specification, y = estimate, color = significant)) +
+  geom_point(alpha = 0.8, size = 3) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2, alpha = 0.5) +
+  scale_color_manual(values = sig_colors) +
+  labs(y = "Estimate", x = paste0("Specification (n = ", n_specifications_crime, ")"), color = "Significance") +
+  theme_minimal() +
+  theme(legend.position = "right")
+
+# 📌 PLOT B: Gender Subsets (Männer vs. Frauen)
+p2 <- ggplot(plot_data_crime, aes(x = specification, y = gender, fill = significant)) +
+  geom_tile() +
+  scale_fill_manual(values = sig_colors) +
+  labs(x = "Specification", y = "Gender Groups", fill = "Significance") +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_blank(),
+    legend.position = "right"
+  )
+
+
+### **📌 PLOT C: Crime-Faktoren Übersicht**
+crime_factors <- c("c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot",
+                   "c_bh_parviolenceprog", "c_bh_elderabuse", "c_theft_estcorruption",
+                   "c_oth_polstab")
+
+p3 <- ggplot(plot_data_crime %>% filter(x %in% crime_factors), 
+             aes(x = specification, y = x, fill = significant)) +
+  geom_tile() +
+  scale_fill_manual(values = sig_colors) +
+  labs(x = "Specification", y = "Crime Factors", fill = "Significance") +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_blank(),
+    legend.position = "right"
+  )
+
+### **📌 PLOT D: Alterskategorien Übersicht**
+
+specifications_crime <- specifications_crime %>%
+  mutate(
+    gender = ifelse(gender == 1, "Male", "Female")  # Direkt auf numerische Werte prüfen
+  )
+
+p4 <- ggplot(plot_data_crime, aes(x = specification, y = age_category, fill = significant)) +
+  geom_tile() +
+  scale_fill_manual(values = sig_colors) +
+  labs(x = "Specification", y = "Age Categories", fill = "Significance") +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_blank(),
+    legend.position = "right"
+  )
+
+### **📌 FINALE KOMBINIERTE VISUALISIERUNG**
+final_plot_crime <- plot_grid(p1, p2, p4, p3, ncol = 1, rel_heights = c(2, 1, 1, 1))
+
+# 📌 Visualisierung anzeigen
+print(final_plot_crime)
+```
