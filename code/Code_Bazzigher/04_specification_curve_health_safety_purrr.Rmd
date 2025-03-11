@@ -209,9 +209,8 @@ print("HealthSafety_Regression_Results.xlsx wurde erfolgreich gespeichert!")
 
 
 ```{r}
-library(broom)
-library(purrr)
 library(ggplot2)
+library(dplyr)
 library(cowplot)
 
 # Sicherstellen, dass die Variablen als Zeichenkette interpretiert werden
@@ -229,51 +228,89 @@ plot_data <- specifications %>%
                                                    "Middle-aged Adults (46-65)", "Seniors (66-99)"))
   )
 
+# Intercept ausfiltern
+plot_data_filtered <- plot_data %>% filter(term != "(Intercept)")
+
 # Farben für Signifikanz
 sig_colors <- c("no" = "red", "yes" = "black")
-n_specifications <- nrow(plot_data)
+n_specifications <- nrow(plot_data_filtered)
 
-# PLOT 1: Estimate mit Konfidenzintervallen
-p1 <- ggplot(plot_data, aes(x = specification, y = estimate, color = significant)) +
-  geom_point(alpha = 0.8, size = 3) +
+# PLOT 1: Estimate mit Konfidenzintervallen (ohne Intercept)
+p1 <- ggplot(plot_data_filtered, aes(x = specification, y = estimate, color = significant)) +
+  geom_point(alpha = 0.8, size = 2) +  # Kleinere Punkte
   geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2, alpha = 0.5) +
   scale_color_manual(values = sig_colors) +
   labs(y = "Estimate", x = paste0("Specification (n = ", n_specifications, ")"), color = "Significance") +
-  theme_minimal() +
+  theme_classic() +  # Entfernt Hintergrundlinien
   theme(legend.position = "right")
 
-# PLOT 2: Gender Übersicht
-p2 <- ggplot(plot_data, aes(x = specification, y = gender, fill = significant)) +
+# PLOT 2: Gender Übersicht (Legende ausblenden)
+p2 <- ggplot(plot_data_filtered, aes(x = specification, y = gender, fill = significant)) +
   geom_tile() +
   scale_fill_manual(values = sig_colors) +
-  labs(x = "Specification", y = "Gender Groups", fill = "Significance") +
-  theme_minimal()
+  labs(x = "", y = "Gender\nGroup") +  
+  theme_classic() +
+  theme(legend.position = "none") 
 
-# PLOT 3: Altersgruppen Übersicht
-p3 <- ggplot(plot_data, aes(x = specification, y = age_category, fill = significant)) +
+# PLOT 3: Altersgruppen Übersicht (Legende ausblenden)
+p3 <- ggplot(plot_data_filtered, aes(x = specification, y = age_category, fill = significant)) +
   geom_tile() +
   scale_fill_manual(values = sig_colors) +
-  labs(x = "Specification", y = "Age Categories", fill = "Significance") +
-  theme_minimal()
+  labs(x = "", y = "Age\nGroup") +  
+  theme_classic() +
+  theme(legend.position = "none") 
 
-# PLOT 4: Health / Safety Faktoren Übersicht
-p4 <- ggplot(plot_data %>% filter(term %in% health_safety_factor_names), 
+# PLOT 4: Health / Safety Faktoren Übersicht (Legende ausblenden)
+p4 <- ggplot(plot_data_filtered %>% filter(term %in% health_safety_factor_names), 
              aes(x = specification, y = term, fill = significant)) +
   geom_tile() +
   scale_fill_manual(values = sig_colors) +
-  scale_y_discrete(expand = expansion(mult = c(0.2, 0.2))) +  # Größerer Abstand zwischen Zeilen
-  labs(x = "Specification", y = "Health / Safety Factors", fill = "Significance") +
-  theme_minimal() +
+  scale_y_discrete(expand = expansion(mult = c(0.2, 0.2))) +
+  labs(x = "", y = "Risk\n Factors") +  
+  theme_classic() +
   theme(
-    axis.text.y = element_text(size = 10, margin = margin(r = 10)),  # Größerer Abstand zur Achse
+    axis.text.y = element_text(size = 8, margin = margin(r = 20)),
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank(),
-    legend.position = "right"
+    legend.position = "none"  
   )
 
 # Alle Plots zusammenführen
-final_plot <- plot_grid(p1, p2, p3, p4, ncol = 1, rel_heights = c(2, 1, 1, 1))
+final_plot <- plot_grid(p1, p2, p3, p4, ncol = 1, rel_heights = c(3, 2, 2.5, 4))
 
 # Plot ausgeben
 print(final_plot)
 ```
+
+
+# Table summary
+```{r}
+# Pakete laden
+library(dplyr)
+library(writexl)
+
+# Aggregierte Tabelle erstellen
+results_summary <- specifications %>%
+  group_by(gender, age_category, term) %>%  # Gruppierung nach Prädiktoren & Alters-/Geschlechtskategorien
+  summarise(
+    Median_Estimate = round(median(estimate, na.rm = TRUE), 2),
+    Q25_Estimate = round(quantile(estimate, 0.25, na.rm = TRUE), 2),
+    Q75_Estimate = round(quantile(estimate, 0.75, na.rm = TRUE), 2),
+    Min_Estimate = round(min(estimate, na.rm = TRUE), 2),
+    Max_Estimate = round(max(estimate, na.rm = TRUE), 2),
+    Significant_Percent = round(mean(p.value < 0.05, na.rm = TRUE) * 100, 1)  # Prozent signifikanter Werte
+  ) %>%
+  arrange(gender, age_category, term)  # Sortierung für bessere Lesbarkeit
+
+# Tabelle anzeigen
+print(results_summary)
+
+# Speichern als Excel-Datei
+write_xlsx(results_summary, "HealthSafety_Regression_Summary.xlsx")
+print("HealthSafety_Regression_Summary.xlsx wurde erfolgreich gespeichert!")
+```
+
+
+
+
+

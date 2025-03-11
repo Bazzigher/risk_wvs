@@ -229,97 +229,108 @@ print("Crime_Regression_Results.xlsx wurde erfolgreich gespeichert!")
 
 
 ```{r}
-# 📌 Pakete laden
-library(tidyverse)
+# Pakete laden (falls nicht bereits in setup geladen)
 library(ggplot2)
-library(broom)
-library(purrr)
+library(dplyr)
 library(cowplot)
 
-# 📌 Sicherstellen, dass das Crime-Spezifikations-Dataset existiert
-if (!exists("specifications_crime")) {
-  stop("Das Objekt 'specifications_crime' existiert nicht. Bitte zuerst die Crime-Spezifikationen berechnen.")
-}
+# Sicherstellen, dass die Variablen als Zeichenkette interpretiert werden
+crime_factor_names <- unlist(crime_factors, use.names = FALSE)
 
-# 📌 Daten für die Visualisierung vorbereiten
-plot_data_crime <- specifications_crime %>%
+# Plot-Dataframe anpassen (gender explizit als "Male"/"Female" definieren)
+plot_data <- specifications_crime %>%
   arrange(estimate) %>%
   mutate(
-    specification = row_number(),  # ID für jede Spezifikation
-    significant = ifelse(p.value < 0.05, "yes", "no"),  # Signifikanz bestimmen
-    x = term,  # Variablen für Achsenlabel
-    controls = formula,
-    gender = factor(gender, levels = c("Male", "Female")),  # Reihenfolge sicherstellen
+    specification = row_number(),
+    significant = ifelse(p.value < 0.05, "yes", "no"),
+    term = as.character(term),  # Falls `term` ein Faktor ist, umwandeln
+    gender = case_when(  # Gender explizit umwandeln
+      gender == "0" ~ "Female",
+      gender == "1" ~ "Male",
+      TRUE ~ as.character(gender)  # Falls bereits als "Male"/"Female", beibehalten
+    ),
+    gender = factor(gender, levels = c("Male", "Female")),  # Als Faktor speichern
     age_category = factor(age_category, levels = c("Young Adults (15-25)", "Adults (26-45)", 
-                                                   "Middle-aged Adults (46-65)", "Seniors (66-99)"))  # Altersgruppen als Faktor
+                                                   "Middle-aged Adults (46-65)", "Seniors (66-99)"))
   )
 
-# 📌 Farben definieren
+# Intercept ausfiltern
+plot_data_filtered <- plot_data %>% filter(term != "(Intercept)")
+
+# Farben für Signifikanz
 sig_colors <- c("no" = "red", "yes" = "black")
+n_specifications <- nrow(plot_data_filtered)
 
-# 📌 Anzahl der Crime-Spezifikationen berechnen
-n_specifications_crime <- nrow(plot_data_crime)
-
-# 📌 Panel A: Specification Curve (Effekte mit Konfidenzintervallen)
-p1 <- ggplot(plot_data_crime, aes(x = specification, y = estimate, color = significant)) +
-  geom_point(alpha = 0.8, size = 3) +
+# PLOT 1: Estimate mit Konfidenzintervallen (ohne Intercept)
+p1 <- ggplot(plot_data_filtered, aes(x = specification, y = estimate, color = significant)) +
+  geom_point(alpha = 0.8, size = 2) +  
   geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2, alpha = 0.5) +
   scale_color_manual(values = sig_colors) +
-  labs(y = "Estimate", x = paste0("Specification (n = ", n_specifications_crime, ")"), color = "Significance") +
-  theme_minimal() +
+  labs(y = "Estimate", x = paste0("Specification (n = ", n_specifications, ")"), color = "Significance") +
+  theme_classic() +  
   theme(legend.position = "right")
 
-# 📌 PLOT B: Gender Subsets (Männer vs. Frauen)
-p2 <- ggplot(plot_data_crime, aes(x = specification, y = gender, fill = significant)) +
+# PLOT 2: Gender Übersicht (Legende ausblenden)
+p2 <- ggplot(plot_data_filtered, aes(x = specification, y = gender, fill = significant)) +
   geom_tile() +
   scale_fill_manual(values = sig_colors) +
-  labs(x = "Specification", y = "Gender Groups", fill = "Significance") +
-  theme_minimal() +
-  theme(
-    axis.text.y = element_text(size = 10),
-    axis.text.x = element_blank(),
-    legend.position = "right"
-  )
+  labs(x = "", y = "Gender\nGroup") +  
+  theme_classic() +
+  theme(legend.position = "none") 
 
-
-### **📌 PLOT C: Crime-Faktoren Übersicht**
-crime_factors <- c("c_bh_homicide", "c_bh_childmalt", "c_bh_violextchildprot",
-                   "c_bh_parviolenceprog", "c_bh_elderabuse", "c_theft_estcorruption",
-                   "c_oth_polstab")
-
-p3 <- ggplot(plot_data_crime %>% filter(x %in% crime_factors), 
-             aes(x = specification, y = x, fill = significant)) +
+# PLOT 3: Altersgruppen Übersicht (Legende ausblenden)
+p3 <- ggplot(plot_data_filtered, aes(x = specification, y = age_category, fill = significant)) +
   geom_tile() +
   scale_fill_manual(values = sig_colors) +
-  labs(x = "Specification", y = "Crime Factors", fill = "Significance") +
-  theme_minimal() +
-  theme(
-    axis.text.y = element_text(size = 10),
-    axis.text.x = element_blank(),
-    legend.position = "right"
-  )
+  labs(x = "", y = "Age\nGroup") +  
+  theme_classic() +
+  theme(legend.position = "none") 
 
-### **📌 PLOT D: Alterskategorien Übersicht**
-
-specifications_crime <- specifications_crime %>%
-  mutate(
-    gender = ifelse(gender == 1, "Male", "Female")  # Direkt auf numerische Werte prüfen
-  )
-
-p4 <- ggplot(plot_data_crime, aes(x = specification, y = age_category, fill = significant)) +
+# PLOT 4: Health / Safety Faktoren Übersicht (Größe angepasst)
+p4 <- ggplot(plot_data_filtered %>% filter(term %in% crime_factors), 
+             aes(x = specification, y = term, fill = significant)) +
   geom_tile() +
   scale_fill_manual(values = sig_colors) +
-  labs(x = "Specification", y = "Age Categories", fill = "Significance") +
-  theme_minimal() +
+  scale_y_discrete(expand = expansion(mult = c(0.3, 0.3))) +  # Mehr Abstand zwischen Items
+  labs(x = "", y = "Risk\nFactors") +  
+  theme_classic() +
   theme(
-    axis.text.y = element_text(size = 10),
+    axis.text.y = element_text(size = 10, margin = margin(r = 20)),  # Schriftgröße und Abstand vergrößert
     axis.text.x = element_blank(),
-    legend.position = "right"
+    axis.ticks.x = element_blank(),
+    legend.position = "none"
   )
 
-### **📌 FINALE KOMBINIERTE VISUALISIERUNG**
-final_plot_crime <- plot_grid(p1, p2, p4, p3, ncol = 1, rel_heights = c(2, 1, 1, 1))
+# Alle Plots zusammenführen (P4 größer)
+final_plot <- plot_grid(p1, p2, p3, p4, ncol = 1, rel_heights = c(3, 2, 2.5, 4))
 
-# 📌 Visualisierung anzeigen
-print(final_plot_crime)
+# Plot ausgeben
+print(final_plot)
+```
+
+
+# Table summary
+```{r}
+# Pakete laden
+library(dplyr)
+library(writexl)
+
+# Aggregierte Tabelle erstellen
+results_summary <- specifications_crime %>%
+  group_by(gender, age_category, term) %>%  # Gruppierung nach Prädiktoren & Alters-/Geschlechtskategorien
+  summarise(
+    Median_Estimate = round(median(estimate, na.rm = TRUE), 2),
+    Q25_Estimate = round(quantile(estimate, 0.25, na.rm = TRUE), 2),
+    Q75_Estimate = round(quantile(estimate, 0.75, na.rm = TRUE), 2),
+    Min_Estimate = round(min(estimate, na.rm = TRUE), 2),
+    Max_Estimate = round(max(estimate, na.rm = TRUE), 2),
+    Significant_Percent = round(mean(p.value < 0.05, na.rm = TRUE) * 100, 1)  # Prozent signifikanter Werte
+  ) %>%
+  arrange(gender, age_category, term)  # Sortierung für bessere Lesbarkeit
+
+# Tabelle anzeigen
+print(results_summary)
+
+# Speichern als Excel-Datei
+write_xlsx(results_summary, "Crime_Regression_Summary.xlsx")
 ```

@@ -72,7 +72,160 @@ hardship_combined <- risktaking %>%
 
 #str(hardship_combined)
 head(hardship_combined)
+str(hardship_combined)
 ```
+
+```{r}
+analyze_country <- function(df) {
+  country_name <- unique(df$country)
+  country_code <- unique(df$COUNTRY)
+  
+  n <- nrow(df)
+  female_percent <- mean(df$gender == 0, na.rm = TRUE) * 100  
+  mean_age <- mean(df$age, na.rm = TRUE)
+  age_range <- paste0(min(df$age, na.rm = TRUE), " - ", max(df$age, na.rm = TRUE))
+  
+  # Entferne Prädiktoren mit zu vielen NAs oder ohne Varianz
+  valid_predictors <- predictors[sapply(df[predictors], function(x) length(unique(na.omit(x))) > 1)]
+  
+  # Falls keine gültigen Prädiktoren übrig sind, keine Regression durchführen
+  if (length(valid_predictors) == 0) {
+    return(data.frame(
+      country = country_name, COUNTRY = country_code, n = n, Female_Perc = female_percent,
+      Mean_Age = mean_age, Age_Range = age_range, Intercept = NA, t(setNames(rep(NA, length(predictors)), predictors))
+    ))
+  }
+  
+  # Regression nur mit gültigen Prädiktoren
+  formula <- as.formula(paste("risktaking ~", paste(valid_predictors, collapse = " + ")))
+  model <- try(lm(formula, data = df, na.action = na.omit), silent = TRUE)
+  
+  if (inherits(model, "try-error")) {
+    intercept <- NA
+    coefs <- setNames(rep(NA, length(predictors)), predictors)
+  } else {
+    model_coefs <- broom::tidy(model)
+    intercept <- model_coefs$estimate[model_coefs$term == "(Intercept)"]
+    coefs <- setNames(model_coefs$estimate[model_coefs$term %in% valid_predictors], 
+                      model_coefs$term[model_coefs$term %in% valid_predictors])
+  }
+  
+  # Rückgabe als Liste
+  c(
+    list(
+      country = country_name,
+      COUNTRY = country_code,
+      n = n,
+      Female_Perc = female_percent,
+      Mean_Age = mean_age,
+      Age_Range = age_range,
+      Intercept = intercept
+    ),
+    as.list(coefs)
+  )
+}
+```
+
+
+```{r}
+# Pakete laden
+library(dplyr)
+library(lme4)
+library(broom.mixed)
+library(openxlsx)  # Für Excel-Export
+
+# Gemischtes Modell berechnen
+model1_combined <- lmer(risktaking ~ age + gender + 
+                         (1 + age + gender | country), 
+                         data = hardship_combined, 
+                         control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
+
+# Ergebnisse des Modells zusammenfassen
+summary_model1_combined <- summary(model1_combined)
+
+# Feste Effekte extrahieren
+fixed_effects <- summary_model1_combined$coefficients
+intercept_fixed <- fixed_effects["(Intercept)", "Estimate"]
+b_age_fixed <- fixed_effects["age", "Estimate"]
+b_gender_fixed <- fixed_effects["gender", "Estimate"]
+
+# Zufallseffekte (länderspezifisch) extrahieren
+random_effects <- ranef(model1_combined)$country
+random_effects <- as.data.frame(random_effects)
+random_effects$country <- rownames(random_effects)
+colnames(random_effects) <- c("Intercept_Random", "b_Age_Random", "b_Gender_Random", "country")
+
+# Länderspezifische Koeffizienten berechnen (fester Effekt + zufälliger Effekt)
+random_effects <- random_effects %>%
+  mutate(
+    Intercept_Country = intercept_fixed + Intercept_Random,
+    b_Age_Country = b_age_fixed + b_Age_Random,
+    b_Gender_Country = b_gender_fixed + b_Gender_Random
+  )
+
+# Liste der konstanten Variablen
+constant_vars <- c(
+  "HS_alc_tax_wine", "HS_alc_roaddeath", "HS_drg_treatment", "HS_nic_affordability",
+  "HS_mh_policy", "HS_sex_gini", "HS_oth_obesity", "HS_oth_cleancooking", "HS_mh_mhhospit",
+  "HS_sex_antiretroviral", "HS_original_lifeexpectancy", "HS_original_genderequality",
+  "f_inv_acctownership_primaryedu", "f_oth_insfinsvcs_int", "f_hs_oopexp10", "f_eco_gdpdefl_linked",
+  "f_eco_cpi", "f_original_gdp", "f_original_gini", "c_bh_homicide", "c_bh_childmalt",
+  "c_bh_violextchildprot", "c_bh_parviolenceprog", "c_bh_elderabuse", "c_theft_estcorruption",
+  "c_oth_polstab", "e_oth_drinkingwater", "e_exp_watersanithyg100k", "e_ses_gini",
+  "e_ses_school", "e_exp_disaster", "e_exp_airdeath100k", "e_exp_watersanithyg"
+)
+
+# Funktion zur Berechnung der Übersicht pro Land
+summarize_country <- function(df) {
+  country_name <- unique(df$country)
+  country_code <- unique(df$COUNTRY)  # ISO-Code hinzufügen
+  
+  n <- nrow(df)
+  female_percent <- round(mean(df$gender == 0, na.rm = TRUE) * 100, 2)  # Annahme: 0 = weiblich
+  mean_age <- round(mean(df$age, na.rm = TRUE), 2)
+  age_range <- paste0(min(df$age, na.rm = TRUE), " - ", max(df$age, na.rm = TRUE))
+  
+  # Konstante Variablen extrahieren
+  constant_values <- sapply(df[constant_vars], function(x) {
+    val <- if (length(unique(na.omit(x))) == 1) unique(na.omit(x)) else NA
+    round(val, 2)
+  })
+
+  # Zufallseffekte + feste Effekte kombinieren (Länderspezifische Werte holen)
+  country_random <- random_effects %>% filter(country == country_name)
+  intercept_country <- ifelse(nrow(country_random) > 0, round(country_random$Intercept_Country, 2), NA)
+  b_age_country <- ifelse(nrow(country_random) > 0, round(country_random$b_Age_Country, 2), NA)
+  b_gender_country <- ifelse(nrow(country_random) > 0, round(country_random$b_Gender_Country, 2), NA)
+
+  # Rückgabe als DataFrame
+  data.frame(
+    country = country_name,
+    COUNTRY = country_code,  # ISO-Code hinzufügen
+    n = n,
+    Female_Perc = female_percent,
+    Mean_Age = mean_age,
+    Age_Range = age_range,
+    Intercept_Country = intercept_country,
+    b_Age_Country = b_age_country,
+    b_Gender_Country = b_gender_country,
+    as.list(constant_values)  # Konstante Variablen hinzufügen
+  )
+}
+
+# Analyse für jedes Land durchführen und Ergebnisse kombinieren
+summary_df <- hardship_combined %>%
+  group_by(country, COUNTRY) %>%
+  group_split() %>%
+  lapply(summarize_country) %>%
+  bind_rows()
+
+# Excel-Datei speichern
+write.xlsx(summary_df, "Länderübersicht_lmer.xlsx", rowNames = FALSE)
+
+# Ergebnisse anzeigen
+print(summary_df)
+```
+
 
 ## Age categories
 ```{r}
@@ -213,91 +366,102 @@ print(paste("Anzahl der Ergebnisse in der Tabelle:", n_results))
 
 
 ```{r}
-# 📌 Pakete laden
-library(tidyverse)
+# Pakete laden (falls nicht bereits in setup geladen)
 library(ggplot2)
-library(broom)
-library(purrr)
+library(dplyr)
 library(cowplot)
 
-# 📌 Sicherstellen, dass das Modell-Spezifikations-Dataset existiert
-if (!exists("specifications")) {
-  stop("Das Objekt 'specifications' existiert nicht. Bitte zuerst die Spezifikationen berechnen.")
-}
+# Sicherstellen, dass die Variablen als Zeichenkette interpretiert werden
+environment_factor_names <- unlist(risk_factors, use.names = FALSE)
 
-# 📌 Daten für die Visualisierung vorbereiten
+# Plot-Dataframe anpassen
 plot_data <- specifications %>%
   arrange(estimate) %>%
   mutate(
-    specification = row_number(),  # ID für jede Spezifikation
-    significant = ifelse(p.value < 0.05, "yes", "no"),  # Signifikanz bestimmen
-    x = term,  # Variablen für Achsenlabel
-    controls = formula,
-    gender = factor(gender, levels = c("Male", "Female")),  # Reihenfolge sicherstellen
+    specification = row_number(),
+    significant = ifelse(p.value < 0.05, "yes", "no"),
+    term = as.character(term),  # Falls `term` ein Faktor ist, umwandeln
+    gender = factor(gender, levels = c("Male", "Female")),
     age_category = factor(age_category, levels = c("Young Adults (15-25)", "Adults (26-45)", 
-                                                   "Middle-aged Adults (46-65)", "Seniors (66-99)"))  # Altersgruppen als Faktor
+                                                   "Middle-aged Adults (46-65)", "Seniors (66-99)"))
   )
 
-# 📌 Farben definieren
+# Intercept ausfiltern
+plot_data_filtered <- plot_data %>% filter(term != "(Intercept)")
+
+# Farben für Signifikanz
 sig_colors <- c("no" = "red", "yes" = "black")
+n_specifications <- nrow(plot_data_filtered)
 
-# 📌 Anzahl der Spezifikationen berechnen
-n_specifications <- nrow(plot_data)
-
-# 📌 Panel A: Specification Curve (Effekte mit Konfidenzintervallen)
-p1 <- ggplot(plot_data, aes(x = specification, y = estimate, color = significant)) +
-  geom_point(alpha = 0.8, size = 3) +
+# PLOT 1: Estimate mit Konfidenzintervallen (ohne Intercept)
+p1 <- ggplot(plot_data_filtered, aes(x = specification, y = estimate, color = significant)) +
+  geom_point(alpha = 0.8, size = 2) +  
   geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2, alpha = 0.5) +
   scale_color_manual(values = sig_colors) +
   labs(y = "Estimate", x = paste0("Specification (n = ", n_specifications, ")"), color = "Significance") +
-  theme_minimal() +
+  theme_classic() +  
   theme(legend.position = "right")
 
-### **📌 PLOT B: Gender Subsets (Männer vs. Frauen)**
-p2 <- ggplot(plot_data, aes(x = specification, y = gender, fill = significant)) +
+# PLOT 2: Gender Übersicht (Legende ausblenden)
+p2 <- ggplot(plot_data_filtered, aes(x = specification, y = gender, fill = significant)) +
   geom_tile() +
   scale_fill_manual(values = sig_colors) +
-  labs(x = "Specification", y = "Gender Groups", fill = "Significance") +
-  theme_minimal() +
-  theme(
-    axis.text.y = element_text(size = 10),
-    axis.text.x = element_blank(),
-    legend.position = "right"
-  )
+  labs(x = "", y = "Gender\nGroup") +  
+  theme_classic() +
+  theme(legend.position = "none") 
 
-### **📌 PLOT C: Risk Factors Übersicht**
-risk_factors <- c("e_oth_drinkingwater", "e_exp_watersanithyg100k", "e_ses_gini",
-                  "e_ses_school", "e_exp_disaster", "e_exp_airdeath100k")
-
-p3 <- ggplot(plot_data %>% filter(x %in% risk_factors), 
-             aes(x = specification, y = x, fill = significant)) +
+# PLOT 3: Altersgruppen Übersicht (Legende ausblenden)
+p3 <- ggplot(plot_data_filtered, aes(x = specification, y = age_category, fill = significant)) +
   geom_tile() +
   scale_fill_manual(values = sig_colors) +
-  labs(x = "Specification", y = "Risk Factors", fill = "Significance") +
-  theme_minimal() +
-  theme(
-    axis.text.y = element_text(size = 10),
-    axis.text.x = element_blank(),
-    legend.position = "right"
-  )
+  labs(x = "", y = "Age\nGroup") +  
+  theme_classic() +
+  theme(legend.position = "none") 
 
-### **📌 PLOT D: Alterskategorien Übersicht**
-p4 <- ggplot(plot_data, aes(x = specification, y = age_category, fill = significant)) +
+# PLOT 4: Health / Safety Faktoren Übersicht (Größe angepasst)
+p4 <- ggplot(plot_data_filtered %>% filter(term %in% risk_factors), 
+             aes(x = specification, y = term, fill = significant)) +
   geom_tile() +
   scale_fill_manual(values = sig_colors) +
-  labs(x = "Specification", y = "Age Categories", fill = "Significance") +
-  theme_minimal() +
+  scale_y_discrete(expand = expansion(mult = c(0.3, 0.3))) +  # Mehr Abstand zwischen Items
+  labs(x = "", y = "Risk\nFactors") +  
+  theme_classic() +
   theme(
-    axis.text.y = element_text(size = 10),
+    axis.text.y = element_text(size = 10, margin = margin(r = 20)),  # Schriftgröße und Abstand vergrößert
     axis.text.x = element_blank(),
-    legend.position = "right"
+    axis.ticks.x = element_blank(),
+    legend.position = "none"
   )
 
-### **📌 FINALE KOMBINIERTE VISUALISIERUNG**
-final_plot <- plot_grid(p1, p2, p4, p3, ncol = 1, rel_heights = c(2, 1, 1, 1))
+# Alle Plots zusammenführen (P4 größer)
+final_plot <- plot_grid(p1, p2, p3, p4, ncol = 1, rel_heights = c(3, 2, 2.5, 3))
 
-# 📌 Visualisierung anzeigen
+# Plot ausgeben
 print(final_plot)
 ```
 
+# Table summary
+```{r}
+# Pakete laden
+library(dplyr)
+library(writexl)
 
+# Aggregierte Tabelle erstellen
+results_summary <- specifications %>%
+  group_by(gender, age_category, term) %>%  # Gruppierung nach Prädiktoren & Alters-/Geschlechtskategorien
+  summarise(
+    Median_Estimate = round(median(estimate, na.rm = TRUE), 2),
+    Q25_Estimate = round(quantile(estimate, 0.25, na.rm = TRUE), 2),
+    Q75_Estimate = round(quantile(estimate, 0.75, na.rm = TRUE), 2),
+    Min_Estimate = round(min(estimate, na.rm = TRUE), 2),
+    Max_Estimate = round(max(estimate, na.rm = TRUE), 2),
+    Significant_Percent = round(mean(p.value < 0.05, na.rm = TRUE) * 100, 1)  # Prozent signifikanter Werte
+  ) %>%
+  arrange(gender, age_category, term)  # Sortierung für bessere Lesbarkeit
+
+# Tabelle anzeigen
+print(results_summary)
+
+# Speichern als Excel-Datei
+write_xlsx(results_summary, "Environment_Regression_Summary.xlsx")
+```
