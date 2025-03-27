@@ -478,26 +478,89 @@ print(sensitivity)
 # 5. Visualisierung der Sensitivitätsanalyse
 plot(sensitivity)
 ```
+```{r}
+# Mapping der technischen Namen auf Klarnamen
+var_labels <- c(
+  c_bh_homicide = "Homicide Rate",
+  c_bh_childmalt = "Child Maltreatment",
+  c_bh_violextchildprot = "Child Protection",
+  c_bh_parviolenceprog = "Partner Violence Prevention",
+  c_bh_elderabuse = "Elder Abuse",
+  c_bh_inthomicide = "Intentional Homicide",
+  c_theft_estcorruption = "Control of Corruption",
+  c_oth_polstab = "Political Stability", 
+  avg_risktaking = "Average Risktaking",
+  hardship_Crime_index = "Crime Hardship Index"
+)
+
+# Erstelle eine Kopie des Datensatzes mit umbenannten Variablen
+hardship_Crime_labeled <- hardship_Crime
+names(hardship_Crime_labeled) <- ifelse(
+  names(hardship_Crime_labeled) %in% names(var_labels),
+  var_labels[names(hardship_Crime_labeled)],
+  names(hardship_Crime_labeled)
+)
+```
 
 ```{r}
-library(mice)
+library(naniar)
+library(ggplot2)
+
+# Visualisierung mit Klarnamen (z.B. hardship_Crime_labeled verwenden)
+vis_miss(hardship_Crime_labeled) +
+  scale_x_discrete(position = "top") +  # Achse nach oben
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 0, hjust = 0),
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 12),
+    plot.title = element_blank()
+  )
 
 library(VIM)
-aggr_plot <- aggr(hardship_Crime, col = c('navyblue', 'red'), numbers = TRUE, sortVars = TRUE, 
-                  labels = names(hardship_Crime), cex.axis = 0.7, gap = 3, ylab = c("Missing Data", "Pattern"))
 
-vis_miss(hardship_Crime)
+# Visualisierung mit umbenannten Spalten
+short_labels <- c(
+  "Child Maltreat.",
+  "Child Protec.",
+  "Viol. Prevent.",
+  "Elder Abuse",
+  "Homicide",
+  "Contr. Corruption",
+  "Pol. Stability"
+)
+
+aggr(
+  hardship_Crime_labeled, 
+  col = c('navyblue', 'red'), 
+  numbers = TRUE, 
+  sortVars = TRUE,
+  labels = short_labels, 
+  cex.axis = 0.7, 
+  gap = 3, 
+  ylab = c("Missing Data", "Pattern")
+)
 ```
 
 
 ```{r}
+# Mapping für Klarnamen
+var_labels <- c(
+  c_bh_homicide = "Homicide Rate",
+  c_bh_childmalt = "Child Maltreatment Programs",
+  c_bh_violextchildprot = "Child Protection Services",
+  c_bh_parviolenceprog = "Partner Violence Prevention",
+  c_bh_elderabuse = "Elder Abuse Programs",
+  c_bh_inthomicide = "Intentional Homicide Rate",
+  c_theft_estcorruption = "Control of Corruption",
+  c_oth_polstab = "Political Stability", 
+  avg_risktaking = "Average Risktaking"
+)
+
 # Berechnung des Anteils fehlender Werte für jede Variable
 missing_percentages <- sapply(hardship_Crime, function(x) {
   sum(is.na(x)) / length(x) * 100
 })
-
-# Ausgabe der Ergebnisse
-missing_percentages
 
 # Darstellung der Ergebnisse in einem Dataframe
 missing_summary <- data.frame(
@@ -505,14 +568,19 @@ missing_summary <- data.frame(
   MissingPercentage = missing_percentages
 )
 
+# Ersetze Variablennamen durch Klarnamen
+missing_summary$Variable <- ifelse(
+  missing_summary$Variable %in% names(var_labels),
+  var_labels[missing_summary$Variable],
+  missing_summary$Variable
+)
+
 # Sortiere die Variablen nach dem Prozentsatz der fehlenden Werte
 missing_summary <- missing_summary[order(-missing_summary$MissingPercentage), ]
 
 # Ausgabe der Tabelle
 print(missing_summary)
-
 ```
-
 
 ```{r}
 hardship_Crime <- hardship_Crime %>%
@@ -587,8 +655,16 @@ imputed_data$imp$c_theft_estcorruption  # Zeigt die imputierten Werte für diese
 imputed_data$imp$c_oth_polstab  # Zeigt die imputierten Werte für diese Variable
 
 # visualisierung
-stripplot(imputed_data, pch = 20, cex = 1.2)  # Verteilung der imputierten Werte
-densityplot(imputed_data)  # Dichte der imputierten Werte
+stripplot(imputed_data,
+          c_bh_elderabuse + c_bh_parviolenceprog + c_bh_childmalt + c_bh_violextchildprot + c_bh_homicide
+          ~ .imp,
+          pch = 20, cex = 1.2,
+          scales = list(y = list(relation = "free")))
+
+
+densityplot(imputed_data,
+            ~ c_bh_elderabuse + c_bh_parviolenceprog + c_bh_childmalt + c_bh_violextchildprot,
+            plot.points = FALSE, auto.key = FALSE)
 
 # Imputierte Daten extrahieren
 completed_data <- complete(imputed_data, action = 1)
@@ -698,12 +774,6 @@ hardship_Crime %>%
   theme_minimal()
 ```
 
-
-```{r}
-head(hardship_Crime)
-```
-
-
 ## Reverse Coding & Standardize
 ```{r}
 library(dplyr)
@@ -758,7 +828,6 @@ ggsave("correlation_heatmap.pdf", width = 11, height = 9, path = base_path)
 ```
 
 ```{r}
-str(hardship_Crime)
 hardship_Crime <- hardship_Crime %>%
   select(COUNTRY, country, avg_risktaking, c_bh_homicide, c_bh_childmalt, c_bh_violextchildprot, c_bh_parviolenceprog, c_bh_elderabuse, c_theft_estcorruption, c_oth_polstab, hardship_Crime_index)
 ```
@@ -776,6 +845,19 @@ cor_matrix <- cor(selected_vars, use = "complete.obs")
 # Umwandlung der Korrelationsmatrix in einen Datensatz für ggplot
 melted_cor_matrix <- melt(cor_matrix)
 
+# Ersetze technische Namen durch Klarnamen in Var1 und Var2
+melted_cor_matrix$Var1 <- ifelse(
+  melted_cor_matrix$Var1 %in% names(var_labels),
+  var_labels[melted_cor_matrix$Var1],
+  melted_cor_matrix$Var1
+)
+
+melted_cor_matrix$Var2 <- ifelse(
+  melted_cor_matrix$Var2 %in% names(var_labels),
+  var_labels[melted_cor_matrix$Var2],
+  melted_cor_matrix$Var2
+)
+
 # Erstellung der Heatmap mit Korrelationskoeffizienten
 library(ggplot2)
 ggplot(melted_cor_matrix, aes(Var1, Var2, fill = value)) +
@@ -783,7 +865,7 @@ ggplot(melted_cor_matrix, aes(Var1, Var2, fill = value)) +
   geom_text(aes(label = sprintf("%.2f", value)), color = "black", size = 3) +  # Fügt die Korrelationskoeffizienten hinzu
   scale_fill_gradient2(midpoint = 0, low = "blue", high = "red", mid = "white", limit = c(-1,1)) +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1), axis.text.y = element_text(angle = 45, hjust = 1)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), axis.text.y = element_text(angle = 0, hjust = 1)) +
   labs(fill = "Korrelation", x = NULL, y = NULL) +
   coord_fixed()
 ```
@@ -801,7 +883,6 @@ alpha_result <- alpha(items)
 print(alpha_result)
 ```
 
-    
 ```{r}
 write.csv(hardship_Crime, file = file.path(base_path, "hardship_crime.csv"), row.names = FALSE)
 ```

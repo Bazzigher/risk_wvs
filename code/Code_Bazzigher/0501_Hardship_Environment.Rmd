@@ -494,6 +494,8 @@ hardship_environment <- left_join(hardship_environment, e_ses_water[, c("COUNTRY
 head(hardship_environment)
 ```
 
+
+
 # Missing Countries
 ```{r}
 # Auswahl aller Spalten, die mit "F_" beginnen
@@ -557,40 +559,147 @@ mcar_test <- naniar::mcar_test(hardship_environment)
 print(mcar_test)
 ```
 
-
-
 ```{r}
-library(mice)
+library(dplyr)
 
-library(VIM)
-aggr_plot <- aggr(hardship_environment, col = c('navyblue', 'red'), numbers = TRUE, sortVars = TRUE, 
-                  labels = names(hardship_environment), cex.axis = 0.7, gap = 3, ylab = c("Missing Data", "Pattern"))
+environment_factor_labels <- c(
+  e_oth_drinkingwater       = "Access to Drinking Water",
+  e_exp_watersanithyg100k   = "WASH-related Deaths (per 100k)",
+  e_ses_gini                = "Gini Index (Income Inequality)",
+  e_ses_school              = "Mean Years of Schooling",
+  e_exp_disaster            = "Deaths Natural Disasters (per 100k)",
+  e_exp_airdeath100k        = "Deaths Air Pollution (per 100k)", 
+  e_exp_watersanithyg  = "Total WASH-Related Diarrhoea Deaths"
+)
 
-vis_miss(hardship_environment)
+# Umbenennen per rename_with (sauberer als sapply/ifelse)
+library(dplyr)
+
+# Neue Version des Datensatzes mit Klartextnamen nur für 'e_'-Variablen
+hardship_environment_labeled <- hardship_environment %>%
+  rename_with(~ environment_factor_labels[.x], .cols = names(environment_factor_labels))
+
 ```
 
 
 ```{r}
-# Berechnung des Anteils fehlender Werte für jede Variable
+# vis_miss mit Klarnamen
+vis_miss(hardship_environment_labeled) +
+  scale_x_discrete(position = "top") +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 0, vjust = 0),
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 12),
+    plot.title = element_blank()
+  )
+
+# aggr mit Klarnamen
+aggr(
+  hardship_environment_labeled,
+  col = c('navyblue', 'red'),
+  numbers = TRUE,
+  sortVars = TRUE,
+  labels = names(hardship_environment_labeled),
+  cex.axis = 0.7,
+  gap = 3,
+  ylab = c("Missing Data", "Pattern")
+)
+```
+
+```{r}
+library(dplyr)
+
+environment_factor_labels <- c(
+  e_oth_drinkingwater       = "Access to Drinking Water",
+  e_exp_watersanithyg100k   = "WASH-related Deaths (per 100k)",
+  e_ses_gini                = "Gini Index (Income Inequality)",
+  e_ses_school              = "Mean Years of Schooling",
+  e_exp_disaster            = "Deaths Natural Disasters (per 100k)",
+  e_exp_airdeath100k        = "Deaths Air Pollution (per 100k)", 
+  e_exp_watersanithyg  = "Total WASH-Related Diarrhoea Deaths"
+)
+
+# Umbenennen per rename_with (sauberer als sapply/ifelse)
+library(dplyr)
+
+# Neue Version des Datensatzes mit Klartextnamen nur für 'e_'-Variablen
+hardship_environment_labeled <- hardship_environment %>%
+  rename_with(~ environment_factor_labels[.x], .cols = names(environment_factor_labels))
+
+```
+
+
+```{r}
+# vis_miss mit Klarnamen
+vis_miss(hardship_environment_labeled) +
+  scale_x_discrete(position = "top") +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 0, vjust = 0),
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 12),
+    plot.title = element_blank()
+  )
+
+short_labels <- c(
+  "Acc. Drinking Water",
+  "WASH Deaths",
+  "Gini Index",
+  "Mean Years Schooling",
+  "Natural Disaster",
+  "Air Pollution",
+  "WASH Diarrhoea"
+)
+
+aggr(
+  hardship_environment_labeled,
+  col = c('navyblue', 'red'),
+  numbers = TRUE,
+  sortVars = FALSE,
+  labels = short_labels,
+  cex.axis = 0.7,
+  gap = 3,
+  ylab = c("Missing Data", "Pattern")
+)
+```
+
+```{r}
+# Mapping der technischen Variablennamen auf Klarnamen
+environment_factor_labels <- c(
+  e_oth_drinkingwater       = "Access to Drinking Water",
+  e_exp_watersanithyg100k   = "WASH-related Deaths (per 100k)",
+  e_ses_gini                = "Gini Index (Income Inequality)",
+  e_ses_school              = "Mean Years of Schooling",
+  e_exp_disaster            = "Deaths Natural Disasters (per 100k)",
+  e_exp_airdeath100k        = "Deaths Air Pollution (per 100k)", 
+  e_exp_watersanithyg  = "Total WASH-Related Diarrhoea Deaths"
+)
+
+# Berechnung des Anteils fehlender Werte pro Variable
 missing_percentages <- sapply(hardship_environment, function(x) {
   sum(is.na(x)) / length(x) * 100
 })
 
-# Ausgabe der Ergebnisse
-missing_percentages
-
-# Darstellung der Ergebnisse in einem Dataframe
+# Ergebnisse in einem DataFrame
 missing_summary <- data.frame(
   Variable = names(missing_percentages),
-  MissingPercentage = missing_percentages
+  MissingPercentage = missing_percentages,
+  stringsAsFactors = FALSE
 )
 
-# Sortiere die Variablen nach dem Prozentsatz der fehlenden Werte
+# Neue Spalte mit Klarnamen (falls vorhanden)
+missing_summary$Label <- ifelse(
+  missing_summary$Variable %in% names(environment_factor_labels),
+  environment_factor_labels[missing_summary$Variable],
+  NA  # NA, wenn kein Mapping vorhanden ist
+)
+
+# Sortiere nach Anteil fehlender Werte
 missing_summary <- missing_summary[order(-missing_summary$MissingPercentage), ]
 
-# Ausgabe der Tabelle
+# Ausgabe
 print(missing_summary)
-
 ```
 
 
@@ -654,11 +763,18 @@ imputed_data$imp$e_exp_watersanithyg  # Zeigt die imputierten Werte für diese V
 imputed_data$imp$e_ses_water  # Zeigt die imputierten Werte für diese Variable
 imputed_data$imp$e_oth_drinkingwater  # Zeigt die imputierten Werte für diese Variable
 imputed_data$imp$e_ses_unemployment  # Zeigt die imputierten Werte für diese Variable
-imputed_data$imp$e_original_gini
 
 # visualisierung
-stripplot(imputed_data, pch = 20, cex = 1.2)  # Verteilung der imputierten Werte
-densityplot(imputed_data)  # Dichte der imputierten Werte
+stripplot(imputed_data,
+          e_exp_watersanithyg100k + e_ses_gini + e_exp_disaster +
+          e_ses_school + e_exp_airdeath100k + e_exp_watersanithyg ~ .imp,
+          pch = 20, cex = 1.2,
+          scales = list(y = list(relation = "free")))
+
+densityplot(imputed_data,
+            ~ e_oth_safewater + e_exp_watersanithyg100k + e_exp_disaster +
+              e_exp_airdeath100k + e_ses_gini + e_ses_school,
+            plot.points = FALSE, auto.key = FALSE)
 
 # Imputierte Daten extrahieren
 completed_data <- complete(imputed_data, action = 1)
@@ -970,7 +1086,7 @@ library(reshape2)  # Sollte geladen sein, wenn `melt` verwendet wird
 
 # Auswahl relevanter Spalten, ausschließend e_ses_water und e_ses_unemployment
 selected_vars <- hardship_environment %>%
-  select(avg_risktaking, starts_with("e_"), -e_ses_water, -e_ses_unemployment, -e_oth_safewater, -e_original_gini)
+  select(avg_risktaking, starts_with("e_"))
 
 # Berechnung der Korrelationsmatrix für ausgewählte Variablen
 cor_matrix <- cor(selected_vars, use = "complete.obs")
@@ -988,6 +1104,52 @@ ggplot(melted_cor_matrix, aes(Var1, Var2, fill = value)) +
   labs(fill = "Korrelation", x = NULL, y = NULL) +
   coord_fixed()
 ```
+
+```{r}
+library(reshape2)
+library(ggplot2)
+
+# Mapping für technische Variablennamen zu Klarnamen
+environment_factor_labels <- c(
+  e_oth_drinkingwater       = "Access to Drinking Water",
+  e_exp_watersanithyg100k   = "WASH-related Deaths (per 100k)",
+  e_exp_watersanithyg       = "Total WASH-Related Diarrhoea Deaths",
+  e_ses_gini                = "Gini Index (Income Inequality)",
+  e_ses_school              = "Mean Years of Schooling",
+  e_exp_disaster            = "Deaths Natural Disasters (per 100k)",
+  e_exp_airdeath100k        = "Deaths Air Pollution (per 100k)"
+)
+
+# Auswahl relevanter Variablen
+selected_vars <- hardship_environment %>%
+  select(all_of(names(environment_factor_labels))) %>%
+  select(where(~ !(all(is.na(.)) | sd(., na.rm = TRUE) == 0)))  # Entfernt leere oder konstante Spalten
+
+# Korrelationsmatrix
+cor_matrix <- cor(selected_vars, use = "complete.obs")
+
+# Melt und Klartextnamen zuweisen
+melted_cor_matrix <- melt(cor_matrix)
+melted_cor_matrix$Var1 <- environment_factor_labels[as.character(melted_cor_matrix$Var1)]
+melted_cor_matrix$Var2 <- environment_factor_labels[as.character(melted_cor_matrix$Var2)]
+
+# Heatmap
+ggplot(melted_cor_matrix, aes(Var1, Var2, fill = value)) +
+  geom_tile() +
+  geom_text(aes(label = sprintf("%.2f", value)), color = "black", size = 3) +
+  scale_fill_gradient2(
+    midpoint = 0, low = "blue", high = "red", mid = "white", limits = c(-1, 1)
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.text.y = element_text(angle = 0, hjust = 1)
+  ) +
+  labs(fill = "Korrelation", x = NULL, y = NULL) +
+  coord_fixed()
+```
+
+
 
 # Cronbachs Alpha
 ```{r}

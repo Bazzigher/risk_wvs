@@ -74,6 +74,183 @@ hardship_combined <- risktaking %>%
 head(hardship_combined)
 str(hardship_combined)
 ```
+# Heatmap all variables
+```{r}
+library(tidyverse)
+library(reshape2)
+library(ggplot2)
+
+# Klartextlabels: Crime
+var_labels <- c(
+  c_bh_homicide = "Homicide Rate",
+  c_bh_childmalt = "Child Maltreatment",
+  c_bh_violextchildprot = "Child Protection",
+  c_bh_parviolenceprog = "Partner Violence Prevention",
+  c_bh_elderabuse = "Elder Abuse",
+  c_theft_estcorruption = "Control of Corruption",
+  c_oth_polstab = "Political Stability"
+)
+
+# Klartextlabels: Health & Safety
+hs_labels <- c(
+  HS_alc_tax_wine = "Alcohol Tax (Wine)",
+  HS_alc_roaddeath = "Alcohol & Road Deaths",
+  HS_drg_treatment = "Drug Treatment Availability",
+  HS_nic_affordability = "Affordability of Nicotine",
+  HS_mh_policy = "Mental Health Policy",
+  HS_sex_gini = "Gender Inequality Index",
+  HS_oth_obesity = "Obesity Rate",
+  HS_oth_cleancooking = "Access to Clean Cooking",
+  HS_mh_mhhospit = "Mental Health Hospital Beds",
+  HS_sex_antiretroviral = "Access to Antiretrovirals",
+  HS_original_lifeexpectancy = "Life Expectancy",
+  HS_original_genderequality = "Gender Equality Score"
+)
+
+# Klartextlabels: Environment
+environment_factor_labels <- c(
+  e_oth_drinkingwater       = "Access to Drinking Water",
+  e_exp_watersanithyg100k   = "WASH-related Deaths (per 100k)",
+  e_exp_watersanithyg       = "Total WASH-Related Diarrhoea Deaths",
+  e_ses_gini                = "Gini Index (Income Inequality)",
+  e_ses_school              = "Mean Years of Schooling",
+  e_exp_disaster            = "Deaths Natural Disasters (per 100k)",
+  e_exp_airdeath100k        = "Deaths Air Pollution (per 100k)"
+)
+
+# Klartextlabels: Finance
+finance_factor_labels <- c(
+  f_inv_acctownership_primaryedu = "Financial Account Ownership (Low Edu)",
+  f_oth_insfinsvcs_int = "Insurance & Financial Service Imports",
+  f_hs_oopexp10 = "High Out-of-Pocket Health Spending",
+  f_eco_gdpdefl_linked = "Inflation (GDP Deflator)",
+  f_eco_cpi = "Inflation (Consumer Prices)",
+  f_original_gdp = "Gross Domestic Product (GDP)",
+  f_original_gini = "Gini Coefficient (Income Inequality)"
+)
+
+# 🔄 Alles zusammenführen in einen Vektor
+all_labels <- c(
+  var_labels,
+  hs_labels,
+  environment_factor_labels,
+  finance_factor_labels
+)
+
+# Auswahl aller relevanten numerischen Variablen für die Heatmap
+heatmap_vars <- c(
+  names(var_labels),
+  names(hs_labels),
+  names(environment_factor_labels),
+  names(finance_factor_labels)
+)
+```
+
+```{r}
+# 1. Labels zusammenführen
+all_labels <- c(var_labels, hs_labels, environment_factor_labels, finance_factor_labels)
+
+# 2. Auswahl relevanter numerischer Variablen
+selected_vars <- hardship_combined %>%  
+  select(all_of(names(all_labels))) %>% 
+  select(where(is.numeric))  
+
+# 3. Korrelationsmatrix berechnen
+cor_matrix <- cor(selected_vars, use = "pairwise.complete.obs")
+
+# 4. In langes Format umwandeln
+melted_cor <- melt(cor_matrix)
+
+# 5. Klartextlabels anwenden
+melted_cor <- melted_cor %>%
+  mutate(
+    Var1 = all_labels[as.character(Var1)],
+    Var2 = all_labels[as.character(Var2)]
+  )
+
+# 6. Heatmap plotten
+ggplot(melted_cor, aes(Var1, Var2, fill = value)) +
+  geom_tile() +
+  geom_text(aes(label = sprintf("%.2f", value)), size = 2) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1), 
+    axis.text.y = element_text(angle = 0, hjust = 1)
+  ) +
+  coord_fixed()
+```
+
+```{r}
+# 1. Duplikate entfernen (Symmetrie)
+cor_table <- melted_cor %>%
+  filter(as.character(Var1) != as.character(Var2)) %>%  # Ausschluss der Diagonale (Var1 = Var2)
+  rowwise() %>%
+  mutate(pair = paste(sort(c(Var1, Var2)), collapse = "_")) %>%  # eindeutige ID für Paare
+  ungroup() %>%
+  distinct(pair, .keep_all = TRUE) %>%  # nur eindeutige Paarungen behalten
+  select(Var1, Var2, Correlation = value) %>%
+  arrange(desc(abs(Correlation)))  # optional: nach Stärke sortieren
+
+# 2. Tabelle anzeigen
+head(cor_table, 1000)  # Zeigt die Top 10 stärksten Korrelationen
+
+# 3. Als CSV exportieren
+write.csv(cor_table, file = file.path(base_path, "correlation_table_clarnames.csv"), row.names = FALSE)
+```
+
+# Table with Correlation hardship factors and risktaking
+```{r}
+# Laden notwendiger Bibliotheken
+library(Hmisc)
+library(kableExtra)
+library(dplyr)
+
+# Auswahl aller numerischen Variablen
+numeric_vars <- hardship_combined %>%
+  select(where(is.numeric))
+
+# Berechnen der Korrelationsmatrix und der p-Werte
+cor_results <- rcorr(as.matrix(numeric_vars))
+
+# Korrelationen und p-Werte zu 'risktaking' extrahieren
+correlations <- cor_results$r[, "risktaking"]
+p_values <- cor_results$P[, "risktaking"]
+
+# Datentabelle erstellen
+cor_table <- data.frame(
+  Variable = rownames(cor_results$r),
+  Correlation = round(correlations, 5),
+  P_value = case_when(
+    p_values < .001 ~ "< .001",
+    p_values < .01  ~ paste0("= ", format(round(p_values, 3), nsmall = 3)),
+    p_values < .05  ~ paste0("= ", format(round(p_values, 2), nsmall = 2)),
+    TRUE            ~ paste0("= ", format(round(p_values, 2), nsmall = 2))
+  ),
+  Significant = ifelse(p_values < 0.05, "Yes", "No")
+)
+
+
+# Klartextlabels anwenden
+all_labels <- c(
+  var_labels,
+  hs_labels,
+  environment_factor_labels,
+  finance_factor_labels
+)
+
+cor_table$Variable <- ifelse(cor_table$Variable %in% names(all_labels),
+                             all_labels[cor_table$Variable],
+                             cor_table$Variable)
+
+# Tabelle ausgeben
+cor_table %>%
+  kable("html", caption = "Correlations with Risktaking: Summary of Results") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>%
+  column_spec(2, bold = TRUE) %>%
+  column_spec(3, background = "lightyellow")
+```
+
 
 ```{r}
 analyze_country <- function(df) {
@@ -257,133 +434,215 @@ hardship_combined$COUNTRY_NUM <- as.numeric(as.factor(hardship_combined$COUNTRY)
 head(hardship_combined)
 ```
 
+```{r}
+environment_factor_labels <- c(
+  e_oth_drinkingwater = "Access to Drinking Water",
+  e_exp_watersanithyg100k = "WASH-related Deaths (per 100k)",
+  e_exp_watersanithyg = "Total WASH-Related Diarrhoea Deaths",
+  e_ses_gini = "Gini Index (Income Inequality)",
+  e_ses_school = "Mean Years of Schooling",
+  e_exp_disaster = "Deaths Natural Disasters (per 100k)",
+  e_exp_airdeath100k = "Deaths Air Pollution (per 100k)"
+)
+
+# In DataFrame umwandeln
+environment_factor_df <- tibble(
+  risk_factor = names(environment_factor_labels),
+  risk_factor_label = unname(environment_factor_labels)
+)
+```
 
 # SCA with subset gender
 ```{r}
-# 📌 Liste von Kontrollvariablen definieren
+library(purrr)
+
+# Liste von Kontrollvariablen definieren
 controls <- list(
   "no_controls" = "",
   "country_control" = "+ COUNTRY_NUM"
 )
 
-# 📌 Liste von Risikofaktoren definieren
+# Liste von Risikofaktoren definieren (mit technischen Variablennamen)
 risk_factors <- list(
   "drinking_water" = "e_oth_drinkingwater",
   "water_sanitation" = "e_exp_watersanithyg100k",
   "gini" = "e_ses_gini",
   "school" = "e_ses_school",
   "disaster" = "e_exp_disaster",
-  "airdeath" = "e_exp_airdeath100k"
+  "airdeath" = "e_exp_airdeath100k", 
+  "Diarr_death" = "e_exp_watersanithyg"
 )
 
-# 📌 Alle Modellformeln aus Risikofaktoren und Kontrollvariablen generieren
+# Alle Modellformeln generieren
 formulas <- expand_grid(
   risk_factor = names(risk_factors),
   control = names(controls)
 ) %>%
   mutate(
-    formula = map2_chr(risk_factor, control, 
-                       ~ paste("risktaking ~", risk_factors[[.x]], controls[[.y]]))
-  ) %>%
-  pull(formula)  # Extrahiert die vollständigen Formeln als Vektor
+    formula = purrr::map2_chr(risk_factor, control, 
+                              ~ paste("risktaking ~", risk_factors[[.x]], controls[[.y]])),
+    risk_factor = purrr::map_chr(risk_factor, ~ risk_factors[[.x]])
+  )
 
-# 📌 OLS-Regression (lm)
+# OLS-Regression
 models <- list(
-  lm = function(formula, data) lm(as.formula(formula), data = data)
+  linear_model = function(formula, data) stats::lm(as.formula(formula), data = data)
 )
 
-# 📌 Erstelle Subsets nach Geschlecht und Alterskategorie
+# Subsets nach Geschlecht und Alterskategorie
 subsets <- expand_grid(
   gender = c("Male", "Female"),
   age_category = unique(hardship_combined$age_category)
 ) %>%
   mutate(
-    subset_data = pmap(list(gender, age_category), 
-                       ~ hardship_combined %>%
-                           filter(gender == ifelse(..1 == "Male", 1, 0), 
-                                  age_category == ..2))
+    subset_data = purrr::pmap(list(gender, age_category), 
+                              ~ hardship_combined %>%
+                                  filter(gender == ifelse(..1 == "Male", 1, 0), 
+                                         age_category == ..2))
   ) %>%
-  filter(map_int(subset_data, nrow) > 0)  # Entfernt leere Kombinationen
+  filter(purrr::map_int(subset_data, nrow) > 0)
 
-# 📌 Erstelle die vollständige Spezifikationen-Tabelle
+# Spezifikationstabelle
 specifications <- expand_grid(
   subset = subsets$subset_data,  
-  formula = formulas,
+  formula = formulas$formula,
+  risk_factor = formulas$risk_factor,
   model_name = names(models)
 ) %>%
   mutate(
-    gender = map_chr(subset, ~ ifelse(unique(.x$gender) == 1, "Male", "Female")),  # Extrahiert Geschlecht
-    age_category = map_chr(subset, ~ as.character(unique(.x$age_category))),  # Extrahiert Altersgruppe
-    model = pmap(list(formula, model_name, subset), 
-                 ~ models[[..2]](..1, data = ..3)),  # Modell berechnen
-    summary = map(model, broom::tidy),
-    conf_int = map(model, ~ broom::confint_tidy(.x))  # Konfidenzintervalle berechnen
+    gender = purrr::map_chr(subset, ~ ifelse(unique(.x$gender) == 1, "Male", "Female")),
+    age_category = purrr::map_chr(subset, ~ as.character(unique(.x$age_category))),
+    model = purrr::pmap(list(formula, model_name, subset), 
+                        ~ models[[..2]](..1, data = ..3)),
+    summary = purrr::map(model, broom::tidy),
+    conf_int = purrr::map(model, ~ broom::confint_tidy(.x))
   ) %>%
-  unnest(c(summary, conf_int))  # Entpackt die Modellzusammenfassung
+  unnest(c(summary, conf_int)) %>%
+  left_join(environment_factor_df, by = "risk_factor")
 
-# 📌 Prüfen, ob die Anzahl der Spezifikationen jetzt höher ist
+# Kontrolle
 n_specifications <- nrow(specifications)
 print(paste("Anzahl der berechneten Spezifikationen:", n_specifications))
-
-# 📌 Überprüfen, ob ALLE Gruppen korrekt erfasst wurden
 print(table(specifications$gender, specifications$age_category))
-
-# 📌 Prüfen, ob die Variablen korrekt gespeichert wurden
 print(names(specifications))
-
 ```
 
-
 ```{r}
-# 📌 Ergebnisse in eine vollständige Tabelle speichern
+# Ergebnisse in eine vollständige Tabelle speichern – mit Klartextnamen
 results_table <- specifications %>%
   select(
-    gender,          # Geschlecht
-    age_category,    # Altersgruppe
-    formula,         # Modellformel
-    term,            # Unabhängige Variable
-    estimate,        # Effektgröße
-    std.error,       # Standardfehler
-    conf.low,        # 95%-Konfidenzintervall (untere Grenze)
-    conf.high,       # 95%-Konfidenzintervall (obere Grenze)
-    p.value          # p-Wert
+    risk_factor_label,  # Klartextname des Prädiktors
+    gender,             
+    age_category,       
+    formula,            
+    term,               
+    estimate,           
+    std.error,          
+    conf.low,           
+    conf.high,          
+    p.value             
   ) %>%
   mutate(
-    significant = ifelse(p.value < 0.05, "yes", "no")  # Markierung für Signifikanz
+    significant = ifelse(p.value < 0.05, "yes", "no")
   ) %>%
-  arrange(gender, age_category, formula, term)  # Sortierung für bessere Lesbarkeit
+  arrange(gender, age_category, risk_factor_label, term)
 
-# 📌 Erste 20 Zeilen der Tabelle anzeigen
-print(head(results_table, 200))
+# Vorschau: Erste 20 Zeilen der Ergebnistabelle
+print(head(results_table, 20))
 
-# 📌 Anzahl der berechneten Spezifikationen
+# Anzahl der berechneten Spezifikationen anzeigen
 n_results <- nrow(results_table)
 print(paste("Anzahl der Ergebnisse in der Tabelle:", n_results))
 
-# 📌 Speichern als CSV für spätere Analyse
-# write.csv(results_table, "Complete_Regression_Results.csv", row.names = FALSE)
+# Optional: Speichern als CSV oder Excel
+# write.csv(results_table, "Environment_Regression_Results.csv", row.names = FALSE)
+# write_xlsx(results_table, "Environment_Regression_Results.xlsx")
 ```
 
+# Table summary
+```{r}
+# Table summary mit Klartextnamen
+library(dplyr)
+library(writexl)
+
+# Aggregierte Tabelle mit Klartextnamen der Risikofaktoren
+results_summary <- specifications %>%
+  filter(term == risk_factor) %>%  # Nur der eigentliche Prädiktor (nicht Intercept etc.)
+  group_by(risk_factor_label, gender, age_category) %>%  # Gruppierung nach Klartextname, Geschlecht und Alter
+  summarise(
+    Median_Estimate = round(median(estimate, na.rm = TRUE), 2),
+    Q25_Estimate = round(quantile(estimate, 0.25, na.rm = TRUE), 2),
+    Q75_Estimate = round(quantile(estimate, 0.75, na.rm = TRUE), 2),
+    Min_Estimate = round(min(estimate, na.rm = TRUE), 2),
+    Max_Estimate = round(max(estimate, na.rm = TRUE), 2),
+    Significant_Percent = round(mean(p.value < 0.05, na.rm = TRUE) * 100, 1)
+  ) %>%
+  arrange(gender, age_category, risk_factor_label)
+
+# Ausgabe anzeigen
+print(results_summary)
+
+# Optional: Speichern als Excel-Datei
+#write_xlsx(results_summary, "Environment_Regression_Summary.xlsx")
+```
+
+# SCA with the complete sample (Environment)
+```{r}
+# SCA with the complete sample (Environment)
+
+# Modellformeln für vollständige Stichprobe erweitern
+full_sample_formulas <- formulas %>%
+  mutate(full_formula = paste(formula, "+ gender + age_numeric + COUNTRY_NUM")) %>%
+  select(risk_factor, formula = full_formula)
+
+# Modelle berechnen für Gesamtdatensatz
+full_sample_models <- full_sample_formulas %>%
+  mutate(
+    model = purrr::map(formula, ~ lm(as.formula(.x), data = hardship_combined)),
+    summary = purrr::map(model, broom::tidy),
+    conf_int = purrr::map(model, ~ broom::confint_tidy(.x)),
+    gender = "All",
+    age_category = "All"
+  ) %>%
+  unnest(c(summary, conf_int)) %>%
+  left_join(environment_factor_df, by = "risk_factor")  # Klartextnamen einfügen
+
+# Ergebnisse mit Subgruppen kombinieren
+combined_results <- bind_rows(
+  specifications %>% 
+    select(formula, estimate, std.error, conf.low, conf.high, p.value, gender, age_category, term, risk_factor_label),
+  full_sample_models %>%
+    select(formula, estimate, std.error, conf.low, conf.high, p.value, gender, age_category, term, risk_factor_label)
+) %>%
+  mutate(
+    significant = ifelse(p.value < 0.05, "yes", "no"),
+    specification = row_number()
+  )
+
+# Speichern als Excel-Datei
+write_xlsx(combined_results, "Environment_Combined_Regression_Results.xlsx")
+print("Environment_Combined_Regression_Results.xlsx wurde erfolgreich gespeichert!")
+```
 
 ```{r}
-# Pakete laden (falls nicht bereits in setup geladen)
 library(ggplot2)
 library(dplyr)
 library(cowplot)
+library(patchwork)
 
 # Sicherstellen, dass die Variablen als Zeichenkette interpretiert werden
 environment_factor_names <- unlist(risk_factors, use.names = FALSE)
 
-# Plot-Dataframe anpassen
-plot_data <- specifications %>%
+# Plot-Dataframe vorbereiten
+plot_data <- combined_results %>%
   arrange(estimate) %>%
   mutate(
     specification = row_number(),
     significant = ifelse(p.value < 0.05, "yes", "no"),
-    term = as.character(term),  # Falls `term` ein Faktor ist, umwandeln
-    gender = factor(gender, levels = c("Male", "Female")),
-    age_category = factor(age_category, levels = c("Young Adults (15-25)", "Adults (26-45)", 
-                                                   "Middle-aged Adults (46-65)", "Seniors (66-99)"))
+    term = as.character(term),
+    gender = factor(gender, levels = rev(c("All", "Male", "Female"))),
+    age_category = factor(age_category, levels = rev(c("All", "Young Adults (15-25)", "Adults (26-45)", 
+                                                       "Middle-aged Adults (46-65)", "Seniors (66-99)")))
   )
 
 # Intercept ausfiltern
@@ -393,75 +652,199 @@ plot_data_filtered <- plot_data %>% filter(term != "(Intercept)")
 sig_colors <- c("no" = "red", "yes" = "black")
 n_specifications <- nrow(plot_data_filtered)
 
-# PLOT 1: Estimate mit Konfidenzintervallen (ohne Intercept)
+# Bereich der Full-Sample-Modelle ("All") berechnen
+all_specs <- plot_data_filtered %>%
+  filter(gender == "All", age_category == "All") %>%
+  pull(specification)
+
+x_min_all <- min(all_specs)
+x_max_all <- max(all_specs)
+x_label_all <- mean(c(x_min_all, x_max_all))
+
+# PLOT 1: Estimate mit Konfidenzintervallen
 p1 <- ggplot(plot_data_filtered, aes(x = specification, y = estimate, color = significant)) +
-  geom_point(alpha = 0.8, size = 2) +  
+  annotate("rect", xmin = x_min_all, xmax = x_max_all, ymin = -Inf, ymax = Inf,
+           fill = "lightgrey", alpha = 0.3) +
+  geom_point(alpha = 0.8, size = 2) +
   geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2, alpha = 0.5) +
   scale_color_manual(values = sig_colors) +
-  labs(y = "Estimate", x = paste0("Specification (n = ", n_specifications, ")"), color = "Significance") +
-  theme_classic() +  
-  theme(legend.position = "right")
-
-# PLOT 2: Gender Übersicht (Legende ausblenden)
-p2 <- ggplot(plot_data_filtered, aes(x = specification, y = gender, fill = significant)) +
-  geom_tile() +
-  scale_fill_manual(values = sig_colors) +
-  labs(x = "", y = "Gender\nGroup") +  
-  theme_classic() +
-  theme(legend.position = "none") 
-
-# PLOT 3: Altersgruppen Übersicht (Legende ausblenden)
-p3 <- ggplot(plot_data_filtered, aes(x = specification, y = age_category, fill = significant)) +
-  geom_tile() +
-  scale_fill_manual(values = sig_colors) +
-  labs(x = "", y = "Age\nGroup") +  
-  theme_classic() +
-  theme(legend.position = "none") 
-
-# PLOT 4: Health / Safety Faktoren Übersicht (Größe angepasst)
-p4 <- ggplot(plot_data_filtered %>% filter(term %in% risk_factors), 
-             aes(x = specification, y = term, fill = significant)) +
-  geom_tile() +
-  scale_fill_manual(values = sig_colors) +
-  scale_y_discrete(expand = expansion(mult = c(0.3, 0.3))) +  # Mehr Abstand zwischen Items
-  labs(x = "", y = "Risk\nFactors") +  
+  annotate("text", x = x_label_all, y = max(plot_data_filtered$estimate, na.rm = TRUE),
+           label = "", size = 4, fontface = "italic", vjust = -1) +
+  labs(y = "Estimate", x = "", color = "Significance") +
   theme_classic() +
   theme(
-    axis.text.y = element_text(size = 10, margin = margin(r = 20)),  # Schriftgröße und Abstand vergrößert
+    axis.title.y = element_text(face = "bold"),
+    axis.text.y = element_text(size = 10, hjust = 1, margin = margin(r = 5)),
+    legend.position = "none"
+  )
+
+# PLOT 2: Gender Übersicht
+p2 <- ggplot(plot_data_filtered, aes(x = specification, y = gender, fill = significant)) +
+  annotate("rect", xmin = x_min_all, xmax = x_max_all, ymin = -Inf, ymax = Inf,
+           fill = "lightgrey", alpha = 0.3) +
+  geom_tile() +
+  scale_fill_manual(values = sig_colors) +
+  labs(x = "", y = "Gender\nGroup") +
+  theme_classic() +
+  theme(
+    axis.title.y = element_text(face = "bold"),
+    axis.text.y = element_text(size = 12, hjust = 1, margin = margin(r = 5)),
+    legend.position = "none"
+  )
+
+# PLOT 3: Age Group Übersicht
+p3 <- ggplot(plot_data_filtered, aes(x = specification, y = age_category, fill = significant)) +
+  annotate("rect", xmin = x_min_all, xmax = x_max_all, ymin = -Inf, ymax = Inf,
+           fill = "lightgrey", alpha = 0.3) +
+  geom_tile() +
+  scale_fill_manual(values = sig_colors) +
+  labs(x = "", y = "Age\nGroup") +
+  theme_classic() +
+  theme(
+    axis.title.y = element_text(face = "bold"),
+    axis.text.y = element_text(size = 12, hjust = 1, margin = margin(r = 5)),
+    legend.position = "none"
+  )
+
+# PLOT 4: Risk Factors Übersicht mit Klartextnamen
+p4 <- ggplot(
+  plot_data_filtered %>% 
+    filter(term %in% names(environment_factor_labels)) %>%
+    mutate(term = environment_factor_labels[term]),
+  aes(x = specification, y = term, fill = significant)
+) +
+  annotate("rect", xmin = x_min_all, xmax = x_max_all, ymin = -Inf, ymax = Inf,
+           fill = "lightgrey", alpha = 0.3) +
+  geom_tile() +
+  scale_fill_manual(values = sig_colors) +
+  scale_y_discrete(expand = expansion(mult = c(0.2, 0.2))) +
+  labs(x = "", y = "Risk\nFactors") +
+  theme_classic() +
+  theme(
+    axis.title.y = element_text(face = "bold"),
+    axis.text.y = element_text(size = 12, hjust = 1, margin = margin(r = 5)),
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank(),
     legend.position = "none"
   )
 
-# Alle Plots zusammenführen (P4 größer)
-final_plot <- plot_grid(p1, p2, p3, p4, ncol = 1, rel_heights = c(3, 2, 2.5, 3))
+# Alle Plots kombinieren
+final_plot <- (p1 / p2 / p3 / p4) +
+  plot_layout(ncol = 1, heights = c(3, 2.5, 3.5, 7))
 
-# Plot ausgeben
+# Plot anzeigen
 print(final_plot)
 ```
 
-# Table summary
+
+# SCA Full Sample – Environment
 ```{r}
-# Pakete laden
 library(dplyr)
+library(purrr)
+library(tidyr)
+library(broom)
 library(writexl)
 
-# Aggregierte Tabelle erstellen
-results_summary <- specifications %>%
-  group_by(gender, age_category, term) %>%  # Gruppierung nach Prädiktoren & Alters-/Geschlechtskategorien
+# Kontrollvariablen definieren
+controls_full <- list(
+  "none"                = "",
+  "gender"              = "+ gender",
+  "age"                 = "+ age_numeric",
+  "country"             = "+ COUNTRY_NUM",
+  "gender_age"          = "+ gender + age_numeric",
+  "gender_country"      = "+ gender + COUNTRY_NUM",
+  "age_country"         = "+ age_numeric + COUNTRY_NUM",
+  "gender_age_country"  = "+ gender + age_numeric + COUNTRY_NUM"
+)
+
+# 🔧 Technische Namen verwenden für die Formel
+formulas_full_sample <- expand_grid(
+  risk_factor = names(environment_factor_labels),
+  control = names(controls_full)
+) %>%
+  mutate(
+    formula = map2_chr(risk_factor, control,
+                       ~ paste("risktaking ~", .x, controls_full[[.y]])),
+    risk_factor = risk_factor  # Technischer Name
+  )
+
+# Modelle berechnen
+full_sample_sca_env <- formulas_full_sample %>%
+  mutate(
+    model = map(formula, ~ lm(as.formula(.x), data = hardship_combined)),
+    summary = map(model, tidy),
+    conf_int = map(model, confint_tidy),
+    gender = "All",
+    age_category = "All"
+  ) %>%
+  unnest(c(summary, conf_int)) %>%
+  filter(term == risk_factor)  # nur Prädiktor selbst
+
+# Klartextnamen ergänzen
+full_sample_sca_env <- full_sample_sca_env %>%
+  left_join(environment_factor_df, by = c("term" = "risk_factor"))
+
+# Spezifikationsnummer hinzufügen
+full_sample_sca_env <- full_sample_sca_env %>%
+  mutate(
+    significant = ifelse(p.value < 0.05, "yes", "no"),
+    specification = row_number()
+  )
+
+# Zusammenfassung mit Median-p
+full_sample_summary_env <- full_sample_sca_env %>%
+  group_by(risk_factor_label) %>%
   summarise(
     Median_Estimate = round(median(estimate, na.rm = TRUE), 2),
     Q25_Estimate = round(quantile(estimate, 0.25, na.rm = TRUE), 2),
     Q75_Estimate = round(quantile(estimate, 0.75, na.rm = TRUE), 2),
     Min_Estimate = round(min(estimate, na.rm = TRUE), 2),
     Max_Estimate = round(max(estimate, na.rm = TRUE), 2),
-    Significant_Percent = round(mean(p.value < 0.05, na.rm = TRUE) * 100, 1)  # Prozent signifikanter Werte
+    Median_p = median(p.value, na.rm = TRUE),
+    Min_p = min(p.value, na.rm = TRUE),
+    Max_p = max(p.value, na.rm = TRUE),
+    n_specifications = n()
   ) %>%
-  arrange(gender, age_category, term)  # Sortierung für bessere Lesbarkeit
+  arrange(desc(abs(Median_Estimate)))
 
-# Tabelle anzeigen
-print(results_summary)
+# APA-konforme p-Werte
+full_sample_summary_env <- full_sample_summary_env %>%
+  mutate(
+    Median_p = ifelse(Median_p < .001, "< .001", paste0("= ", format(round(Median_p, 3), nsmall = 3))),
+    Min_p = ifelse(Min_p < .001, "< .001", paste0("= ", format(round(Min_p, 3), nsmall = 3))),
+    Max_p = ifelse(Max_p < .001, "< .001", paste0("= ", format(round(Max_p, 3), nsmall = 3)))
+  )
 
-# Speichern als Excel-Datei
-write_xlsx(results_summary, "Environment_Regression_Summary.xlsx")
+# Export
+write_xlsx(full_sample_summary_env, "AppL1_Environment_FullSample_Summary_APA.xlsx")
+print(full_sample_summary_env)
 ```
+
+# Results for SCA Subgroups – Robust Effects (Environment)
+```{r}
+library(dplyr)
+library(readxl)
+library(writexl)
+
+# Filterkriterien festlegen
+threshold_significance <- 60    # mindestens 60% der Modelle signifikant
+threshold_effect_size  <- 0.1   # median |β| ≥ 0.1
+
+# Aggregierte Ergebnistabelle laden (falls noch nicht vorhanden)
+# results_summary <- read_xlsx("Environment_Regression_Summary.xlsx")  # optional
+
+# Robuste Effekte extrahieren
+key_results_env <- results_summary %>%
+  filter(
+    Significant_Percent >= threshold_significance,
+    abs(Median_Estimate) >= threshold_effect_size
+  ) %>%
+  arrange(gender, age_category, desc(Significant_Percent), desc(abs(Median_Estimate)))
+
+# Ergebnisse anzeigen
+print(key_results_env)
+
+# Export nach Excel
+write_xlsx(key_results_env, "AppL2_Environment_KeyPredictors.xlsx")
+```
+

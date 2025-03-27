@@ -6,10 +6,9 @@ output:
 date: "2024-05-08"
 ---
 
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(message = FALSE, warning = FALSE)
-rm(list = ls())
+#rm(list = ls())
 ```
 
 ## Set path Laura: ONLY USE FOR LAURA 
@@ -105,8 +104,31 @@ hardship_combined$COUNTRY_NUM <- as.numeric(as.factor(hardship_combined$COUNTRY)
 head(hardship_combined)
 ```
 
+```{r}
+# Klartextnamen der Risiko-Faktoren definieren
+risk_factor_labels <- c(
+  HS_alc_tax_wine = "Alcohol Tax (Wine)",
+  HS_alc_roaddeath = "Alcohol & Road Deaths",
+  HS_drg_treatment = "Drug Treatment Availability",
+  HS_nic_affordability = "Affordability of Nicotine",
+  HS_mh_policy = "Mental Health Policy",
+  HS_sex_gini = "Gender Inequality Index",
+  HS_oth_obesity = "Obesity Rate",
+  HS_oth_cleancooking = "Access to Clean Cooking",
+  HS_mh_mhhospit = "Mental Health Hospital Beds",
+  HS_sex_antiretroviral = "Access to Antiretrovirals",
+  HS_original_lifeexpectancy = "Life Expectancy",
+  HS_original_genderequality = "Gender Equality Score"
+)
 
-# SCA with subset gender
+# In ein Dataframe für spätere Joins umwandeln
+risk_factor_df <- tibble(
+  risk_factor = names(risk_factor_labels),
+  risk_factor_label = unname(risk_factor_labels)
+)
+```
+
+# SCA with subset gender and age groups
 ```{r}
 # SCA with subset gender for Health / Safety Hardship Index
 controls <- list(
@@ -137,9 +159,9 @@ formulas <- expand_grid(
 ) %>%
   mutate(
     formula = map2_chr(risk_factor, control, 
-                       ~ paste("risktaking ~", health_safety_factors[[.x]], controls[[.y]]))
-  ) %>%
-  pull(formula)
+                       ~ paste("risktaking ~", health_safety_factors[[.x]], controls[[.y]])),
+    risk_factor = map_chr(risk_factor, ~ health_safety_factors[[.x]])  # HS_... Name speichern
+  )
 
 # Modelle definieren
 models <- list(
@@ -162,7 +184,8 @@ subsets <- expand_grid(
 # Spezifikationen erstellen und Modelle schätzen
 specifications <- expand_grid(
   subset = subsets$subset_data,  
-  formula = formulas,
+  formula = formulas$formula,
+  risk_factor = formulas$risk_factor,
   model_name = names(models)
 ) %>%
   mutate(
@@ -173,33 +196,42 @@ specifications <- expand_grid(
     summary = map(model, broom::tidy),
     conf_int = map(model, ~ broom::confint_tidy(.x))
   ) %>%
-  unnest(c(summary, conf_int))
+  unnest(c(summary, conf_int)) %>%
+  left_join(risk_factor_df, by = "risk_factor")  # Klartextnamen ergänzen
 
+# Vorschau
 print(nrow(specifications))
 print(table(specifications$gender, specifications$age_category))
 print(names(specifications))
+
+# Beispielausgabe mit Klartextnamen
+specifications %>%
+  select(risk_factor_label, gender, age_category, term, estimate, conf.low, conf.high) %>%
+  head()
 ```
 
 
 ```{r}
-# Ergebnisse als Tabelle speichern
+# Ergebnisse als Tabelle speichern – mit Klartextnamen
 results_table <- specifications %>%
   select(
-    gender,          
-    age_category,    
-    formula,         
-    term,            
-    estimate,        
-    std.error,       
-    conf.low,        
-    conf.high,       
-    p.value          
+    risk_factor_label,  # Klartext-Name hinzufügen
+    gender,             
+    age_category,       
+    formula,            # optional: kann auch raus, wenn nicht gebraucht
+    term,               
+    estimate,           
+    std.error,          
+    conf.low,           
+    conf.high,          
+    p.value             
   ) %>%
   mutate(
     significant = ifelse(p.value < 0.05, "yes", "no")  
   ) %>%
-  arrange(gender, age_category, formula, term)  
+  arrange(gender, age_category, risk_factor_label, term)  # Sortiert nach Klartext-Namen
 
+# Vorschau
 print(head(results_table, 2000))
 
 # Speichern der Ergebnisse als Excel-Datei
@@ -207,25 +239,84 @@ write_xlsx(results_table, "HealthSafety_Regression_Results.xlsx")
 print("HealthSafety_Regression_Results.xlsx wurde erfolgreich gespeichert!")
 ```
 
+# Table summary
+```{r}
+# Nur die relevanten Prädiktoren auswählen (nicht Intercept, nicht andere)
+results_summary <- specifications %>%
+  filter(term == risk_factor) %>%  # nur der tatsächliche Prädiktor
+  group_by(risk_factor_label, gender, age_category) %>%
+  summarise(
+    Median_Estimate = round(median(estimate, na.rm = TRUE), 2),
+    Q25_Estimate = round(quantile(estimate, 0.25, na.rm = TRUE), 2),
+    Q75_Estimate = round(quantile(estimate, 0.75, na.rm = TRUE), 2),
+    Min_Estimate = round(min(estimate, na.rm = TRUE), 2),
+    Max_Estimate = round(max(estimate, na.rm = TRUE), 2),
+    Significant_Percent = round(mean(p.value < 0.05, na.rm = TRUE) * 100, 1)
+  ) %>%
+  arrange(gender, age_category, risk_factor_label)
+
+# Ausgabe prüfen
+print(results_summary)
+
+# Export
+write_xlsx(results_summary, "HealthSafety_Regression_Summary.xlsx")
+```
+
+# SCA with the complete sample
+```{r}
+# Modelle für den Gesamtdatensatz mit zusätzlichen Kovariaten
+# Wir nehmen nur die Zeichenketten aus formulas$formula
+full_sample_formulas <- formulas$formula %>%
+  map_chr(~ paste(.x, "+ gender + age_numeric + COUNTRY_NUM"))
+
+# Modelle berechnen
+full_sample_models <- tibble(
+  formula = full_sample_formulas
+) %>%
+  mutate(
+    model = map(formula, ~ lm(as.formula(.x), data = hardship_combined)),
+    summary = map(model, broom::tidy),
+    conf_int = map(model, broom::confint_tidy),
+    gender = "All",
+    age_category = "All"
+  ) %>%
+  unnest(c(summary, conf_int))
+
+# Ergebnisse kombinieren
+combined_results <- bind_rows(
+  specifications %>% select(formula, estimate, std.error, conf.low, conf.high, p.value, gender, age_category, term),
+  full_sample_models %>% select(formula, estimate, std.error, conf.low, conf.high, p.value, gender, age_category, term)
+) %>%
+  mutate(
+    significant = ifelse(p.value < 0.05, "yes", "no"),
+    specification = row_number()
+  )
+
+# Export
+write_xlsx(combined_results, "HealthSafety_Combined_Regression_Results.xlsx")
+print("HealthSafety_Combined_Regression_Results.xlsx wurde erfolgreich gespeichert!")
+```
+
 
 ```{r}
 library(ggplot2)
 library(dplyr)
 library(cowplot)
+library(patchwork)
 
 # Sicherstellen, dass die Variablen als Zeichenkette interpretiert werden
 health_safety_factor_names <- unlist(health_safety_factors, use.names = FALSE)
 
 # Plot-Dataframe anpassen
-plot_data <- specifications %>%
+plot_data <- combined_results %>%
   arrange(estimate) %>%
   mutate(
     specification = row_number(),
     significant = ifelse(p.value < 0.05, "yes", "no"),
-    term = as.character(term),  # Falls `term` ein Faktor ist, umwandeln
-    gender = factor(gender, levels = c("Male", "Female")),
-    age_category = factor(age_category, levels = c("Young Adults (15-25)", "Adults (26-45)", 
-                                                   "Middle-aged Adults (46-65)", "Seniors (66-99)"))
+    term = as.character(term),
+    gender = factor(gender, levels = rev(c("All", "Male", "Female"))),
+    age_category = factor(age_category, levels = rev(c("All", "Young Adults (15-25)", "Adults (26-45)", 
+                                                       "Middle-aged Adults (46-65)", "Seniors (66-99)")))
   )
 
 # Intercept ausfiltern
@@ -235,82 +326,209 @@ plot_data_filtered <- plot_data %>% filter(term != "(Intercept)")
 sig_colors <- c("no" = "red", "yes" = "black")
 n_specifications <- nrow(plot_data_filtered)
 
-# PLOT 1: Estimate mit Konfidenzintervallen (ohne Intercept)
+# Bereich der Full-Sample-Modelle ("All") berechnen
+all_specs <- plot_data_filtered %>%
+  filter(gender == "All", age_category == "All") %>%
+  pull(specification)
+
+x_min_all <- min(all_specs)
+x_max_all <- max(all_specs)
+x_label_all <- mean(c(x_min_all, x_max_all))
+
+# PLOT 1: Estimate mit Konfidenzintervallen + Annotation
 p1 <- ggplot(plot_data_filtered, aes(x = specification, y = estimate, color = significant)) +
-  geom_point(alpha = 0.8, size = 2) +  # Kleinere Punkte
+  annotate("rect", xmin = x_min_all, xmax = x_max_all, ymin = -Inf, ymax = Inf,
+           fill = "lightgrey", alpha = 0.3) +
+  geom_point(alpha = 0.8, size = 1) +
   geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2, alpha = 0.5) +
   scale_color_manual(values = sig_colors) +
-  labs(y = "Estimate", x = paste0("Specification (n = ", n_specifications, ")"), color = "Significance") +
-  theme_classic() +  # Entfernt Hintergrundlinien
-  theme(legend.position = "right")
+  labs(y = "Estimate", x = "", color = "Significance") +
+  theme_classic() +
+  theme(
+    axis.title.y = element_text(face = "bold"),
+    axis.text.y = element_text(size = 10, hjust = 1, margin = margin(r = 5)),
+    legend.position = "none"
+  )
 
-# PLOT 2: Gender Übersicht (Legende ausblenden)
+# PLOT 2: Gender Übersicht
 p2 <- ggplot(plot_data_filtered, aes(x = specification, y = gender, fill = significant)) +
+  annotate("rect", xmin = x_min_all, xmax = x_max_all, ymin = -Inf, ymax = Inf,
+           fill = "lightgrey", alpha = 0.3) +
   geom_tile() +
   scale_fill_manual(values = sig_colors) +
-  labs(x = "", y = "Gender\nGroup") +  
+  labs(x = "", y = "Gender\nGroup") +
   theme_classic() +
-  theme(legend.position = "none") 
+  theme(
+    axis.title.y = element_text(face = "bold"),
+    axis.text.y = element_text(size = 12, hjust = 1, margin = margin(r = 5)),
+    legend.position = "none"
+  )
 
-# PLOT 3: Altersgruppen Übersicht (Legende ausblenden)
+# PLOT 3: Age Group Übersicht
 p3 <- ggplot(plot_data_filtered, aes(x = specification, y = age_category, fill = significant)) +
+  annotate("rect", xmin = x_min_all, xmax = x_max_all, ymin = -Inf, ymax = Inf,
+           fill = "lightgrey", alpha = 0.3) +
   geom_tile() +
   scale_fill_manual(values = sig_colors) +
-  labs(x = "", y = "Age\nGroup") +  
+  labs(x = "", y = "Age\nGroup") +
   theme_classic() +
-  theme(legend.position = "none") 
+  theme(
+    axis.title.y = element_text(face = "bold"),
+    axis.text.y = element_text(size = 12, hjust = 1, margin = margin(r = 5)),
+    legend.position = "none"
+  )
 
-# PLOT 4: Health / Safety Faktoren Übersicht (Legende ausblenden)
-p4 <- ggplot(plot_data_filtered %>% filter(term %in% health_safety_factor_names), 
-             aes(x = specification, y = term, fill = significant)) +
+# PLOT 4: Risk Factors Übersicht
+p4 <- ggplot(
+  plot_data_filtered %>% 
+    filter(term %in% names(risk_factor_labels)) %>%
+    mutate(term = risk_factor_labels[term]),
+  aes(x = specification, y = term, fill = significant)
+) +
+  annotate("rect", xmin = x_min_all, xmax = x_max_all, ymin = -Inf, ymax = Inf,
+           fill = "lightgrey", alpha = 0.3) +
   geom_tile() +
   scale_fill_manual(values = sig_colors) +
   scale_y_discrete(expand = expansion(mult = c(0.2, 0.2))) +
-  labs(x = "", y = "Risk\n Factors") +  
+  labs(x = "", y = "Risk\nFactors") +
   theme_classic() +
   theme(
-    axis.text.y = element_text(size = 8, margin = margin(r = 20)),
+    axis.title.y = element_text(face = "bold"),
+    axis.text.y = element_text(size = 12, hjust = 1, margin = margin(r = 5)),
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank(),
-    legend.position = "none"  
+    legend.position = "none"
   )
 
-# Alle Plots zusammenführen
-final_plot <- plot_grid(p1, p2, p3, p4, ncol = 1, rel_heights = c(3, 2, 2.5, 4))
+# Plots kombinieren
+final_plot <- (p1 / p2 / p3 / p4) +
+  plot_layout(ncol = 1, heights = c(3, 2.5, 3.5, 8))
 
-# Plot ausgeben
+
+# Plot anzeigen
 print(final_plot)
 ```
 
-
-# Table summary
+# Results for SCA full sample
 ```{r}
-# Pakete laden
 library(dplyr)
+library(purrr)
+library(tidyr)
+library(broom)
 library(writexl)
 
-# Aggregierte Tabelle erstellen
-results_summary <- specifications %>%
-  group_by(gender, age_category, term) %>%  # Gruppierung nach Prädiktoren & Alters-/Geschlechtskategorien
+# Kontrollvariablen definieren (analog zu Subgruppen-SCA, aber erweitert)
+controls_full <- list(
+  "none"                = "",
+  "gender"              = "+ gender",
+  "age"                 = "+ age_numeric",
+  "country"             = "+ COUNTRY_NUM",
+  "gender_age"          = "+ gender + age_numeric",
+  "gender_country"      = "+ gender + COUNTRY_NUM",
+  "age_country"         = "+ age_numeric + COUNTRY_NUM",
+  "gender_age_country"  = "+ gender + age_numeric + COUNTRY_NUM"
+)
+
+# Erstelle alle Formelkombinationen: Prädiktor × Kontrollvariante
+formulas_full_sample <- expand_grid(
+  risk_factor = names(health_safety_factors),
+  control = names(controls_full)
+) %>%
+  mutate(
+    formula = map2_chr(risk_factor, control,
+                       ~ paste("risktaking ~", health_safety_factors[[.x]], controls_full[[.y]])),
+    risk_factor = map_chr(risk_factor, ~ health_safety_factors[[.x]])
+  )
+
+# Modelle für das Gesamtsample berechnen
+full_sample_sca <- formulas_full_sample %>%
+  mutate(
+    model = map(formula, ~ lm(as.formula(.x), data = hardship_combined)),
+    summary = map(model, tidy),
+    conf_int = map(model, confint_tidy),
+    gender = "All",
+    age_category = "All"
+  ) %>%
+  unnest(c(summary, conf_int)) %>%
+  filter(term == risk_factor)  # nur Prädiktor selbst
+
+# Klartextnamen der Variablen ergänzen
+full_sample_sca <- full_sample_sca %>%
+  left_join(risk_factor_df, by = c("term" = "risk_factor"))
+
+# Spezifikationsnummer hinzufügen
+full_sample_sca <- full_sample_sca %>%
+  mutate(
+    significant = ifelse(p.value < 0.05, "yes", "no"),
+    specification = row_number()
+  )
+
+# Zusammenfassungstabelle mit Median-p-Werten (roh)
+full_sample_summary <- full_sample_sca %>%
+  group_by(risk_factor_label) %>%
   summarise(
     Median_Estimate = round(median(estimate, na.rm = TRUE), 2),
     Q25_Estimate = round(quantile(estimate, 0.25, na.rm = TRUE), 2),
     Q75_Estimate = round(quantile(estimate, 0.75, na.rm = TRUE), 2),
     Min_Estimate = round(min(estimate, na.rm = TRUE), 2),
     Max_Estimate = round(max(estimate, na.rm = TRUE), 2),
-    Significant_Percent = round(mean(p.value < 0.05, na.rm = TRUE) * 100, 1)  # Prozent signifikanter Werte
+    Median_p = median(p.value, na.rm = TRUE),
+    Min_p = min(p.value, na.rm = TRUE),
+    Max_p = max(p.value, na.rm = TRUE),
+    n_specifications = n()
   ) %>%
-  arrange(gender, age_category, term)  # Sortierung für bessere Lesbarkeit
+  arrange(desc(abs(Median_Estimate)))
 
-# Tabelle anzeigen
-print(results_summary)
+# APA-konforme Formatierung der p-Werte
+full_sample_summary <- full_sample_summary %>%
+  mutate(
+    Median_p = ifelse(Median_p < .001, "< .001", paste0("= ", format(round(Median_p, 3), nsmall = 3))),
+    Min_p = ifelse(Min_p < .001, "< .001", paste0("= ", format(round(Min_p, 3), nsmall = 3))),
+    Max_p = ifelse(Max_p < .001, "< .001", paste0("= ", format(round(Max_p, 3), nsmall = 3)))
+  )
 
-# Speichern als Excel-Datei
-write_xlsx(results_summary, "HealthSafety_Regression_Summary.xlsx")
-print("HealthSafety_Regression_Summary.xlsx wurde erfolgreich gespeichert!")
+# Export
+write_xlsx(full_sample_summary, "AppI1_HealthSafety_FullSample_Summary_APA.xlsx")
+print(full_sample_summary)
 ```
 
+# Results for SCA with subgroups Robuster Effekte
+```{r}
+library(readxl)
+library(dplyr)
+library(writexl)
+
+# Filterkriterien definieren
+threshold_significance <- 60    # mind. 60 % signifikant
+threshold_effect_size  <- 0.1   # |Median Estimate| >= 0.1
+
+# Wichtigste Prädiktoren filtern
+key_results <- results_summary %>%
+  filter(
+    Significant_Percent >= threshold_significance,
+    abs(Median_Estimate) >= threshold_effect_size
+  ) %>%
+  arrange(gender, age_category, desc(Significant_Percent), desc(abs(Median_Estimate)))
+
+# Ergebnis anzeigen
+print(key_results)
+
+# Optional: Export
+write_xlsx(key_results, "AppI2_HealthSafety_KeyPredictors.xlsx")
+print(key_results)
+```
+
+# Specifications (amount)
+```{r}
+nrow(full_sample_sca)
 
 
+library(dplyr)
 
+specifications %>%
+  group_by(gender, age_category) %>%
+  summarise(n_specifications = n()) %>%
+  arrange(gender, age_category)
+nrow(specifications)
+```
 

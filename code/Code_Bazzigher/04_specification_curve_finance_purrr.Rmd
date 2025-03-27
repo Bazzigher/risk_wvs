@@ -9,7 +9,7 @@ date: "2024-05-08"
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(message = FALSE, warning = FALSE)
-rm(list = ls())
+#rm(list = ls())
 ```
 
 ## Set path Laura: ONLY USE FOR LAURA 
@@ -106,13 +106,34 @@ head(hardship_combined)
 ```
 
 
+```{r}
+# Klartextnamen für Finance Hardship Indicators
+finance_factor_labels <- c(
+  f_inv_acctownership_primaryedu = "Financial Account Ownership (Low Edu)",
+  f_oth_insfinsvcs_int = "Insurance & Financial Service Imports",
+  f_hs_oopexp10 = "High Out-of-Pocket Health Spending",
+  f_eco_gdpdefl_linked = "Inflation (GDP Deflator)",
+  f_eco_cpi = "Inflation (Consumer Prices)",
+  f_original_gdp = "Gross Domestic Product (GDP)",
+  f_original_gini = "Gini Coefficient (Income Inequality)"
+)
+
+finance_factor_df <- tibble(
+  risk_factor = names(finance_factor_labels),
+  risk_factor_label = unname(finance_factor_labels)
+)
+```
+
+
 # SCA with subset gender
 ```{r}
+# SCA for Finance Hardship Index (subset by gender and age)
 controls <- list(
   "no_controls" = "",
   "country_control" = "+ COUNTRY_NUM"
 )
 
+# Finance-Faktoren
 risk_factors <- list(
   "acctownership" = "f_inv_acctownership_primaryedu",
   "insfinsvcs" = "f_oth_insfinsvcs_int",
@@ -123,20 +144,23 @@ risk_factors <- list(
   "original_gini" = "f_original_gini"
 )
 
+# Formeln erzeugen
 formulas <- expand_grid(
   risk_factor = names(risk_factors),
   control = names(controls)
 ) %>%
   mutate(
     formula = map2_chr(risk_factor, control, 
-                       ~ paste("risktaking ~", risk_factors[[.x]], controls[[.y]]))
-  ) %>%
-  pull(formula)
+                       ~ paste("risktaking ~", risk_factors[[.x]], controls[[.y]])),
+    risk_factor = map_chr(risk_factor, ~ risk_factors[[.x]])  
+  )
 
+# Modelle
 models <- list(
   lm = function(formula, data) lm(as.formula(formula), data = data)
 )
 
+# Subsets nach Gender × Age
 subsets <- expand_grid(
   gender = c("Male", "Female"),
   age_category = unique(hardship_combined$age_category)
@@ -149,9 +173,11 @@ subsets <- expand_grid(
   ) %>%
   filter(map_int(subset_data, nrow) > 0)
 
+# Modelle schätzen
 specifications <- expand_grid(
   subset = subsets$subset_data,  
-  formula = formulas,
+  formula = formulas$formula,
+  risk_factor = formulas$risk_factor,
   model_name = names(models)
 ) %>%
   mutate(
@@ -162,118 +188,44 @@ specifications <- expand_grid(
     summary = map(model, broom::tidy),
     conf_int = map(model, ~ broom::confint_tidy(.x))
   ) %>%
-  unnest(c(summary, conf_int))
+  unnest(c(summary, conf_int)) %>%
+  left_join(finance_factor_df, by = "risk_factor")  # Klartextnamen ergänzen
 
+# Kontrolle
 print(nrow(specifications))
 print(table(specifications$gender, specifications$age_category))
-print(names(specifications))
 ```
 
 
 ```{r}
 results_table <- specifications %>%
+  filter(term == risk_factor) %>%
   select(
-    gender,          # Geschlecht
-    age_category,    # Altersgruppe
-    formula,         # Modellformel
-    term,            # Unabhängige Variable
-    estimate,        # Effektgröße
-    std.error,       # Standardfehler
-    conf.low,        # 95%-Konfidenzintervall (untere Grenze)
-    conf.high,       # 95%-Konfidenzintervall (obere Grenze)
-    p.value          # p-Wert
+    risk_factor_label,  # Klartextname
+    gender,             # Geschlecht
+    age_category,       # Altersgruppe
+    formula,            # Formel zur Nachvollziehbarkeit (optional)
+    term,               # Prädiktorvariable (gleich risk_factor)
+    estimate,           # Effekt
+    std.error,          # Standardfehler
+    conf.low,           # Konfidenzintervall unten
+    conf.high,          # Konfidenzintervall oben
+    p.value             # p-Wert
   ) %>%
   mutate(
-    significant = ifelse(p.value < 0.05, "yes", "no")  # Markierung für Signifikanz
+    significant = ifelse(p.value < 0.05, "yes", "no")  # Signifikanz-Spalte
   ) %>%
-  arrange(gender, age_category, formula, term)  # Sortierung für bessere Lesbarkeit
+  arrange(gender, age_category, risk_factor_label, term)  # Für bessere Übersichtlichkeit
 
-# 📌 Erste 20 Zeilen der Tabelle anzeigen
-print(head(results_table, 200))
+# Vorschau anzeigen (erste 20 Zeilen)
+print(head(results_table, 20))
 
-# 📌 Anzahl der berechneten Spezifikationen
-n_results <- nrow(results_table)
-print(paste("Anzahl der Ergebnisse in der Tabelle:", n_results))
+# Gesamtanzahl der Ergebnisse
+print(paste("Anzahl der Prädiktor-Ergebnisse:", nrow(results_table)))
 
-# 📌 Speichern als Excel-Datei
+# Export als Excel-Datei
 write_xlsx(results_table, "Finance_Regression_Results.xlsx")
-
 print("Finance_Regression_Results.xlsx wurde erfolgreich gespeichert!")
-```
-
-```{r}
-# Pakete laden (falls nicht bereits in setup geladen)
-library(ggplot2)
-library(dplyr)
-library(cowplot)
-
-# Sicherstellen, dass die Variablen als Zeichenkette interpretiert werden
-finance_factor_names <- unlist(risk_factors, use.names = FALSE)
-
-# Plot-Dataframe anpassen
-plot_data <- specifications %>%
-  arrange(estimate) %>%
-  mutate(
-    specification = row_number(),
-    significant = ifelse(p.value < 0.05, "yes", "no"),
-    term = as.character(term),  # Falls `term` ein Faktor ist, umwandeln
-    gender = factor(gender, levels = c("Male", "Female")),
-    age_category = factor(age_category, levels = c("Young Adults (15-25)", "Adults (26-45)", 
-                                                   "Middle-aged Adults (46-65)", "Seniors (66-99)"))
-  )
-
-# Intercept ausfiltern
-plot_data_filtered <- plot_data %>% filter(term != "(Intercept)")
-
-# Farben für Signifikanz
-sig_colors <- c("no" = "red", "yes" = "black")
-n_specifications <- nrow(plot_data_filtered)
-
-# PLOT 1: Estimate mit Konfidenzintervallen (ohne Intercept)
-p1 <- ggplot(plot_data_filtered, aes(x = specification, y = estimate, color = significant)) +
-  geom_point(alpha = 0.8, size = 2) +  
-  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2, alpha = 0.5) +
-  scale_color_manual(values = sig_colors) +
-  labs(y = "Estimate", x = paste0("Specification (n = ", n_specifications, ")"), color = "Significance") +
-  theme_classic() +  
-  theme(legend.position = "right")
-
-# PLOT 2: Gender Übersicht (Legende ausblenden)
-p2 <- ggplot(plot_data_filtered, aes(x = specification, y = gender, fill = significant)) +
-  geom_tile() +
-  scale_fill_manual(values = sig_colors) +
-  labs(x = "", y = "Gender\nGroup") +  
-  theme_classic() +
-  theme(legend.position = "none") 
-
-# PLOT 3: Altersgruppen Übersicht (Legende ausblenden)
-p3 <- ggplot(plot_data_filtered, aes(x = specification, y = age_category, fill = significant)) +
-  geom_tile() +
-  scale_fill_manual(values = sig_colors) +
-  labs(x = "", y = "Age\nGroup") +  
-  theme_classic() +
-  theme(legend.position = "none") 
-
-# PLOT 4: Health / Safety Faktoren Übersicht (Größe angepasst)
-p4 <- ggplot(plot_data_filtered %>% filter(term %in% risk_factors), 
-             aes(x = specification, y = term, fill = significant)) +
-  geom_tile() +
-  scale_fill_manual(values = sig_colors) +
-  scale_y_discrete(expand = expansion(mult = c(0.3, 0.3))) +  # Mehr Abstand zwischen Items
-  labs(x = "", y = "Risk\nFactors") +  
-  theme_classic() +
-  theme(
-    axis.text.y = element_text(size = 10, margin = margin(r = 20)),  # Schriftgröße und Abstand vergrößert
-    axis.text.x = element_blank(),
-    axis.ticks.x = element_blank(),
-    legend.position = "none"
-  )
-
-# Alle Plots zusammenführen (P4 größer)
-final_plot <- plot_grid(p1, p2, p3, p4, ncol = 1, rel_heights = c(3, 2, 2.5, 4))
-
-# Plot ausgeben
-print(final_plot)
 ```
 
 # Table summary
@@ -284,24 +236,293 @@ library(writexl)
 
 # Aggregierte Tabelle erstellen
 results_summary <- specifications %>%
-  group_by(gender, age_category, term) %>%  # Gruppierung nach Prädiktoren & Alters-/Geschlechtskategorien
+  filter(term == risk_factor) %>%
+  group_by(risk_factor_label, gender, age_category) %>%
   summarise(
     Median_Estimate = round(median(estimate, na.rm = TRUE), 2),
     Q25_Estimate = round(quantile(estimate, 0.25, na.rm = TRUE), 2),
     Q75_Estimate = round(quantile(estimate, 0.75, na.rm = TRUE), 2),
     Min_Estimate = round(min(estimate, na.rm = TRUE), 2),
     Max_Estimate = round(max(estimate, na.rm = TRUE), 2),
-    Significant_Percent = round(mean(p.value < 0.05, na.rm = TRUE) * 100, 1)  # Prozent signifikanter Werte
+    Significant_Percent = round(mean(p.value < 0.05, na.rm = TRUE) * 100, 1)
   ) %>%
-  arrange(gender, age_category, term)  # Sortierung für bessere Lesbarkeit
+  arrange(gender, age_category, risk_factor_label)
 
 # Tabelle anzeigen
 print(results_summary)
 
 # Speichern als Excel-Datei
 write_xlsx(results_summary, "Finance_Regression_Summary.xlsx")
+print("Finance_Regression_Summary.xlsx wurde erfolgreich gespeichert!")
+```
+
+# SCA with the full sample
+```{r}
+full_sample_formulas <- formulas %>%
+  mutate(full_formula = paste(formula, "+ gender + age_numeric + COUNTRY_NUM")) %>%
+  select(risk_factor, formula = full_formula)
+
+# Modelle berechnen
+full_sample_models <- full_sample_formulas %>%
+  mutate(
+    model = map(formula, ~ lm(as.formula(.x), data = hardship_combined)),
+    summary = map(model, broom::tidy),
+    conf_int = map(model, ~ broom::confint_tidy(.x)),
+    gender = "All",
+    age_category = "All"
+  ) %>%
+  unnest(c(summary, conf_int)) %>%
+  left_join(finance_factor_df, by = "risk_factor")  # 🔁 Klartextnamen hinzufügen
+
+# Ergebnisse kombinieren mit den Subgruppen
+combined_results <- bind_rows(
+  specifications %>% 
+    select(formula, estimate, std.error, conf.low, conf.high, p.value, gender, age_category, term, risk_factor_label),
+  full_sample_models %>%
+    select(formula, estimate, std.error, conf.low, conf.high, p.value, gender, age_category, term, risk_factor_label)
+) %>%
+  mutate(
+    significant = ifelse(p.value < 0.05, "yes", "no"),
+    specification = row_number()
+  )
+
+# Export als Excel-Datei
+write_xlsx(combined_results, "Finance_Combined_Regression_Results.xlsx")
+print("Finance_Combined_Regression_Results.xlsx wurde erfolgreich gespeichert!")
 ```
 
 
 
+```{r}
+library(ggplot2)
+library(dplyr)
+library(cowplot)
+library(patchwork)
 
+# Sicherstellen, dass die Variablen als Zeichenkette interpretiert werden
+finance_factor_names <- unlist(risk_factors, use.names = FALSE)
+
+# Plot-Dataframe anpassen
+plot_data <- combined_results %>%
+  arrange(estimate) %>%
+  mutate(
+    specification = row_number(),
+    significant = ifelse(p.value < 0.05, "yes", "no"),
+    term = as.character(term),
+    gender = factor(gender, levels = rev(c("All", "Male", "Female"))),
+    age_category = factor(age_category, levels = rev(c("All", "Young Adults (15-25)", "Adults (26-45)", 
+                                                       "Middle-aged Adults (46-65)", "Seniors (66-99)")))
+  )
+
+# Intercept ausfiltern
+plot_data_filtered <- plot_data %>% filter(term != "(Intercept)")
+
+# Farben für Signifikanz
+sig_colors <- c("no" = "red", "yes" = "black")
+n_specifications <- nrow(plot_data_filtered)
+
+# Bereich der Full-Sample-Modelle ("All") berechnen
+all_specs <- plot_data_filtered %>%
+  filter(gender == "All", age_category == "All") %>%
+  pull(specification)
+
+x_min_all <- min(all_specs)
+x_max_all <- max(all_specs)
+x_label_all <- mean(c(x_min_all, x_max_all))
+
+# PLOT 1: Estimate mit Konfidenzintervallen
+p1 <- ggplot(plot_data_filtered, aes(x = specification, y = estimate, color = significant)) +
+  annotate("rect", xmin = x_min_all, xmax = x_max_all, ymin = -Inf, ymax = Inf,
+           fill = "lightgrey", alpha = 0.3) +
+  geom_point(alpha = 0.8, size = 2) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2, alpha = 0.5) +
+  scale_color_manual(values = sig_colors) +
+  annotate("text", x = x_label_all, y = max(plot_data_filtered$estimate, na.rm = TRUE),
+           label = "", size = 4, fontface = "italic", vjust = -1) +
+  labs(y = "Estimate", x = "", color = "Significance") +
+  theme_classic() +
+  theme(
+    axis.title.y = element_text(face = "bold"),  # Fett
+    axis.text.y = element_text(size = 12, hjust = 1, margin = margin(r = 5)),
+    legend.position = "none"
+  )
+
+# PLOT 2: Gender Übersicht
+p2 <- ggplot(plot_data_filtered, aes(x = specification, y = gender, fill = significant)) +
+  annotate("rect", xmin = x_min_all, xmax = x_max_all, ymin = -Inf, ymax = Inf,
+           fill = "lightgrey", alpha = 0.3) +
+  geom_tile() +
+  scale_fill_manual(values = sig_colors) +
+  labs(x = "", y = "Gender\nGroup") +
+  theme_classic() +
+  theme(
+    axis.title.y = element_text(face = "bold"),  # Fett
+    axis.text.y = element_text(size = 12, hjust = 1, margin = margin(r = 5)),
+    legend.position = "none"
+  )
+
+# PLOT 3: Altersgruppen Übersicht
+p3 <- ggplot(plot_data_filtered, aes(x = specification, y = age_category, fill = significant)) +
+  annotate("rect", xmin = x_min_all, xmax = x_max_all, ymin = -Inf, ymax = Inf,
+           fill = "lightgrey", alpha = 0.3) +
+  geom_tile() +
+  scale_fill_manual(values = sig_colors) +
+  labs(x = "", y = "Age\nGroup") +
+  theme_classic() +
+  theme(
+    axis.title.y = element_text(face = "bold"),  # Fett
+    axis.text.y = element_text(size = 12, hjust = 1, margin = margin(r = 5)),
+    legend.position = "none"
+  )
+
+# PLOT 4: Risk Factors Übersicht mit Klartextnamen
+p4 <- ggplot(
+  plot_data_filtered %>% 
+    filter(term %in% names(finance_factor_labels)) %>%
+    mutate(term = finance_factor_labels[term]),
+  aes(x = specification, y = term, fill = significant)
+) +
+  annotate("rect", xmin = x_min_all, xmax = x_max_all, ymin = -Inf, ymax = Inf,
+           fill = "lightgrey", alpha = 0.3) +
+  geom_tile() +
+  scale_fill_manual(values = sig_colors) +
+  scale_y_discrete(expand = expansion(mult = c(0.2, 0.2))) +
+  labs(x = "", y = "Risk\nFactors") +
+  theme_classic() +
+  theme(
+    axis.title.y = element_text(face = "bold"),  # Fett
+    axis.text.y = element_text(size = 12, hjust = 1, margin = margin(r = 5)),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    legend.position = "none"
+  )
+
+# Plots kombinieren
+final_plot <- (p1 / p2 / p3 / p4) +
+  plot_layout(ncol = 1, heights = c(3, 2.5, 3.5, 7))
+
+# Plot anzeigen
+print(final_plot)
+```
+
+
+```{r}
+library(dplyr)
+library(purrr)
+library(tidyr)
+library(broom)
+library(writexl)
+
+# Kontrollvariablen definieren
+controls_full <- list(
+  "none"                = "",
+  "gender"              = "+ gender",
+  "age"                 = "+ age_numeric",
+  "country"             = "+ COUNTRY_NUM",
+  "gender_age"          = "+ gender + age_numeric",
+  "gender_country"      = "+ gender + COUNTRY_NUM",
+  "age_country"         = "+ age_numeric + COUNTRY_NUM",
+  "gender_age_country"  = "+ gender + age_numeric + COUNTRY_NUM"
+)
+
+# Formeln mit technischen Variablennamen erstellen
+formulas_full_sample <- expand_grid(
+  risk_factor = names(finance_factor_labels),
+  control = names(controls_full)
+) %>%
+  mutate(
+    formula = map2_chr(risk_factor, control,
+                       ~ paste("risktaking ~", .x, controls_full[[.y]])),
+    risk_factor = risk_factor
+  )
+
+# Modelle berechnen
+full_sample_sca_finance <- formulas_full_sample %>%
+  mutate(
+    model = map(formula, ~ lm(as.formula(.x), data = hardship_combined)),
+    summary = map(model, tidy),
+    conf_int = map(model, confint_tidy),
+    gender = "All",
+    age_category = "All"
+  ) %>%
+  unnest(c(summary, conf_int)) %>%
+  filter(term == risk_factor)
+
+# Klartextnamen ergänzen
+full_sample_sca_finance <- full_sample_sca_finance %>%
+  left_join(finance_factor_df, by = c("term" = "risk_factor"))
+
+# Spezifikationsnummer hinzufügen
+full_sample_sca_finance <- full_sample_sca_finance %>%
+  mutate(
+    significant = ifelse(p.value < 0.05, "yes", "no"),
+    specification = row_number()
+  )
+
+# Zusammenfassung mit p-Werten
+full_sample_summary_finance <- full_sample_sca_finance %>%
+  group_by(risk_factor_label) %>%
+  summarise(
+    Median_Estimate = round(median(estimate, na.rm = TRUE), 2),
+    Q25_Estimate = round(quantile(estimate, 0.25, na.rm = TRUE), 2),
+    Q75_Estimate = round(quantile(estimate, 0.75, na.rm = TRUE), 2),
+    Min_Estimate = round(min(estimate, na.rm = TRUE), 2),
+    Max_Estimate = round(max(estimate, na.rm = TRUE), 2),
+    Median_p = median(p.value, na.rm = TRUE),
+    Min_p = min(p.value, na.rm = TRUE),
+    Max_p = max(p.value, na.rm = TRUE),
+    n_specifications = n()
+  ) %>%
+  arrange(desc(abs(Median_Estimate)))
+
+# APA-konforme p-Werte
+full_sample_summary_finance <- full_sample_summary_finance %>%
+  mutate(
+    Median_p = ifelse(Median_p < .001, "< .001", paste0("= ", format(round(Median_p, 3), nsmall = 3))),
+    Min_p = ifelse(Min_p < .001, "< .001", paste0("= ", format(round(Min_p, 3), nsmall = 3))),
+    Max_p = ifelse(Max_p < .001, "< .001", paste0("= ", format(round(Max_p, 3), nsmall = 3)))
+  )
+
+# Export
+write_xlsx(full_sample_summary_finance, "AppJ1_Finance_FullSample_Summary_APA.xlsx")
+print(full_sample_summary_finance)
+```
+
+
+```{r}
+library(dplyr)
+library(readxl)
+library(writexl)
+
+# Filterkriterien festlegen
+threshold_significance <- 60    # mind. 60 % signifikant
+threshold_effect_size  <- 0.1   # |Median Estimate| ≥ 0.1
+
+# Robuste Prädiktoren identifizieren
+key_results_finance <- results_summary %>%
+  filter(
+    Significant_Percent >= threshold_significance,
+    abs(Median_Estimate) >= threshold_effect_size
+  ) %>%
+  arrange(gender, age_category, desc(Significant_Percent), desc(abs(Median_Estimate)))
+
+# Ergebnisse anzeigen
+print(key_results_finance)
+
+# Export
+write_xlsx(key_results_finance, "AppJ2_Finance_KeyPredictors.xlsx")
+```
+
+# Specifications (amount)
+```{r}
+nrow(full_sample_models)
+
+
+library(dplyr)
+
+specifications %>%
+  group_by(gender, age_category) %>%
+  summarise(n_specifications = n()) %>%
+  arrange(gender, age_category)
+nrow(specifications)
+```

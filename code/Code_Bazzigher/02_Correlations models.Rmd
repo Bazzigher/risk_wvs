@@ -301,35 +301,38 @@ sum(is.na(new_data$intercept_WVS))
 # Plots and Correlations
 ## Risktaking 
 ```{r}
-ggplot(new_data, aes(x = intercept_gps, y = intercept_WVS, label = code)) +
+library(ggrepel)  # <- vorher laden!
+
+ggplot(new_data, aes(x = intercept_gps, y = intercept_WVS)) +
   geom_point(size = 1.5) +
-  geom_text(aes(label = code), vjust = -0.5, hjust = -0.5) +
+  geom_text_repel(aes(label = code), size = 3, max.overlaps = Inf) +
   geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
-  labs(title = "Comparison of Intercept Values",
-       x = "Intercept GPS",
-       y = "Intercept WVS") +
-  theme_minimal() +
-  xlim(c(min(new_data$intercept_gps, na.rm = TRUE), max(new_data$intercept_gps, na.rm = TRUE))) +
-  ylim(c(min(new_data$intercept_WVS, na.rm = TRUE), max(new_data$intercept_WVS, na.rm = TRUE))) +
+  annotate("text", 
+           x = min(new_data$intercept_gps, na.rm = TRUE),
+           y = max(new_data$intercept_WVS, na.rm = TRUE),
+           label = "(A)", fontface = "bold", size = 6, hjust = -0.2, vjust = 1) +
+  labs(x = "Intercept GPS", y = "Intercept WVS") +
+  theme_classic() +
   coord_fixed()
 
-# Berechne die Korrelation der Intercepts
+
+# Korrelation berechnen
 correlation_intercepts <- cor(new_data$intercept_gps, new_data$intercept_WVS)
 print(correlation_intercepts)
 ```
 
 ## Age
 ```{r}
-ggplot(new_data, aes(x = slope_age_gps, y = slope_age_WVS, label = code)) +
+ggplot(new_data, aes(x = slope_age_gps, y = slope_age_WVS)) +
   geom_point(size = 1.5) +
-  geom_text(aes(label = code), vjust = -0.5, hjust = -0.5) +
+  geom_text_repel(aes(label = code), size = 3, max.overlaps = Inf) +
   geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
-  labs(title = "Comparison of Age Slopes",
-       x = "Age Slope GPS",
-       y = "Age Slope WVS") +
-  theme_minimal() +
-  xlim(range(new_data$slope_age_gps, na.rm = TRUE)) +
-  ylim(range(new_data$slope_age_WVS, na.rm = TRUE)) +
+  annotate("text", 
+           x = min(new_data$slope_age_gps, na.rm = TRUE),
+           y = max(new_data$slope_age_WVS, na.rm = TRUE),
+           label = "(B)", fontface = "bold", size = 6, hjust = -0.2, vjust = 1) +
+  labs(x = "Age Slope GPS", y = "Age Slope WVS") +
+  theme_classic() +
   coord_fixed()
 
 correlation_intercepts <- cor(new_data$slope_age_gps, new_data$slope_age_WVS)
@@ -338,16 +341,16 @@ print(correlation_intercepts)
 
 ## Gender
 ```{r}
-ggplot(new_data, aes(x = slope_gender_gps, y = slope_gender_WVS, label = code)) +
+ggplot(new_data, aes(x = slope_gender_gps, y = slope_gender_WVS)) +
   geom_point(size = 1.5) +
-  geom_text(aes(label = code), vjust = -0.5, hjust = -0.5) +
+  geom_text_repel(aes(label = code), size = 3, max.overlaps = Inf) +
   geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
-  labs(title = "Comparison of Gender Slopes",
-       x = "Gender Slope GPS",
-       y = "Gender Slope WVS") +
-  theme_minimal() +
-  xlim(range(new_data$slope_gender_gps, na.rm = TRUE)) +
-  ylim(range(new_data$slope_gender_WVS, na.rm = TRUE)) +
+  annotate("text", 
+           x = min(new_data$slope_gender_gps, na.rm = TRUE),
+           y = max(new_data$slope_gender_WVS, na.rm = TRUE),
+           label = "(C)", fontface = "bold", size = 6, hjust = -0.2, vjust = 1) +
+  labs(x = "Gender Slope GPS", y = "Gender Slope WVS") +
+  theme_classic() +
   coord_fixed()
 
 correlation_intercepts <- cor(new_data$slope_gender_gps, new_data$slope_gender_WVS)

@@ -375,7 +375,7 @@ plot <- ggplot(merged_data, aes(age, risktaking, colour = country, linetype = fa
   geom_point(aes(group = interaction(country, gender)), size = 0.5) +  
   geom_smooth(aes(group = interaction(country, gender)), method = "lm", se = FALSE, size = 1.5, color = "red") +  
   facet_wrap(~country, ncol = 9, scales = "free") +  
-  theme_minimal(base_size = 10) +  
+  theme_classic(base_size = 10) +  
   theme(strip.text = element_text(size = 10),  
         axis.text = element_text(size = 8),  
         strip.background = element_blank(),  
@@ -388,29 +388,46 @@ plot <- ggplot(merged_data, aes(age, risktaking, colour = country, linetype = fa
 ggsave(filename = "Individual_countries_model1_in_one_plot.pdf", plot = plot, width = 40, height = 40)
 head(merged_data)
 ```
-
+# Density plot with age
 ```{r}
 library(ggplot2)
+library(dplyr)
+library(cowplot)
+library(patchwork)
 
-# Definiere den Plot
+# Transformation: Standardisiertes Alter in Alterswerte umwandeln
+merged_data <- merged_data %>%
+  mutate(age_scaled = 15 * age + 42)  # Transformation: Z-Score in Alter umrechnen
+
+# Basis-Plot-Funktion für einzelne Länder
 base_plot <- function(data) {
-  ggplot(data, aes(x = age, y = risktaking, colour = country, linetype = factor(gender))) +
-    geom_point(aes(group = interaction(country, gender)), size = 1) +
+  ggplot(data, aes(x = age_scaled, y = risktaking, colour = country, linetype = factor(gender))) +
+    geom_point(aes(group = interaction(country, gender)), size = 1) +  
     geom_smooth(aes(group = interaction(country, gender)), method = "lm", se = FALSE, size = 0.5, color = "red") +
     facet_wrap(~country, scales = "free") +
-    theme_minimal() +
+    facet_wrap(~country, ncol = 5, nrow = 4, scales = "free") +
+    theme_classic() +
     theme(axis.text = element_text(size = 10),
           strip.text = element_text(size = 15),
           strip.background = element_blank(),
           panel.spacing = unit(1, "lines"),
           legend.position = "bottom") +
     guides(color = FALSE, linetype = guide_legend(title = "Gender")) +
-    scale_linetype_manual(values = c("solid", "dashed"))
+    scale_linetype_manual(values = c("solid", "dashed")) +
+    labs(title = "Risk-Taking by Age and Gender across Countries",
+         x = "Age (years)",   # X-Achse als Alter
+         y = "Risk-Taking") +
+    scale_x_continuous(breaks = seq(15, 90, by = 15), limits = c(15, 90))  # Altersachse sauber skalieren
 }
 
-# Daten vorbereiten
-countries <- unique(merged_data$country)
+# Länderliste und Anzahl pro Seite
+countries <- sort(unique(merged_data$country))  # <- alphabetisch sortiert
+
+start_index <- which(countries == "Yemen")
+countries <- c(countries[start_index:length(countries)], countries[1:(start_index - 1)])
+
 num_countries_per_page <- 20
+
 
 # Verzeichnis für die Bilddateien erstellen
 dir.create("plots", showWarnings = FALSE)
@@ -422,7 +439,7 @@ for (i in seq(1, length(countries), by = num_countries_per_page)) {
   current_plot <- base_plot(data_subset)
 
   # Dateiname definieren
-  filename <- paste0("plots/Individual_countries_model1_page_", ceiling(i / num_countries_per_page), ".png")
+  filename <- paste0("plots/Fig3_Individual_countries_model1_page_", ceiling(i / num_countries_per_page), ".png")
   
   # Speichern als PNG
   ggsave(filename, plot = current_plot, width = 12, height = 12, dpi = 300)
@@ -439,7 +456,7 @@ base_plot <- function(data) {
     geom_point(aes(group = interaction(country, gender)), size = 1) +
     geom_smooth(aes(group = interaction(country, gender)), method = "lm", se = FALSE, size = 1, color = "red") +
     facet_wrap(~country, scales = "free") +
-    theme_minimal() +
+    theme_classic() +
     theme(axis.text = element_text(size = 10),
           strip.text = element_text(size = 40, face = "bold"),
           strip.background = element_blank(),
@@ -469,20 +486,26 @@ dev.off()  # Schließe das PDF-Dokument korrekt
 
 ## Plot all participants regardless of country
 ```{r}
-plot_global <- ggplot(merged_data, aes(x = age, y = risktaking, colour = factor(gender))) +
-  geom_point(size = 0.5, alpha = 0.6) +  # Use points to represent individuals
-  geom_smooth(method = "lm", se = FALSE, size = 1.5, aes(linetype = factor(gender), color = factor(gender))) +  # Add gender-specific regression lines
-  theme_minimal(base_size = 15) +  # Minimal theme for clarity
-  labs(x = "Age", y = "Risk-taking", colour = "Gender", linetype = "Gender") +  # Labels
-  theme(legend.position = "right", legend.title = element_text(size = 12), legend.text = element_text(size = 10)) +  # Adjust legend
-  scale_colour_manual(values = c("0" = "blue", "1" = "red")) +  # Set regression line for gender "0" (female) to blue and "1" (male) to black
-  scale_linetype_manual(values = c("solid", "dashed"))  # Different line types for genders
+# Transformation: Standardisiertes Alter in Alterswerte umwandeln
+merged_data <- merged_data %>%
+  mutate(age_scaled = 15 * age + 42)  # Z-Score in Alter zurücktransformieren
 
-# Show the plot
+plot_global <- ggplot(merged_data, aes(x = age_scaled, y = risktaking, colour = factor(gender))) +
+  geom_point(size = 0.5, alpha = 0.6) +
+  geom_smooth(method = "lm", se = FALSE, size = 1.5, aes(linetype = factor(gender), color = factor(gender))) +
+  theme_classic(base_size = 15) +
+  labs(x = "Age", y = "Risk-taking", colour = "Gender", linetype = "Gender") +
+  theme(
+    legend.position = "right",
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10)
+  ) +
+  scale_colour_manual(values = c("0" = "blue", "1" = "red")) +
+  scale_linetype_manual(values = c("solid", "dashed")) +
+  scale_x_continuous(breaks = seq(15, 90, by = 15), limits = c(19, 100)) 
+
+# Plot anzeigen
 print(plot_global)
-
-# Optionally, save the plot to a file
-ggsave(filename = "Global_Risktaking_vs_Age.pdf", plot = plot_global, width = 12, height = 8)
 ```
 
 # Modellvergleich auf Basis von AIC/BIC
@@ -501,115 +524,127 @@ bic_model2_combined <- BIC(model2_combined)
 print(paste("BIC for Model 1 Combined: ", bic_model1_combined))
 print(paste("BIC for Model 2 Combined: ", bic_model2_combined))
 ```
+
 ```{r}
 library(ggplot2)
-library(gridExtra)
 library(dplyr)
+library(ggrepel)
 
 # Daten vorbereiten
 median_hardship_by_country <- merged_data %>%
   group_by(country) %>%
   summarise(median_hardship = median(hardship_index, na.rm = TRUE))
 
+# Zufallseffekte extrahieren
 random_effects <- ranef(model1_combined)$country
 random_effects_df <- as.data.frame(random_effects)
 random_effects_df$country <- row.names(random_effects)
-analysis_df <- merge(random_effects_df, median_hardship_by_country, by = "country", all = TRUE)
-iso_codes <- merged_data %>% select(country, isocode) %>%
-             distinct()
-analysis_df <- merge(analysis_df, iso_codes, by = "country", all.x = TRUE)
 
-# Plot erstellen
-p <- ggplot(analysis_df, aes(x = median_hardship, y = gender, label = isocode)) +
-  geom_text(aes(label = isocode), check_overlap = TRUE, size = 3, vjust = 1) +
-  geom_smooth(method = "lm", color = "black", se = FALSE) +  # Regressionslinie hinzufügen
-  labs(title = "Gender Effect vs. Hardship Index\nR² = 0.17",
-       x = "Hardship Index",
-       y = "Gender Effect") +
-  theme_minimal(base_size = 14) +
-  theme(plot.background = element_rect(fill = "white", colour = "white"),
-        panel.background = element_rect(fill = "white", colour = "white"),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank()) +
-  coord_fixed(ratio = 1) +
-  theme(plot.title = element_text(hjust = 0.5))
+# Zusammenführen mit Hardship & ISO-Codes
+analysis_df <- random_effects_df %>%
+  left_join(median_hardship_by_country, by = "country") %>%
+  left_join(merged_data %>% select(country, isocode) %>% distinct(), by = "country")
+
+# R² berechnen
+r_squared <- summary(lm(gender ~ median_hardship, data = analysis_df))$r.squared
+r_squared_label <- paste0("R² = ", round(r_squared, 2))
+
+# Ohne Afghanistan für bessere Sichtbarkeit
+analysis_df_filtered <- analysis_df %>% filter(isocode != "AFG")
+
+# Plot erstellen im Figure 2-Stil
+gender_plot <- ggplot(analysis_df, aes(x = median_hardship, y = gender)) +
+  geom_point(color = "black", size = 1) +
+  geom_smooth(method = "lm", se = FALSE, color = "blue", linetype = "dashed", linewidth = 1) +
+  geom_text_repel(aes(label = isocode), size = 3, max.overlaps = 100) +
+  annotate("text", x = -Inf, y = Inf, label = "(A)", hjust = -1.2, vjust = 1.5, size = 6, fontface = "bold") +
+  annotate("text", x = -Inf, y = Inf, label = r_squared_label, hjust = -0.8, vjust = 6, size = 3) +
+  labs(x = "Hardship Index", y = "Gender Effect") +
+  theme_classic(base_size = 14) +
+  theme(
+    plot.title = element_blank(),
+    axis.text = element_text(color = "black"),
+    axis.title = element_text(face = "plain"),
+    panel.grid = element_blank()
+  ) +
+  coord_fixed(xlim = c(-2, 2), ylim = c(-2, 2))
 
 # Plot anzeigen
-print(p)
+print(gender_plot)
 ```
+
 
 ```{r}
 library(ggplot2)
-library(gridExtra)
-library(dplyr)
+library(ggrepel)
 
-# Daten vorbereiten
-median_hardship_by_country <- merged_data %>%
-  group_by(country) %>%
-  summarise(median_hardship = median(hardship_index, na.rm = TRUE))
+# R² berechnen
+r_squared_age <- summary(lm(age ~ median_hardship, data = analysis_df))$r.squared
+r_squared_label_age <- paste0("R² = ", round(r_squared_age, 2))
 
-random_effects <- ranef(model1_combined)$country
-random_effects_df <- as.data.frame(random_effects)
-random_effects_df$country <- row.names(random_effects)
-analysis_df <- merge(random_effects_df, median_hardship_by_country, by = "country", all = TRUE)
-iso_codes <- merged_data %>% select(country, isocode) %>%
-             distinct()
-analysis_df <- merge(analysis_df, iso_codes, by = "country", all.x = TRUE)
+# Age Plot erstellen – analog zu Intercept-Plot
+age_plot <- ggplot(analysis_df, aes(x = median_hardship, y = age)) +
+  geom_point(color = "black", size = 1) +
+  geom_smooth(method = "lm", se = FALSE, color = "blue", linetype = "dashed", linewidth = 1) +
+  geom_text_repel(
+    aes(label = isocode),
+    size = 3,
+    max.overlaps = 100,
+    force = 2,
+    max.iter = 5000,
+    segment.size = 0.3
+  ) +
+  annotate("text", x = -Inf, y = Inf, label = "(B)", hjust = -1.2, vjust = 1.5, size = 6, fontface = "bold") +
+  annotate("text", x = -Inf, y = Inf, label = r_squared_label_age, hjust = -0.8, vjust = 6, size = 3) +
+  labs(x = "Hardship Index", y = "Age Effect") +
+  theme_classic(base_size = 14) +
+  theme(
+    plot.title = element_blank(),
+    axis.text = element_text(color = "black"),
+    axis.title = element_text(face = "plain"),
+    panel.grid = element_blank()
+  ) +
+  coord_fixed(xlim = c(-2, 2), ylim = c(-2, 2))
 
-# Plot für Age Effect erstellen
-p_age <- ggplot(analysis_df, aes(x = median_hardship, y = age, label = isocode)) +
-  geom_text(aes(label = isocode), check_overlap = TRUE, size = 3, vjust = 1) +
-  geom_smooth(method = "lm", color = "black", se = FALSE) +  # Regressionslinie hinzufügen
-  labs(title = "Age Effect vs. Hardship Indexn
-       R² = 0.32",
-       x = "Hardship Index",
-       y = "Age Effect") +
-  theme_minimal(base_size = 14) +
-  theme(plot.background = element_rect(fill = "white", colour = "white"),
-        panel.background = element_rect(fill = "white", colour = "white"),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank()) +
-  coord_fixed(ratio = 1) +
-  theme(plot.title = element_text(hjust = 0.5))
-
-# Plot anzeigen
-print(p_age)
-
+print(age_plot)
 ```
+
+
+
 ```{r}
 library(ggplot2)
-library(dplyr)
+library(ggrepel)
 
-# Daten vorbereiten
-median_hardship_by_country <- merged_data %>%
-  group_by(country) %>%
-  summarise(median_hardship = median(hardship_index, na.rm = TRUE))
+# Optional: Extremwerte ausschließen (z.B. AFG), falls erwünscht
+analysis_df_filtered <- analysis_df %>% filter(abs(`(Intercept)`) <= 4)
 
-random_effects <- ranef(model1_combined)$country
-random_effects_df <- as.data.frame(random_effects)
-random_effects_df$country <- row.names(random_effects)
-analysis_df <- merge(random_effects_df, median_hardship_by_country, by = "country", all = TRUE)
-iso_codes <- merged_data %>% select(country, isocode) %>%
-             distinct()
-analysis_df <- merge(analysis_df, iso_codes, by = "country", all.x = TRUE)
+# Intercept vs. Hardship Plot – verbessert
+intercept_plot <- ggplot(analysis_df_filtered, aes(x = median_hardship, y = `(Intercept)`)) +
+  geom_point(color = "black", size = 1) +
+  geom_smooth(method = "lm", se = FALSE, color = "blue", linetype = "dashed", linewidth = 1) +
+  geom_text_repel(
+    aes(label = isocode),
+    size = 3,
+    max.overlaps = 100,
+    force = 2,              # stärkere Abstoßung
+    max.iter = 5000,        # mehr Iterationen für Optimierung
+    segment.size = 0.3
+  ) +
+  annotate("text", x = -Inf, y = Inf, label = "(C)", hjust = -1.2, vjust = 1.5, size = 6, fontface = "bold") +
+  annotate("text", x = -Inf, y = Inf, label = r_squared_label_intercept, hjust = -0.5, vjust = 6, size = 3) +
+  labs(x = "Hardship Index", y = "Intercept of Risk-Taking") +
+  theme_classic(base_size = 14) +
+  theme(
+    plot.title = element_blank(),
+    axis.text = element_text(color = "black"),
+    axis.title = element_text(face = "plain"),
+    panel.grid = element_blank()
+  ) +
+  coord_fixed(xlim = c(-2.5, 2.5), ylim = c(-2.5, 2.5))  # Fokus auf zentrale Verteilung
 
-# Intercept of Risktaking Plot anpassen
-p_intercept <- ggplot(analysis_df, aes(x = median_hardship, y = `(Intercept)`, label = isocode)) +
-  geom_text(aes(label = isocode), check_overlap = TRUE, size = 3, vjust = 1) +
-  geom_smooth(method = "lm", color = "black", se = FALSE) +
-  scale_x_continuous(limits = c(-3, 4)) +  # Anpassung der X-Achsen-Grenzen
-scale_y_continuous(limits = c(-2, 4.5)) +
-  labs(title = "Intercept of Risktaking vs. Hardship Index\nR² = 0.03",
-       x = "Hardship Index",
-       y = "Intercept of Risktaking") +
-  theme_minimal() +
-  coord_fixed(ratio = 1)
-
-# Plot anzeigen oder speichern
-print(p_intercept)
+print(intercept_plot)
 ```
+
 ```{r}
 library(dplyr)
 

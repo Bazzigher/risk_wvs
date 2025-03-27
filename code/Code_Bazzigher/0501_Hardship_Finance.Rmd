@@ -688,19 +688,36 @@ corrplot(corr_matrix, method = "circle")
 library(mice)
 ```
 
+
 ```{r}
+# Klartextnamen für Finance Hardship Indicators
+finance_factor_labels <- c(
+  f_inv_acctownership_primaryedu = "Financial Account Ownership (Low Edu)",
+  f_oth_insfinsvcs_int = "Insurance & Financial Service Imports",
+  f_hs_oopexp10 = "High Out-of-Pocket Health Spending",
+  f_eco_gdpdefl_linked = "Inflation (GDP Deflator)",
+  f_eco_cpi = "Inflation (Consumer Prices)",
+  f_original_gdp = "Gross Domestic Product (GDP)",
+  f_original_gini = "Gini Coefficient (Income Inequality)"
+)
+
+# Nur die relevanten Variablen extrahieren
+finance_vars <- names(finance_factor_labels)
+hardship_finance_subset <- hardship_Finance[, finance_vars]
+
 # Fehlende Werte berechnen
-missing_percentages <- sapply(hardship_Finance, function(x) {
+missing_percentages <- sapply(hardship_finance_subset, function(x) {
   sum(is.na(x)) / length(x) * 100
 })
 
-# Ergebnisse in DataFrame umwandeln
+# In DataFrame umwandeln
 missing_summary <- data.frame(
   Variable = names(missing_percentages),
-  MissingPercentage = missing_percentages
+  MissingPercentage = round(missing_percentages, 2),
+  Label = finance_factor_labels[names(missing_percentages)]
 )
 
-# Nach Prozent sortieren
+# Nach Missing Percentage sortieren
 missing_summary <- missing_summary[order(-missing_summary$MissingPercentage), ]
 
 # Ausgabe der Tabelle
@@ -724,27 +741,88 @@ print(mcar_test)
 
 ```{r}
 library(VIM)
+library(visdat)
 
-# Aggregierte Missingness-Visualisierung
-aggr_plot <- aggr(hardship_Finance, col = c('navyblue', 'red'), numbers = TRUE, sortVars = TRUE, 
-                  labels = names(hardship_Finance), cex.axis = 0.7, gap = 3, ylab = c("Missing Data", "Pattern"))
+# Klartextnamen für Finance Hardship Indicators
+finance_factor_labels <- c(
+  f_inv_acctownership_primaryedu = "Financial Account Ownership (Low Edu)",
+  f_oth_insfinsvcs_int = "Insurance & Financial Service Imports",
+  f_hs_oopexp10 = "High Out-of-Pocket Health Spending",
+  f_eco_gdpdefl_linked = "Inflation (GDP Deflator)",
+  f_eco_cpi = "Inflation (Consumer Prices)",
+  f_original_gdp = "Gross Domestic Product (GDP)",
+  f_original_gini = "Gini Coefficient (Income Inequality)"
+)
 
-vis_miss(hardship_Finance)
+# Subset mit nur den relevanten Variablen
+finance_vars <- names(finance_factor_labels)
+hardship_finance_subset <- hardship_Finance[, finance_vars]
+
+# Klartextnamen als Spaltennamen setzen
+colnames(hardship_finance_subset) <- finance_factor_labels[finance_vars]
+
+# VIM::aggr Plot mit Klartextnamen
+short_labels <- c(
+  "Acct.Ownership",
+  "Fin. Imports",
+  "Out-of-Pocket",
+  "Inflation (Defl)",
+  "Inflation (CPI)",
+  "GDP",
+  "Gini Coefficient"
+)
+
+aggr(
+  hardship_finance_subset,
+  col = c('navyblue', 'red'),
+  numbers = TRUE,
+  sortVars = FALSE,
+  labels = short_labels,
+  cex.axis = 0.7,
+  gap = 3,
+  ylab = c("Missing Data", "Pattern")
+)
+
+
+########
+# vis_miss mit Klarnamen
+vis_miss(hardship_finance_subset) +
+  scale_x_discrete(position = "top") +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 0, vjust = 0),
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 12),
+    plot.title = element_blank()
+  )
+
 ```
  
 ```{r}
+# Klartextnamen für Finance Hardship Indicators
+finance_factor_labels <- c(
+  f_inv_acctownership_primaryedu = "Financial Account Ownership (Low Edu)",
+  f_oth_insfinsvcs_int = "Insurance & Financial Service Imports",
+  f_hs_oopexp10 = "High Out-of-Pocket Health Spending",
+  f_eco_gdpdefl_linked = "Inflation (GDP Deflator)",
+  f_eco_cpi = "Inflation (Consumer Prices)",
+  f_original_gdp = "Gross Domestic Product (GDP)",
+  f_original_gini = "Gini Coefficient (Income Inequality)"
+)
+
 # Fehlende Werte berechnen
 missing_percentages <- sapply(hardship_Finance, function(x) {
   sum(is.na(x)) / length(x) * 100
 })
 
-# Ergebnisse in DataFrame umwandeln
+# In DataFrame umwandeln
 missing_summary <- data.frame(
   Variable = names(missing_percentages),
-  MissingPercentage = missing_percentages
+  MissingPercentage = round(missing_percentages, 2),
+  Label = finance_factor_labels[names(missing_percentages)]
 )
 
-# Nach Prozent sortieren
+# Nach Missing Percentage sortieren
 missing_summary <- missing_summary[order(-missing_summary$MissingPercentage), ]
 
 # Ausgabe der Tabelle
@@ -818,8 +896,16 @@ imputed_data$imp$f_original_gdp
 imputed_data$imp$f_original_gini
 
 # visualisierung
-stripplot(imputed_data, pch = 20, cex = 1.2)  # Verteilung der imputierten Werte
-densityplot(imputed_data)  # Dichte der imputierten Werte
+stripplot(imputed_data,
+          f_hs_oopexp10 + f_oth_insfinsvcs_int + f_inv_acctownership_primaryedu + f_eco_cpi
+          ~ .imp,
+          pch = 20, cex = 1.2,
+          scales = list(y = list(relation = "free")))
+
+
+densityplot(imputed_data,
+            ~ f_hs_oopexp10 + f_oth_insfinsvcs_int + f_inv_acctownership_primaryedu + f_eco_cpi,
+            plot.points = FALSE, auto.key = FALSE)
 
 # Imputierte Daten extrahieren
 completed_data <- complete(imputed_data, action = 1)
@@ -1014,6 +1100,53 @@ ggplot(melted_cor_matrix, aes(Var1, Var2, fill = value)) +
   coord_fixed()
 ```
 
+```{r}
+library(reshape2)
+library(ggplot2)
+
+# Klartextnamen für Finance Hardship Indicators (ohne avg_risktaking)
+finance_factor_labels <- c(
+  f_inv_acctownership_primaryedu = "Financial Account Ownership (Low Edu)",
+  f_oth_insfinsvcs_int = "Insurance & Financial Service Imports",
+  f_hs_oopexp10 = "High Out-of-Pocket Health Spending",
+  f_eco_gdpdefl_linked = "Inflation (GDP Deflator)",
+  f_eco_cpi = "Inflation (Consumer Prices)",
+  f_original_gdp = "Gross Domestic Product (GDP)",
+  f_original_gini = "Gini Coefficient (Income Inequality)"
+)
+
+# Auswahl relevanter f_-Variablen (ohne avg_risktaking)
+selected_vars <- hardship_Finance %>%
+  select(all_of(names(finance_factor_labels))) %>%
+  select(where(~ !(all(is.na(.)) | sd(., na.rm = TRUE) == 0)))  # entfernt konstante oder leere Spalten
+
+# Berechnung der Korrelationsmatrix
+cor_matrix <- cor(selected_vars, use = "complete.obs")
+
+# Umwandlung für ggplot
+melted_cor_matrix <- melt(cor_matrix)
+
+# Klartextnamen ersetzen
+replace_with_label <- function(x) {
+  ifelse(x %in% names(finance_factor_labels), finance_factor_labels[x], x)
+}
+
+melted_cor_matrix$Var1 <- replace_with_label(melted_cor_matrix$Var1)
+melted_cor_matrix$Var2 <- replace_with_label(melted_cor_matrix$Var2)
+
+# Plot
+ggplot(melted_cor_matrix, aes(Var1, Var2, fill = value)) +
+  geom_tile() +
+  geom_text(aes(label = sprintf("%.2f", value)), color = "black", size = 3) +
+  scale_fill_gradient2(midpoint = 0, low = "blue", high = "red", mid = "white", limit = c(-1, 1)) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1), 
+    axis.text.y = element_text(angle = 0, hjust = 1)
+  ) +
+  labs(fill = "Korrelation", x = NULL, y = NULL) +
+  coord_fixed()
+```
 
 
 # Cronbachs Alpha

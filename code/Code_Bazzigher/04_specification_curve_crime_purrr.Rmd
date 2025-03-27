@@ -104,21 +104,38 @@ hardship_combined$COUNTRY_NUM <- as.numeric(as.factor(hardship_combined$COUNTRY)
 head(hardship_combined)
 ```
 
+```{r}
+crime_factor_labels <- c(
+  c_bh_homicide = "Homicide Rate",
+  c_bh_childmalt = "Child Maltreatment Programs",
+  c_bh_violextchildprot = "Child Protection Services",
+  c_bh_parviolenceprog = "Partner Violence Prevention",
+  c_bh_elderabuse = "Elder Abuse Programs",
+  c_theft_estcorruption = "Control of Corruption",
+  c_oth_polstab = "Political Stability"
+)
+
+crime_factor_df <- tibble(
+  risk_factor = names(crime_factor_labels),
+  risk_factor_label = unname(crime_factor_labels)
+)
+```
+
 
 # SCA with subset gender
 ```{r}
-# 📌 Sicherstellen, dass alle benötigten Pakete geladen sind
+# SCA with subset gender (Crime)
 library(tidyverse)
 library(broom)
 library(purrr)
 
-# 📌 Liste von Kontrollvariablen definieren
+# Kontrollvariablen
 controls <- list(
   "no_controls" = "",
   "country_control" = "+ COUNTRY_NUM"
 )
 
-# 📌 Liste von Crime-Faktoren definieren
+# Crime-Faktoren
 crime_factors <- list(
   "homicide" = "c_bh_homicide",
   "child_maltreatment" = "c_bh_childmalt",
@@ -129,28 +146,28 @@ crime_factors <- list(
   "political_stability" = "c_oth_polstab"
 )
 
-# 📌 Alle Modellformeln aus Crime-Faktoren und Kontrollvariablen generieren
+# Alle Modellformeln generieren
 formulas_crime <- expand_grid(
   crime_factor = names(crime_factors),
   control = names(controls)
 ) %>%
   mutate(
     formula = map2_chr(crime_factor, control, 
-                       ~ trimws(paste("risktaking ~", crime_factors[[.x]], controls[[.y]])))
-  ) %>%
-  pull(formula)  # Extrahiert die vollständigen Formeln als Vektor
+                       ~ trimws(paste("risktaking ~", crime_factors[[.x]], controls[[.y]]))),
+    risk_factor = map_chr(crime_factor, ~ crime_factors[[.x]])  # crime_factor z. B. "homicide", risk_factor = c_bh_...
+  )
 
-# 📌 OLS-Regression (lm)
+# Modelle definieren
 models <- list(
   lm = function(formula, data) lm(as.formula(formula), data = data)
 )
 
-# 🔍 Sicherstellen, dass `gender` als `character` vorliegt
+# Sicherstellen, dass `gender` ein character ist
 hardship_combined$gender <- as.character(hardship_combined$gender)
 
-# 📌 Erstelle Subsets nach Geschlecht und Alterskategorie
+# Subsets erstellen
 subsets <- expand_grid(
-  gender = unique(hardship_combined$gender),  # Direkt aus den Daten nehmen
+  gender = unique(hardship_combined$gender),
   age_category = unique(hardship_combined$age_category)
 ) %>%
   mutate(
@@ -158,100 +175,167 @@ subsets <- expand_grid(
                        ~ hardship_combined %>%
                            filter(gender == ..1, age_category == ..2))
   ) %>%
-  filter(map_int(subset_data, nrow) > 0)  # Entfernt leere Kombinationen
+  filter(map_int(subset_data, nrow) > 0)
 
-# 🔍 Debugging: Prüfen, ob Subsets gefüllt sind
-print("Anzahl der Zeilen pro Subset:")
-print(map_int(subsets$subset_data, nrow))
-
-# 📌 Erstelle die vollständige Spezifikationen-Tabelle für Crime
+# Spezifikationen berechnen
 specifications_crime <- expand_grid(
   subset = subsets$subset_data,  
-  formula = formulas_crime,
+  formula = formulas_crime$formula,
+  risk_factor = formulas_crime$risk_factor,
   model_name = names(models)
 ) %>%
   mutate(
-    gender = map_chr(subset, ~ unique(as.character(.x$gender))),  # Sicherstellen, dass `gender` ein `character` ist
-    age_category = map_chr(subset, ~ as.character(unique(.x$age_category))),  
+    gender = map_chr(subset, ~ unique(.x$gender)),
+    age_category = map_chr(subset, ~ as.character(unique(.x$age_category))),
     model = pmap(list(formula, model_name, subset), 
-                 ~ models[[..2]](..1, data = ..3)),  
+                 ~ models[[..2]](..1, data = ..3)),
     summary = map(model, broom::tidy),
-    conf_int = map(model, ~ broom::confint_tidy(.x))  
+    conf_int = map(model, ~ broom::confint_tidy(.x))
   ) %>%
-  unnest(c(summary, conf_int))  
+  unnest(c(summary, conf_int)) %>%
+  left_join(crime_factor_df, by = "risk_factor")  # Klartextnamen hinzufügen
 
-# 📌 Prüfen, ob die Anzahl der Spezifikationen jetzt höher ist
-n_specifications <- nrow(specifications_crime)
-print(paste("Anzahl der berechneten Spezifikationen:", n_specifications))
-
-# 📌 Überprüfen, ob ALLE Gruppen korrekt erfasst wurden
-print("Tabelle der erfassten Gruppen:")
+# Ausgabe prüfen
+print(paste("Anzahl der berechneten Spezifikationen:", nrow(specifications_crime)))
 print(table(specifications_crime$gender, specifications_crime$age_category))
-
-# 📌 Prüfen, ob die Variablen korrekt gespeichert wurden
-print("Namen der gespeicherten Variablen:")
 print(names(specifications_crime))
 ```
 
 
 ```{r}
-# 📌 Ergebnisse in eine vollständige Tabelle speichern (nur für Crime)
+# Ergebnisse als Tabelle speichern – Crime Hardship
 results_table_crime <- specifications_crime %>%
+  filter(term == risk_factor) %>%
   select(
-    gender,          # Geschlecht
-    age_category,    # Altersgruppe
-    formula,         # Modellformel
-    term,            # Unabhängige Variable
-    estimate,        # Effektgröße
-    std.error,       # Standardfehler
-    conf.low,        # 95%-Konfidenzintervall (untere Grenze)
-    conf.high,       # 95%-Konfidenzintervall (obere Grenze)
-    p.value          # p-Wert
+    risk_factor_label,  # Klartextname
+    gender,             # Geschlecht
+    age_category,       # Altersgruppe
+    formula,            # Formel zur Nachvollziehbarkeit (optional)
+    term,               # Prädiktorvariable (gleich risk_factor)
+    estimate,           # Effekt
+    std.error,          # Standardfehler
+    conf.low,           # Konfidenzintervall unten
+    conf.high,          # Konfidenzintervall oben
+    p.value             # p-Wert
   ) %>%
   mutate(
-    significant = ifelse(p.value < 0.05, "yes", "no")  # Markierung für Signifikanz
+    significant = ifelse(p.value < 0.05, "yes", "no")  # Signifikanz-Spalte
   ) %>%
-  arrange(gender, age_category, formula, term)  # Sortierung für bessere Lesbarkeit
+  arrange(gender, age_category, risk_factor_label, term)  # Für bessere Übersichtlichkeit
 
-# 📌 Debugging: Überprüfen, ob die Tabelle gefüllt ist
-print("Erste 20 Zeilen der Crime-Ergebnistabelle:")
-print(head(results_table_crime, 200))
+# Vorschau anzeigen (erste 20 Zeilen)
+print(head(results_table_crime, 20))
 
-# 📌 Anzahl der berechneten Spezifikationen
+# Gesamtanzahl der Ergebnisse
+print(paste("Anzahl der Prädiktor-Ergebnisse:", nrow(results_table_crime)))
+
+# Export als Excel-Datei
+write_xlsx(results_table_crime, "Crime_Regression_Results.xlsx")
+print("Crime_Regression_Results.xlsx wurde erfolgreich gespeichert!")
+# Anzahl der berechneten Spezifikationen
 n_results_crime <- nrow(results_table_crime)
 print(paste("Anzahl der Ergebnisse in der Crime-Tabelle:", n_results_crime))
 
-# 📌 Speichern als Excel-Datei
+# Speichern als Excel-Datei
 write_xlsx(results_table_crime, "Crime_Regression_Results.xlsx")
 
 print("Crime_Regression_Results.xlsx wurde erfolgreich gespeichert!")
 ```
 
+# Table summary
+```{r}
+library(dplyr)
+library(writexl)
+
+# Aggregierte Tabelle erstellen – nur tatsächliche Prädiktoren (keine Intercepts)
+results_summary_crime <- specifications_crime %>%
+  filter(term == risk_factor) %>%  # Nur der Hauptprädiktor
+  group_by(risk_factor_label, gender, age_category) %>%
+  summarise(
+    Median_Estimate = round(median(estimate, na.rm = TRUE), 2),
+    Q25_Estimate = round(quantile(estimate, 0.25, na.rm = TRUE), 2),
+    Q75_Estimate = round(quantile(estimate, 0.75, na.rm = TRUE), 2),
+    Min_Estimate = round(min(estimate, na.rm = TRUE), 2),
+    Max_Estimate = round(max(estimate, na.rm = TRUE), 2),
+    Significant_Percent = round(mean(p.value < 0.05, na.rm = TRUE) * 100, 1)
+  ) %>%
+  arrange(gender, age_category, risk_factor_label)
+
+# Tabelle anzeigen
+print(results_summary_crime)
+
+# Speichern als Excel-Datei
+write_xlsx(results_summary_crime, "Crime_Regression_Summary.xlsx")
+print("Crime_Regression_Summary.xlsx wurde erfolgreich gespeichert!")
+```
+
 
 ```{r}
-# Pakete laden (falls nicht bereits in setup geladen)
+# Formeln für das Gesamtsample inkl. zusätzlicher Kovariaten
+full_sample_formulas_crime <- formulas_crime %>%
+  mutate(full_formula = paste(formula, "+ gender + age_numeric + COUNTRY_NUM")) %>%
+  select(risk_factor, formula = full_formula)
+
+# Modelle schätzen
+full_sample_models_crime <- full_sample_formulas_crime %>%
+  mutate(
+    model = map(formula, ~ lm(as.formula(.x), data = hardship_combined)),
+    summary = map(model, broom::tidy),
+    conf_int = map(model, ~ broom::confint_tidy(.x)),
+    gender = "All",
+    age_category = "All"
+  ) %>%
+  unnest(c(summary, conf_int)) %>%
+  left_join(crime_factor_df, by = "risk_factor")  # Klartextnamen hinzufügen
+
+# Ergebnisse kombinieren
+combined_results <- bind_rows(
+  specifications_crime %>% 
+    select(formula, estimate, std.error, conf.low, conf.high, p.value, gender, age_category, term, risk_factor_label),
+  full_sample_models_crime %>%
+    select(formula, estimate, std.error, conf.low, conf.high, p.value, gender, age_category, term, risk_factor_label)
+) %>%
+  mutate(
+    significant = ifelse(p.value < 0.05, "yes", "no"),
+    specification = row_number()
+  )
+
+# Umkodierung von 0/1 zu "Female"/"Male" für Plots
+combined_results <- combined_results %>%
+  mutate(
+    gender = case_when(
+      gender == "1" ~ "Male",
+      gender == "0" ~ "Female",
+      TRUE ~ gender  # "All" bleibt erhalten
+    )
+  )
+
+# Exportieren (optional)
+write_xlsx(combined_results, "Crime_Combined_Regression_Results.xlsx")
+print("Crime_Combined_Regression_Results.xlsx wurde erfolgreich gespeichert!")
+```
+
+
+
+```{r}
 library(ggplot2)
 library(dplyr)
 library(cowplot)
+library(patchwork)
 
 # Sicherstellen, dass die Variablen als Zeichenkette interpretiert werden
 crime_factor_names <- unlist(crime_factors, use.names = FALSE)
 
-# Plot-Dataframe anpassen (gender explizit als "Male"/"Female" definieren)
-plot_data <- specifications_crime %>%
+# Plot-Dataframe anpassen
+plot_data <- combined_results %>%
   arrange(estimate) %>%
   mutate(
     specification = row_number(),
     significant = ifelse(p.value < 0.05, "yes", "no"),
-    term = as.character(term),  # Falls `term` ein Faktor ist, umwandeln
-    gender = case_when(  # Gender explizit umwandeln
-      gender == "0" ~ "Female",
-      gender == "1" ~ "Male",
-      TRUE ~ as.character(gender)  # Falls bereits als "Male"/"Female", beibehalten
-    ),
-    gender = factor(gender, levels = c("Male", "Female")),  # Als Faktor speichern
-    age_category = factor(age_category, levels = c("Young Adults (15-25)", "Adults (26-45)", 
-                                                   "Middle-aged Adults (46-65)", "Seniors (66-99)"))
+    term = as.character(term),
+    gender = factor(gender, levels = rev(c("All", "Male", "Female"))),
+    age_category = factor(age_category, levels = rev(c("All", "Young Adults (15-25)", "Adults (26-45)", 
+                                                       "Middle-aged Adults (46-65)", "Seniors (66-99)")))
   )
 
 # Intercept ausfiltern
@@ -261,76 +345,175 @@ plot_data_filtered <- plot_data %>% filter(term != "(Intercept)")
 sig_colors <- c("no" = "red", "yes" = "black")
 n_specifications <- nrow(plot_data_filtered)
 
-# PLOT 1: Estimate mit Konfidenzintervallen (ohne Intercept)
+# Bereich der Full-Sample-Modelle ("All") berechnen
+all_specs <- plot_data_filtered %>%
+  filter(gender == "All", age_category == "All") %>%
+  pull(specification)
+
+x_min_all <- min(all_specs)
+x_max_all <- max(all_specs)
+x_label_all <- mean(c(x_min_all, x_max_all))
+
+# PLOT 1: Estimate mit Konfidenzintervallen
 p1 <- ggplot(plot_data_filtered, aes(x = specification, y = estimate, color = significant)) +
-  geom_point(alpha = 0.8, size = 2) +  
+  annotate("rect", xmin = x_min_all, xmax = x_max_all, ymin = -Inf, ymax = Inf,
+           fill = "lightgrey", alpha = 0.3) +
+  geom_point(alpha = 0.8, size = 2) +
   geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2, alpha = 0.5) +
   scale_color_manual(values = sig_colors) +
-  labs(y = "Estimate", x = paste0("Specification (n = ", n_specifications, ")"), color = "Significance") +
-  theme_classic() +  
-  theme(legend.position = "right")
-
-# PLOT 2: Gender Übersicht (Legende ausblenden)
-p2 <- ggplot(plot_data_filtered, aes(x = specification, y = gender, fill = significant)) +
-  geom_tile() +
-  scale_fill_manual(values = sig_colors) +
-  labs(x = "", y = "Gender\nGroup") +  
-  theme_classic() +
-  theme(legend.position = "none") 
-
-# PLOT 3: Altersgruppen Übersicht (Legende ausblenden)
-p3 <- ggplot(plot_data_filtered, aes(x = specification, y = age_category, fill = significant)) +
-  geom_tile() +
-  scale_fill_manual(values = sig_colors) +
-  labs(x = "", y = "Age\nGroup") +  
-  theme_classic() +
-  theme(legend.position = "none") 
-
-# PLOT 4: Health / Safety Faktoren Übersicht (Größe angepasst)
-p4 <- ggplot(plot_data_filtered %>% filter(term %in% crime_factors), 
-             aes(x = specification, y = term, fill = significant)) +
-  geom_tile() +
-  scale_fill_manual(values = sig_colors) +
-  scale_y_discrete(expand = expansion(mult = c(0.3, 0.3))) +  # Mehr Abstand zwischen Items
-  labs(x = "", y = "Risk\nFactors") +  
+  annotate("text", x = x_label_all, y = max(plot_data_filtered$estimate, na.rm = TRUE),
+           label = "", size = 4, fontface = "italic", vjust = -1) +
+  labs(y = "Estimate", x = "", color = "Significance") +
   theme_classic() +
   theme(
-    axis.text.y = element_text(size = 10, margin = margin(r = 20)),  # Schriftgröße und Abstand vergrößert
+    axis.title.y = element_text(face = "bold"),  # <- fett
+    axis.text.y = element_text(size = 12, hjust = 1, margin = margin(r = 5)),
+    legend.position = "none"
+  )
+
+# PLOT 2: Gender Übersicht
+p2 <- ggplot(plot_data_filtered, aes(x = specification, y = gender, fill = significant)) +
+  annotate("rect", xmin = x_min_all, xmax = x_max_all, ymin = -Inf, ymax = Inf,
+           fill = "lightgrey", alpha = 0.3) +
+  geom_tile() +
+  scale_fill_manual(values = sig_colors) +
+  labs(x = "", y = "Gender\nGroup") +
+  theme_classic() +
+  theme(
+    axis.title.y = element_text(face = "bold"),  # <- fett
+    axis.text.y = element_text(size = 12, hjust = 1, margin = margin(r = 5)),
+    legend.position = "none"
+  )
+
+# PLOT 3: Altersgruppen Übersicht
+p3 <- ggplot(plot_data_filtered, aes(x = specification, y = age_category, fill = significant)) +
+  annotate("rect", xmin = x_min_all, xmax = x_max_all, ymin = -Inf, ymax = Inf,
+           fill = "lightgrey", alpha = 0.3) +
+  geom_tile() +
+  scale_fill_manual(values = sig_colors) +
+  labs(x = "", y = "Age\nGroup") +
+  theme_classic() +
+  theme(
+    axis.title.y = element_text(face = "bold"),  # <- fett
+    axis.text.y = element_text(size = 12, hjust = 1, margin = margin(r = 5)),
+    legend.position = "none"
+  )
+
+# PLOT 4: Risk Factors Übersicht mit Klartextnamen
+p4 <- ggplot(
+  plot_data_filtered %>% 
+    filter(term %in% names(crime_factor_labels)) %>%
+    mutate(term = crime_factor_labels[term]),  # Klartextnamen für Crime
+  aes(x = specification, y = term, fill = significant)
+) +
+  annotate("rect", xmin = x_min_all, xmax = x_max_all, ymin = -Inf, ymax = Inf,
+           fill = "lightgrey", alpha = 0.3) +
+  geom_tile() +
+  scale_fill_manual(values = sig_colors) +
+  scale_y_discrete(expand = expansion(mult = c(0.2, 0.2))) +
+  labs(x = "", y = "Risk\nFactors") +
+  theme_classic() +
+  theme(
+    axis.title.y = element_text(face = "bold"),  # <- fett
+    axis.text.y = element_text(size = 12, hjust = 1, margin = margin(r = 5)),
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank(),
     legend.position = "none"
   )
 
-# Alle Plots zusammenführen (P4 größer)
-final_plot <- plot_grid(p1, p2, p3, p4, ncol = 1, rel_heights = c(3, 2, 2.5, 4))
+# Plots kombinieren
+final_plot <- (p1 / p2 / p3 / p4) +
+  plot_layout(ncol = 1, heights = c(3, 2.5, 3.5, 7))
 
-# Plot ausgeben
+# Plot anzeigen
 print(final_plot)
 ```
 
-
-# Table summary
 ```{r}
-# Pakete laden
+# SCA Full Sample – Crime
 library(dplyr)
+library(purrr)
+library(tidyr)
+library(broom)
 library(writexl)
 
-# Aggregierte Tabelle erstellen
-results_summary <- specifications_crime %>%
-  group_by(gender, age_category, term) %>%  # Gruppierung nach Prädiktoren & Alters-/Geschlechtskategorien
+controls_full <- list(
+  "none" = "",
+  "gender" = "+ gender",
+  "age" = "+ age_numeric",
+  "country" = "+ COUNTRY_NUM",
+  "gender_age" = "+ gender + age_numeric",
+  "gender_country" = "+ gender + COUNTRY_NUM",
+  "age_country" = "+ age_numeric + COUNTRY_NUM",
+  "gender_age_country" = "+ gender + age_numeric + COUNTRY_NUM"
+)
+
+formulas_full_sample_crime <- expand_grid(
+  risk_factor = names(crime_factor_labels),
+  control = names(controls_full)
+) %>%
+  mutate(
+    formula = map2_chr(risk_factor, control, ~ paste("risktaking ~", .x, controls_full[[.y]])),
+    risk_factor = risk_factor
+  )
+
+full_sample_sca_crime <- formulas_full_sample_crime %>%
+  mutate(
+    model = map(formula, ~ lm(as.formula(.x), data = hardship_combined)),
+    summary = map(model, tidy),
+    conf_int = map(model, confint_tidy),
+    gender = "All",
+    age_category = "All"
+  ) %>%
+  unnest(c(summary, conf_int)) %>%
+  filter(term == risk_factor)
+
+full_sample_sca_crime <- full_sample_sca_crime %>%
+  left_join(crime_factor_df, by = c("term" = "risk_factor")) %>%
+  mutate(
+    significant = ifelse(p.value < 0.05, "yes", "no"),
+    specification = row_number()
+  )
+
+full_sample_summary_crime <- full_sample_sca_crime %>%
+  group_by(risk_factor_label) %>%
   summarise(
     Median_Estimate = round(median(estimate, na.rm = TRUE), 2),
     Q25_Estimate = round(quantile(estimate, 0.25, na.rm = TRUE), 2),
     Q75_Estimate = round(quantile(estimate, 0.75, na.rm = TRUE), 2),
     Min_Estimate = round(min(estimate, na.rm = TRUE), 2),
     Max_Estimate = round(max(estimate, na.rm = TRUE), 2),
-    Significant_Percent = round(mean(p.value < 0.05, na.rm = TRUE) * 100, 1)  # Prozent signifikanter Werte
+    Median_p = median(p.value, na.rm = TRUE),
+    Min_p = min(p.value, na.rm = TRUE),
+    Max_p = max(p.value, na.rm = TRUE),
+    n_specifications = n()
   ) %>%
-  arrange(gender, age_category, term)  # Sortierung für bessere Lesbarkeit
+  mutate(
+    Median_p = ifelse(Median_p < .001, "< .001", paste0("= ", format(round(Median_p, 3), nsmall = 3))),
+    Min_p = ifelse(Min_p < .001, "< .001", paste0("= ", format(round(Min_p, 3), nsmall = 3))),
+    Max_p = ifelse(Max_p < .001, "< .001", paste0("= ", format(round(Max_p, 3), nsmall = 3)))
+  ) %>%
+  arrange(desc(abs(Median_Estimate)))
 
-# Tabelle anzeigen
-print(results_summary)
+write_xlsx(full_sample_summary_crime, "AppK1_Crime_FullSample_Summary_APA.xlsx")
+print(full_sample_summary_crime)
+```
 
-# Speichern als Excel-Datei
-write_xlsx(results_summary, "Crime_Regression_Summary.xlsx")
+
+```{r}
+# SCA Subgroups – Robust Effects – Crime
+library(dplyr)
+library(writexl)
+
+threshold_significance <- 60
+threshold_effect_size  <- 0.1
+
+key_results_crime <- results_summary_crime %>%
+  filter(
+    Significant_Percent >= threshold_significance,
+    abs(Median_Estimate) >= threshold_effect_size
+  ) %>%
+  arrange(gender, age_category, desc(Significant_Percent), desc(abs(Median_Estimate)))
+
+write_xlsx(key_results_crime, "AppK2_Crime_KeyPredictors.xlsx")
 ```
